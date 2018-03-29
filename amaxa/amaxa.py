@@ -45,6 +45,7 @@ class OperationContext(object):
         self.field_maps = {}
         self.proxy_objects = {}
         self.required_ids = {}
+        self.extracted_ids = {}
 
     def add_dependency(self, sobjectname, id):
         if sobjectname not in self.required_ids:
@@ -83,7 +84,22 @@ class OperationContext(object):
         return { k: field_map[k] for k in field_map if lam(field_map[k]) }
     
     def get_sobject_ids_for_reference(self, sobjectname, field):
-        pass
+        ids = set()
+        for name in self.get_field_map(sobjectname)[field]['referenceTo']:
+            # For each sObject that we've extracted data for
+            # if that object is a potential reference target,
+            # accumulate those Ids in a Set.
+            if name in self.extracted_ids:
+                ids |= self.extracted_ids[name]
+        
+        return ids
+    
+    def store_result(self, sobjectname, record):
+        if sobjectname not in self.extracted_ids:
+            self.extracted_ids[sobjectname] = set()
+            
+        self.extracted_ids[sobjectname].add(record['Id'])
+        #FIXME: complete
 
 class Extraction(object):
     def __init__(self, steps, context):
