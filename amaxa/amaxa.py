@@ -61,10 +61,7 @@ class OperationContext(object):
             self.proxy_objects[sobjectname] = self.connection.SFType(sobjectname)
 
         return self.proxy_objects[sobjectname]
-    
-    def add_result(self, sobjectname, record):
-        pass
-    
+        
     def get_describe(self, sobjectname):
         if sobjectname not in self.describe_info:
             self.describe_info[sobjectname] = self.get_proxy_object(sobjectname).describe()
@@ -138,8 +135,6 @@ class ExtractionStep(object):
             self.perform_bulk_api_pass(
                 'SELECT {} FROM {}'.format(self.get_field_list(), self.sobjectname)
             )
-
-            # FIXME: add the results
         elif self.scope == QUERY:
             self.perform_bulk_api_pass(
                 'SELECT {} FROM {} WHERE {}'.format(self.get_field_list(), self.sobjectname)
@@ -149,7 +144,6 @@ class ExtractionStep(object):
             for f in self.field_scope:
                 if f in lookups:
                     self.perform_lookup_pass(f)
-
 
         # Fall through to grab all dependencies or SELECTED_RECORDS
 
