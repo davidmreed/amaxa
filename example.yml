@@ -1,0 +1,33 @@
+version: 1
+credentials:
+    username: 'test@example.com'
+    password: 'blah'
+    security-token: '00000'
+    sandbox: True
+extraction:
+    - 
+        sobject: Account
+        target-file: Account.csv
+        fields: 
+            - Name
+            - Id
+            - ParentId
+            - 
+                field: Description
+                target-column: Desc
+                transforms:
+                    - strip
+                    - lowercase
+        extract: all
+    - 
+        sobject: Contact
+        target-file: Contact.csv
+        sdl: Contact.sdl
+        outside-leaf-behavior: blank 
+        extract:
+            query: "LastName = 'Test'"
+            ids: 
+              - 003XXXXXXXXXXXX
+    - 
+        sobject: Opportunity
+        fields: readable

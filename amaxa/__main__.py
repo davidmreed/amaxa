@@ -4,12 +4,8 @@ import yaml
 def main():
     a = argparse.ArgumentParser()
 
-    a.add_argument('-u', '--username', dest='user')
-    a.add_argument('-p', '--password', dest='password')
-    a.add_argument('-t', '--security-token', dest='token')
-    a.add_argument('-a', '--access-token', dest='access_token')
-    a.add_argument('-i', '--instance-url', dest='instance_url')
-    a.add_argument('-s', '--sandbox', dest='sandbox', action="store_true")
+    a.add_argument('config', dest='config', type=argparse.FileType('r'))
+    a.add_argument('-c', '--credentials', dest='credentials', type=argparse.FileType('r'))
 
     args = a.parse_args()
 
