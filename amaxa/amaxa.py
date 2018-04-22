@@ -42,7 +42,7 @@ class SalesforceId(object):
         return 'Salesforce Id: ' + self.id
 
 class OperationContext(object):
-    def __init__(self, connection):
+    def __init__(self, connection, sobjectlist):
         self.connection = connection
         self.describe_info = {}
         self.field_maps = {}
@@ -51,6 +51,7 @@ class OperationContext(object):
         self.extracted_ids = {}
         self.output_files = {}
         self.mappers = {}
+        self.sobjectlist = sobjectlist
 
     def set_output_file(self, sobjectname, f):
         self.output_files[sobjectname] = f
@@ -91,7 +92,7 @@ class OperationContext(object):
     def get_sobject_ids_for_reference(self, sobjectname, field):
         ids = set()
         for name in self.get_field_map(sobjectname)[field]['referenceTo']:
-            # For each sObject that we've extracted data for
+            # For each sObject that we've extracted data for,
             # if that object is a potential reference target,
             # accumulate those Ids in a Set.
             if name in self.extracted_ids:
@@ -109,6 +110,9 @@ class OperationContext(object):
             else record
         )
 
+        if sobjectname in self.required_ids:
+            self.required_ids[sobjectname].remove(record['Id'])
+
 class Extraction(object):
     def __init__(self, steps, context):
         self.steps = steps
@@ -119,12 +123,56 @@ class Extraction(object):
             s.execute()
 
 class ExtractionStep(object):
-    def __init__(self, sobjectname, scope, field_scope, context, where_clause = None):
+    def __init__(self, sobjectname, scope, field_scope, context, reference_behavior=DROP_DANGLING_REFERENCES, where_clause=None):
         self.sobjectname = sobjectname
         self.scope = scope
         self.field_scope = field_scope
         self.context = context
         self.where_clause = where_clause
+
+        # Determine whether we have any self-lookups, dependent lookups, or sideways (outside the extraction hierarchy) references.
+        self.self_lookups = set()
+        self.dependent_lookups = set()
+        self.sideways_references = set()
+
+        field_map = self.context.get_field_map(self.sobjectname)
+        for f in self.field_scope:
+            if field_map[f]['type'] == 'reference':
+                # The referenceTo list will most often contain exactly one object name,
+                # but it certainly can be a polymorphic lookup.
+                # We will assume, and throw an exception if otherwise, that a polymorphic lookup
+                # cannot also be a self-lookup.
+
+                # Determine which category we're in.
+                # If there is exactly one target object and that object is us, it's a self-lookup
+                # If there is exactly one non-self target object and that target object is higher in the extraction sequence,
+                #   we are just a normal dependency (nothing to do here).
+                # If there is exactly one non-self target object and that target is lower in the extraction sequence,
+                #   then this is a dependent lookup.
+                # If there is more than one target object, we will extract only those records with targets higher in the 
+                # extraction sequence (i.e., we treat polymorphic lookups like multiple normal lookups, but we don't
+                # allow them to be self- or dependent lookups).
+
+                if len(field_map[f]['referenceTo']) > 1:
+                    # Polymorphic lookup
+                    assert self.sobject_name not in field_map[f]['referenceTo'], 'Field {}.{} is a polymorphic self-lookup, which isn\'t supported'.format(self.sobjectname, f) 
+                elif len(field_map[f]['referenceTo']) == 1:
+                    # Single lookup relationship (master-detail or lookup is irrelevant)
+                    target_name = field_map[f]['referenceTo'][0]
+
+                    if target_name == self.sobjectname:
+                        self.self_lookups.add(f)
+                    else if target_name in self.context.sobjectlist:
+                        # Determine whether the target object is before or after us.
+                        our_index = self.context.sobjectlist.index(self.sobjectname)
+                        other_index = self.context.sobjectlist.index(target_name)
+
+                        if our_index < other_index:
+                            self.dependent_lookups.add(f)
+                    else:
+                        self.sideways_references.add(f)
+                else:
+                    raise Exception('Field {}.{} is a lookup field, but has no target sObjects.'.format(self.sobjectname, f))
 
     def get_field_list(self):
         return ', '.join(self.field_scope)
@@ -154,11 +202,27 @@ class ExtractionStep(object):
         # Fall through to grab all dependencies or SELECTED_RECORDS
 
         self.perform_id_field_pass('Id', self.context.get_dependencies(self.sobjectname))
+
+        if len(self.context.get_dependencies(self.sobjectname)) > 0:
+            raise Exception('Unable to resolve dependencies with sObject {}. The following Ids could not be found: {}', 
+                self.sobjectname, ', '.join(self.context.get_dependencies(self.sobjectname)))
+
+        # If we have any self-lookups, we need to recurse to handle them.
+        if len(self.self_lookups) > 0:
+            # We need to continue recursing both upwards and downwards until we find no new objects
+            # whose dependencies need to be resolved.
+
+            # First we query up to the parents of objects we've already obtained (i.e. the targets of their lookups)
+            # Then we query down to the children of all objects obtained.
+            # Then we query parents and children again.
+            # We repeat until we get back no new Ids, which indicates that all references have been resolved.
     
     def perform_bulk_api_pass(self, query):
         bulk_proxy = self.context.get_bulk_proxy(self.sobjectname)
 
         results = bulk_proxy.query(query)
+
+        # FIXME: error handling.
 
         for rec in results.get('records'):
             self.context.store_result(self.sobjectname, rec)
@@ -180,6 +244,8 @@ class ExtractionStep(object):
             results = self.context.connection.query_all(
                 query.format(self.get_field_list(), self.sobjectname, id_field, id_list)
             )
+
+            # FIXME: Error handling 
 
             for rec in results.get('records'):
                 self.context.store_result(self.sobjectname, rec)
