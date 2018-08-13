@@ -1,11 +1,15 @@
 import csv
-import argparse
 import functools
 
-ALL_RECORDS = 'all'
-QUERY = 'query'
-SELECTED_RECORDS = 'some'
-DESCENDENTS = 'children'
+class ExtractionScope(object):
+    ALL_RECORDS = 'all'
+    QUERY = 'query'
+    SELECTED_RECORDS = 'some'
+    DESCENDENTS = 'children'
+
+class SelfLookupBehavior:
+    TRACE_ALL = 'trace-all'
+    TRACE_NONE = 'trace-none'
 
 class SalesforceId(object):
     def __init__(self, idstr):
@@ -93,12 +97,15 @@ class OperationContext(object):
         ids = set()
         for name in self.get_field_map(sobjectname)[field]['referenceTo']:
             # For each sObject that we've extracted data for,
-            # if that object is a potential reference target,
+            # if that object is a potential reference target for this field,
             # accumulate those Ids in a Set.
             if name in self.extracted_ids:
                 ids |= self.extracted_ids[name]
         
         return ids
+    
+    def get_extracted_ids(self, sobjectname):
+        return extracted_ids[sobjectname] or set()
     
     def store_result(self, sobjectname, record):
         if sobjectname not in self.extracted_ids:
@@ -113,7 +120,7 @@ class OperationContext(object):
         if sobjectname in self.required_ids:
             self.required_ids[sobjectname].remove(record['Id'])
 
-class Extraction(object):
+class MultiObjectExtraction(object):
     def __init__(self, steps, context):
         self.steps = steps
         self.context = context
@@ -122,57 +129,26 @@ class Extraction(object):
         for s in self.steps:
             s.execute()
 
-class ExtractionStep(object):
-    def __init__(self, sobjectname, scope, field_scope, context, reference_behavior=DROP_DANGLING_REFERENCES, where_clause=None):
+class SingleObjectExtraction(object):
+    def __init__(self, sobjectname, scope, field_scope, context, where_clause=None, self_lookup_behavior=SelfLookupBehavior.TRACE_ALL):
         self.sobjectname = sobjectname
         self.scope = scope
         self.field_scope = field_scope
         self.context = context
         self.where_clause = where_clause
+        self.self_lookup_behavior = self_lookup_behavior
 
-        # Determine whether we have any self-lookups, dependent lookups, or sideways (outside the extraction hierarchy) references.
+        # Determine whether we have any self-lookups.
         self.self_lookups = set()
-        self.dependent_lookups = set()
-        self.sideways_references = set()
 
         field_map = self.context.get_field_map(self.sobjectname)
         for f in self.field_scope:
             if field_map[f]['type'] == 'reference':
-                # The referenceTo list will most often contain exactly one object name,
-                # but it certainly can be a polymorphic lookup.
-                # We will assume, and throw an exception if otherwise, that a polymorphic lookup
-                # cannot also be a self-lookup.
-
-                # Determine which category we're in.
-                # If there is exactly one target object and that object is us, it's a self-lookup
-                # If there is exactly one non-self target object and that target object is higher in the extraction sequence,
-                #   we are just a normal dependency (nothing to do here).
-                # If there is exactly one non-self target object and that target is lower in the extraction sequence,
-                #   then this is a dependent lookup.
-                # If there is more than one target object, we will extract only those records with targets higher in the 
-                # extraction sequence (i.e., we treat polymorphic lookups like multiple normal lookups, but we don't
-                # allow them to be self- or dependent lookups).
-
                 if len(field_map[f]['referenceTo']) > 1:
-                    # Polymorphic lookup
+                    # Polymorphic lookup. Should not be a self-lookup as well.
                     assert self.sobject_name not in field_map[f]['referenceTo'], 'Field {}.{} is a polymorphic self-lookup, which isn\'t supported'.format(self.sobjectname, f) 
-                elif len(field_map[f]['referenceTo']) == 1:
-                    # Single lookup relationship (master-detail or lookup is irrelevant)
-                    target_name = field_map[f]['referenceTo'][0]
-
-                    if target_name == self.sobjectname:
-                        self.self_lookups.add(f)
-                    else if target_name in self.context.sobjectlist:
-                        # Determine whether the target object is before or after us.
-                        our_index = self.context.sobjectlist.index(self.sobjectname)
-                        other_index = self.context.sobjectlist.index(target_name)
-
-                        if our_index < other_index:
-                            self.dependent_lookups.add(f)
-                    else:
-                        self.sideways_references.add(f)
-                else:
-                    raise Exception('Field {}.{} is a lookup field, but has no target sObjects.'.format(self.sobjectname, f))
+                else if target_name in self.context.sobjectlist:
+                    self.self_lookups.add(f)
 
     def get_field_list(self):
         return ', '.join(self.field_scope)
@@ -185,37 +161,64 @@ class ExtractionStep(object):
         # If scope is SELECTED_RECORDS, and if `context` has any registered dependencies, 
         # perform a query to extract those records by Id.
 
-        if self.scope == ALL_RECORDS:
+        if self.scope == ExtractionScope.ALL_RECORDS:
             self.perform_bulk_api_pass(
                 'SELECT {} FROM {}'.format(self.get_field_list(), self.sobjectname)
             )
-        elif self.scope == QUERY:
+        elif self.scope == ExtractionScope.QUERY:
             self.perform_bulk_api_pass(
                 'SELECT {} FROM {} WHERE {}'.format(self.get_field_list(), self.sobjectname, self.where_clause)
             )
-        elif self.scope == DESCENDENTS:
+        elif self.scope == ExtractionScope.DESCENDENTS:
             lookups = self.context.get_filtered_field_map(self.sobjectname, lambda f: f['type'] == 'reference')
             for f in self.field_scope:
                 if f in lookups:
                     self.perform_lookup_pass(f)
 
-        # Fall through to grab all dependencies or SELECTED_RECORDS
+        # Fall through to grab all dependencies registered with the context, or SELECTED_RECORDS
+        # Note that if we're tracing self-lookups, the parent objects of all extracted records so far
+        # will already be registered as dependencies.
 
-        self.perform_id_field_pass('Id', self.context.get_dependencies(self.sobjectname))
+        self.resolve_registered_dependencies()
 
-        if len(self.context.get_dependencies(self.sobjectname)) > 0:
-            raise Exception('Unable to resolve dependencies with sObject {}. The following Ids could not be found: {}', 
-                self.sobjectname, ', '.join(self.context.get_dependencies(self.sobjectname)))
-
-        # If we have any self-lookups, we need to recurse to handle them.
-        if len(self.self_lookups) > 0:
-            # We need to continue recursing both upwards and downwards until we find no new objects
-            # whose dependencies need to be resolved.
-
+        # If we have any self-lookups, we now need to iterate to handle them.
+        if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL:
             # First we query up to the parents of objects we've already obtained (i.e. the targets of their lookups)
             # Then we query down to the children of all objects obtained.
             # Then we query parents and children again.
             # We repeat until we get back no new Ids, which indicates that all references have been resolved.
+
+            # Note that the initial parent query is handled in the dependency pass above, so we start on children.
+
+            while True:
+                before_count = self.context.get_extracted_ids(self.sobjectname)
+
+                # Children
+                for l in self.self_lookups:
+                    self.perform_lookup_pass(l)
+
+                # Parents
+                self.resolve_registered_dependencies()
+
+                after_count = self.context.get_extracted_ids(self.sobjectname)
+
+                if before_count == after_count:
+                    break
+    
+    def store_result(self, result):
+        self.context.store_result(self.sobjectname, result)
+        if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL:
+            # Add a dependency for the reference in each self lookup of this record.
+            for l in self.self_lookups:
+                if result[l] != '': #FIXME: is this accurate?
+                    self.context.add_dependency(self.sobjectname, result[l])
+
+    def resolve_registered_dependencies(self):
+        self.perform_id_field_pass('Id', self.context.get_dependencies(self.sobjectname))
+        if len(self.context.get_dependencies(self.sobjectname)) > 0:
+            raise Exception('Unable to resolve dependencies with sObject {}. The following Ids could not be found: {}', 
+                self.sobjectname, ', '.join(self.context.get_dependencies(self.sobjectname)))
+
     
     def perform_bulk_api_pass(self, query):
         bulk_proxy = self.context.get_bulk_proxy(self.sobjectname)
@@ -225,10 +228,13 @@ class ExtractionStep(object):
         # FIXME: error handling.
 
         for rec in results.get('records'):
-            self.context.store_result(self.sobjectname, rec)
+            self.store_result(rec)
 
     def perform_id_field_pass(self, id_field, id_set):
         query = 'SELECT {} FROM {} WHERE {} IN ({})'
+
+        if len(id_set) == 0:
+            return
 
         ids = id_set.copy()
 
@@ -248,11 +254,16 @@ class ExtractionStep(object):
             # FIXME: Error handling 
 
             for rec in results.get('records'):
-                self.context.store_result(self.sobjectname, rec)
+                self.store_result(rec)
     
     def perform_lookup_pass(self, field):
-        self.perform_id_field_pass(field, 
-            self.context.get_sobject_ids_for_reference(self.sobjectname, field))          
+        self.perform_id_field_pass(
+            field, 
+            self.context.get_sobject_ids_for_reference(self.sobjectname, field)
+        )          
+
+class DanglingReferenceHandler(object):
+    pass
 
 
 class ExtractMapper(object):

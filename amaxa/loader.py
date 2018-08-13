@@ -105,4 +105,4 @@ def load_extraction_from_yaml(f, credentials = None):
         output.writeheader()
         context.set_output_file(sobject, output)
 
-    return amaxa.Extraction(steps, context)
+    return amaxa.MultiObjectExtraction(steps, context)
