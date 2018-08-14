@@ -67,7 +67,7 @@ class OperationContext(object):
         self.required_ids[sobjectname].add(id)
     
     def get_dependencies(self, sobjectname):
-        return self.required_ids[sobjectname] or set()
+        return self.required_ids[sobjectname] if sobjectname in self.required_ids else set()
 
     def get_proxy_object(self, sobjectname):
         if sobjectname not in self.proxy_objects:
@@ -105,7 +105,7 @@ class OperationContext(object):
         return ids
     
     def get_extracted_ids(self, sobjectname):
-        return extracted_ids[sobjectname] or set()
+        return self.extracted_ids[sobjectname] if sobjectname in self.extracted_ids else set()
     
     def store_result(self, sobjectname, record):
         if sobjectname not in self.extracted_ids:
@@ -146,8 +146,8 @@ class SingleObjectExtraction(object):
             if field_map[f]['type'] == 'reference':
                 if len(field_map[f]['referenceTo']) > 1:
                     # Polymorphic lookup. Should not be a self-lookup as well.
-                    assert self.sobject_name not in field_map[f]['referenceTo'], 'Field {}.{} is a polymorphic self-lookup, which isn\'t supported'.format(self.sobjectname, f) 
-                else if target_name in self.context.sobjectlist:
+                    assert self.sobjectname not in field_map[f]['referenceTo'], 'Field {}.{} is a polymorphic self-lookup, which isn\'t supported'.format(self.sobjectname, f) 
+                elif self.sobjectname in field_map[f]['referenceTo']:
                     self.self_lookups.add(f)
 
     def get_field_list(self):
