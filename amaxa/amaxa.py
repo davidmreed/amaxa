@@ -13,20 +13,23 @@ class SelfLookupBehavior:
 
 class SalesforceId(object):
     def __init__(self, idstr):
-        if len(idstr) == 15:
-            suffix = ''
-            for i in range(0, 3):
-                baseTwo = 0
-                for j in range (0, 5):
-                    character = idstr[i*5+j]
-                    if character >= 'A' and character <= 'Z':
-                        baseTwo += 1 << j
-                suffix += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345'[baseTwo]
-            self.id = idstr + suffix
-        elif len(idstr) == 18:
-             self.id = idstr
+        if isinstance(idstr, SalesforceId):
+            self.id = idstr.id
         else:
-            raise ValueError('Salesforce Ids must be 15 or 18 characters.')
+            if len(idstr) == 15:
+                suffix = ''
+                for i in range(0, 3):
+                    baseTwo = 0
+                    for j in range (0, 5):
+                        character = idstr[i*5+j]
+                        if character >= 'A' and character <= 'Z':
+                            baseTwo += 1 << j
+                    suffix += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345'[baseTwo]
+                self.id = idstr + suffix
+            elif len(idstr) == 18:
+                self.id = idstr
+            else:
+                raise ValueError('Salesforce Ids must be 15 or 18 characters.')
    
     def __eq__(self, other):
         if isinstance(other, SalesforceId):
@@ -64,7 +67,7 @@ class OperationContext(object):
         if sobjectname not in self.required_ids:
             self.required_ids[sobjectname] = set()
         
-        self.required_ids[sobjectname].add(id)
+        self.required_ids[sobjectname].add(SalesforceId(id))
     
     def get_dependencies(self, sobjectname):
         return self.required_ids[sobjectname] if sobjectname in self.required_ids else set()
@@ -111,14 +114,14 @@ class OperationContext(object):
         if sobjectname not in self.extracted_ids:
             self.extracted_ids[sobjectname] = set()
             
-        self.extracted_ids[sobjectname].add(record['Id'])
+        self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
         self.output_files[sobjectname].writerow(
             self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
             else record
         )
 
         if sobjectname in self.required_ids:
-            self.required_ids[sobjectname].remove(record['Id'])
+            self.required_ids[sobjectname].remove(SalesforceId(record['Id']))
 
 class MultiObjectExtraction(object):
     def __init__(self, steps, context):
