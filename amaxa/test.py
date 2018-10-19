@@ -20,20 +20,30 @@ class test_SalesforceId(unittest.TestCase):
             self.assertNotEqual(id_15, str(amaxa.SalesforceId(id_15)))
 
             self.assertEqual(amaxa.SalesforceId(id_15), amaxa.SalesforceId(id_15))
+            self.assertEqual(amaxa.SalesforceId(str(amaxa.SalesforceId(id_15))), amaxa.SalesforceId(str(amaxa.SalesforceId(id_15))))
 
             self.assertEqual(known_good_ids[id_15], amaxa.SalesforceId(known_good_ids[id_15]))
             self.assertEqual(known_good_ids[id_15], str(amaxa.SalesforceId(known_good_ids[id_15])))
 
             self.assertEqual(hash(known_good_ids[id_15]), hash(amaxa.SalesforceId(id_15)))
-    
+
     def test_raises_valueerror(self):
         with self.assertRaises(ValueError):
             bad_id = amaxa.SalesforceId('test')
-    
-    def test_accepts_other_id(self):
+
+    def test_equals_other_id(self):
         the_id = amaxa.SalesforceId('001000000000000')
 
         self.assertEqual(the_id, amaxa.SalesforceId(the_id))
+
+    def test_hashing(self):
+        id_set = set()
+        for i in range(400):
+            new_id = amaxa.SalesforceId('001000000000' + str(i + 1).zfill(3))
+            self.assertNotIn(new_id, id_set)
+            id_set.add(new_id)
+            self.assertIn(new_id, id_set)
+
 
 class test_OperationContext(unittest.TestCase):
     def test_tracks_dependencies(self):
@@ -68,7 +78,7 @@ class test_OperationContext(unittest.TestCase):
         # Proxy should be cached
         self.assertEqual('Account', proxy)
         connection.SFType.assert_not_called()
-    
+
     def test_caches_describe_results(self):
         connection = Mock()
         account_mock = Mock()
@@ -91,7 +101,7 @@ class test_OperationContext(unittest.TestCase):
         retval = oc.get_describe('Account')
         self.assertEqual(describe_info, retval)
         account_mock.describe.assert_not_called()
-    
+
     def test_caches_field_maps(self):
         connection = Mock()
         account_mock = Mock()
@@ -114,7 +124,7 @@ class test_OperationContext(unittest.TestCase):
         retval = oc.get_field_map('Account')
         self.assertEqual({ 'Name': { 'name': 'Name' }, 'Id': { 'name': 'Id' } }, retval)
         account_mock.describe.assert_not_called()
-    
+
     def test_filters_field_maps(self):
         connection = Mock()
         account_mock = Mock()
@@ -158,7 +168,7 @@ class test_OperationContext(unittest.TestCase):
 
         oc.store_result('Account', { 'Id': '001000000000000', 'Name': 'Caprica Steel' })
         account_mock.writerow.assert_called_once_with({ 'Id': '001000000000000', 'Name': 'Caprica Steel' })
-    
+
     def test_store_result_transforms_output(self):
         connection = Mock()
 
@@ -177,7 +187,7 @@ class test_OperationContext(unittest.TestCase):
         oc.store_result('Account', { 'Id': '001000000000000', 'Name': 'Caprica Steel' })
         mapper_mock.transform_record.assert_called_once_with({ 'Id': '001000000000000', 'Name': 'Caprica Steel' })
         account_mock.writerow.assert_called_once_with({ 'Id': '001000000000000', 'Name': 'Caprica City Steel' })
-    
+
     def test_store_result_clears_dependencies(self):
         connection = Mock()
 
@@ -229,10 +239,10 @@ class test_OperationContext(unittest.TestCase):
 class test_ExtractMapper(unittest.TestCase):
     def test_transform_key_applies_mapping(self):
         pass
-    
+
     def test_transform_value_applies_transformations(self):
         pass
-    
+
     def test_transform_record_does(self):
         pass
 
@@ -248,16 +258,16 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.output_files['Account'] = Mock()
         oc.output_files['Contact'] = Mock()
         oc.output_files['Opportunity'] = Mock()
-        oc.get_field_map = Mock(return_value={ 
-            'Lookup__c': { 
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
                 'name': 'Lookup__c',
                 'type': 'reference',
                 'referenceTo': ['Account']
-            }, 
-            'Other__c': { 
+            },
+            'Other__c': {
                 'name': 'Other__c',
                 'type': 'reference',
-                'referenceTo': ['Contact'] 
+                'referenceTo': ['Contact']
             }
         })
 
@@ -277,16 +287,16 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.output_files['Account'] = Mock()
         oc.output_files['Contact'] = Mock()
         oc.output_files['Opportunity'] = Mock()
-        oc.get_field_map = Mock(return_value={ 
-            'Lookup__c': { 
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
                 'name': 'Lookup__c',
                 'type': 'reference',
                 'referenceTo': ['Account', 'Contact']
-            }, 
-            'Other__c': { 
+            },
+            'Other__c': {
                 'name': 'Other__c',
                 'type': 'reference',
-                'referenceTo': ['Contact'] 
+                'referenceTo': ['Contact']
             }
         })
 
@@ -304,16 +314,16 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.output_files['Account'] = Mock()
         oc.output_files['Contact'] = Mock()
         oc.output_files['Opportunity'] = Mock()
-        oc.get_field_map = Mock(return_value={ 
-            'Lookup__c': { 
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
                 'name': 'Lookup__c',
                 'type': 'reference',
                 'referenceTo': ['Account']
-            }, 
-            'Other__c': { 
+            },
+            'Other__c': {
                 'name': 'Other__c',
                 'type': 'reference',
-                'referenceTo': ['Contact'] 
+                'referenceTo': ['Contact']
             }
         })
 
@@ -331,8 +341,8 @@ class test_SingleObjectExtraction(unittest.TestCase):
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
-        oc.get_field_map = Mock(return_value={ 
-            'Lookup__c': { 
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
                 'name': 'Lookup__c',
                 'type': 'reference',
                 'referenceTo': ['Account']
@@ -355,8 +365,8 @@ class test_SingleObjectExtraction(unittest.TestCase):
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
-        oc.get_field_map = Mock(return_value={ 
-            'Lookup__c': { 
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
                 'name': 'Lookup__c',
                 'type': 'reference',
                 'referenceTo': ['Account']
@@ -376,8 +386,8 @@ class test_SingleObjectExtraction(unittest.TestCase):
             ['Account']
         )
 
-        oc.get_field_map = Mock(return_value={ 
-            'Lookup__c': { 
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
                 'name': 'Lookup__c',
                 'type': 'reference',
                 'referenceTo': ['Account']
@@ -394,20 +404,76 @@ class test_SingleObjectExtraction(unittest.TestCase):
         step.perform_id_field_pass.assert_called_once_with('Lookup__c', set([amaxa.SalesforceId('001000000000000')]))
 
     def test_perform_id_field_pass_queries_all_records(self):
-        pass
-    
+        connection = Mock()
+        connection.query_all = Mock(side_effect=lambda x: { 'records': [{ 'Id': '001000000000001'}] })
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], oc)
+        step.store_result = Mock()
+
+        id_set = set()
+        # Generate enough fake Ids to require two queries.
+        for i in range(400):
+            new_id = amaxa.SalesforceId('001000000000' + str(i + 1).zfill(3))
+            id_set.add(new_id)
+
+        self.assertEqual(400, len(id_set))
+
+        step.perform_id_field_pass('Lookup__c', id_set)
+
+        self.assertLess(1, len(connection.query_all.call_args_list))
+        total = 0
+        for call in connection.query_all.call_args_list:
+            self.assertLess(len(call[0][0]) - call[0][0].find('WHERE'), 4000)
+            total += call[0][0].count('\'001')
+        self.assertEqual(400, total)
+
+    def test_perform_id_field_pass_ignores_empty_set(self):
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], oc)
+
+        id_set = set()
+
+        step.perform_id_field_pass('Lookup__c', set())
+
+        connection.query_all.assert_not_called()
+
     def test_perform_bulk_api_pass_extracts_records(self):
         pass
-    
+
     def test_resolve_registered_dependencies_loads_records(self):
         pass
-    
+
     def test_resolve_registered_dependencies_throws_exception_for_missing_ids(self):
         pass
-    
+
     def test_execute_with_all_records_performs_bulk_api_pass(self):
         pass
-    
+
     def test_execute_with_query_performs_bulk_api_pass(self):
         pass
 

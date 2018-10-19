@@ -30,21 +30,21 @@ class SalesforceId(object):
                 self.id = idstr
             else:
                 raise ValueError('Salesforce Ids must be 15 or 18 characters.')
-   
+
     def __eq__(self, other):
         if isinstance(other, SalesforceId):
             return self.id == other.id
         elif isinstance(other, str):
             return self.id == SalesforceId(other).id
-        
+
         return False
-    
+
     def __hash__(self):
         return hash(self.id)
-   
+
     def __str__(self):
         return self.id
-    
+
     def __repr__(self):
         return 'Salesforce Id: ' + self.id
 
@@ -66,9 +66,9 @@ class OperationContext(object):
     def add_dependency(self, sobjectname, id):
         if sobjectname not in self.required_ids:
             self.required_ids[sobjectname] = set()
-        
+
         self.required_ids[sobjectname].add(SalesforceId(id))
-    
+
     def get_dependencies(self, sobjectname):
         return self.required_ids[sobjectname] if sobjectname in self.required_ids else set()
 
@@ -77,25 +77,25 @@ class OperationContext(object):
             self.proxy_objects[sobjectname] = self.connection.SFType(sobjectname)
 
         return self.proxy_objects[sobjectname]
-        
+
     def get_describe(self, sobjectname):
         if sobjectname not in self.describe_info:
             self.describe_info[sobjectname] = self.get_proxy_object(sobjectname).describe()
             self.field_maps[sobjectname] = { f.get('name') : f for f in self.describe_info[sobjectname].get('fields') }
-        
+
         return self.describe_info[sobjectname]
-    
+
     def get_field_map(self, sobjectname):
         if sobjectname not in self.describe_info:
             self.get_describe(sobjectname)
-        
+
         return self.field_maps[sobjectname]
-    
+
     def get_filtered_field_map(self, sobjectname, lam):
         field_map = self.get_field_map(sobjectname)
 
         return { k: field_map[k] for k in field_map if lam(field_map[k]) }
-    
+
     def get_sobject_ids_for_reference(self, sobjectname, field):
         ids = set()
         for name in self.get_field_map(sobjectname)[field]['referenceTo']:
@@ -104,16 +104,16 @@ class OperationContext(object):
             # accumulate those Ids in a Set.
             if name in self.extracted_ids:
                 ids |= self.extracted_ids[name]
-        
+
         return ids
-    
+
     def get_extracted_ids(self, sobjectname):
         return self.extracted_ids[sobjectname] if sobjectname in self.extracted_ids else set()
-    
+
     def store_result(self, sobjectname, record):
         if sobjectname not in self.extracted_ids:
             self.extracted_ids[sobjectname] = set()
-            
+
         self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
         self.output_files[sobjectname].writerow(
             self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
@@ -149,7 +149,7 @@ class SingleObjectExtraction(object):
             if field_map[f]['type'] == 'reference':
                 if len(field_map[f]['referenceTo']) > 1:
                     # Polymorphic lookup. Should not be a self-lookup as well.
-                    assert self.sobjectname not in field_map[f]['referenceTo'], 'Field {}.{} is a polymorphic self-lookup, which isn\'t supported'.format(self.sobjectname, f) 
+                    assert self.sobjectname not in field_map[f]['referenceTo'], 'Field {}.{} is a polymorphic self-lookup, which isn\'t supported'.format(self.sobjectname, f)
                 elif self.sobjectname in field_map[f]['referenceTo']:
                     self.self_lookups.add(f)
 
@@ -161,7 +161,7 @@ class SingleObjectExtraction(object):
         # If scope is QUERY, execute a Bulk API job to download a query with where_clause
         # If scope is DESCENDENTS, pull based on objects that look up to any already
         # extracted object.
-        # If scope is SELECTED_RECORDS, and if `context` has any registered dependencies, 
+        # If scope is SELECTED_RECORDS, and if `context` has any registered dependencies,
         # perform a query to extract those records by Id.
 
         if self.scope == ExtractionScope.ALL_RECORDS:
@@ -207,7 +207,7 @@ class SingleObjectExtraction(object):
 
                 if before_count == after_count:
                     break
-    
+
     def store_result(self, result):
         self.context.store_result(self.sobjectname, result)
         if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL:
@@ -219,10 +219,10 @@ class SingleObjectExtraction(object):
     def resolve_registered_dependencies(self):
         self.perform_id_field_pass('Id', self.context.get_dependencies(self.sobjectname))
         if len(self.context.get_dependencies(self.sobjectname)) > 0:
-            raise Exception('Unable to resolve dependencies with sObject {}. The following Ids could not be found: {}', 
+            raise Exception('Unable to resolve dependencies with sObject {}. The following Ids could not be found: {}',
                 self.sobjectname, ', '.join(self.context.get_dependencies(self.sobjectname)))
 
-    
+
     def perform_bulk_api_pass(self, query):
         bulk_proxy = self.context.get_bulk_proxy(self.sobjectname)
 
@@ -240,30 +240,31 @@ class SingleObjectExtraction(object):
             return
 
         ids = id_set.copy()
-
-        id_list = ''
+        max_len = 4000 - len('WHERE {} IN ()'.format(self.get_field_list()))
 
         while len(ids) > 0:
-            id_list = '\'' + ids.pop() + '\''
+            id_list = '\'' + str(ids.pop()) + '\''
 
             # The maximum length of the WHERE clause is 4,000 characters
-            while len(id_list) < 3980 and len(ids) > 0:
-                id_list += ', \'' + ids.pop() + '\''
+            # Account for the length of the WHERE clause skeleton (above)
+            # and iterate until we can't add another Id.
+            while len(id_list) < max_len - 22 and len(ids) > 0:
+                id_list += ', \'' + str(ids.pop()) + '\''
 
             results = self.context.connection.query_all(
                 query.format(self.get_field_list(), self.sobjectname, id_field, id_list)
             )
 
-            # FIXME: Error handling 
+            # FIXME: Error handling
 
             for rec in results.get('records'):
                 self.store_result(rec)
-    
+
     def perform_lookup_pass(self, field):
         self.perform_id_field_pass(
-            field, 
+            field,
             self.context.get_sobject_ids_for_reference(self.sobjectname, field)
-        )          
+        )
 
 class DanglingReferenceHandler(object):
     pass
