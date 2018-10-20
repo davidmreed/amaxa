@@ -79,6 +79,26 @@ class test_OperationContext(unittest.TestCase):
         self.assertEqual('Account', proxy)
         connection.SFType.assert_not_called()
 
+    def test_creates_and_caches_bulk_proxy_objects(self):
+        connection = Mock()
+        connection.bulk.SFBulkType = Mock(return_value='Account')
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+
+        proxy = oc.get_bulk_proxy_object('Account')
+
+        self.assertEqual('Account', proxy)
+        connection.bulk.SFBulkType.assert_called_once_with('Account')
+
+        connection.reset_mock()
+        proxy = oc.get_bulk_proxy_object('Account')
+
+        # Proxy should be cached
+        self.assertEqual('Account', proxy)
+        connection.bulk.SFBulkType.assert_not_called()
     def test_caches_describe_results(self):
         connection = Mock()
         account_mock = Mock()
@@ -439,6 +459,29 @@ class test_SingleObjectExtraction(unittest.TestCase):
             total += call[0][0].count('\'001')
         self.assertEqual(400, total)
 
+    def test_perform_id_field_pass_stores_results(self):
+        connection = Mock()
+        connection.query_all = Mock(side_effect=lambda x: { 'records': [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}] })
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], oc)
+        step.store_result = Mock()
+
+        step.perform_id_field_pass('Lookup__c', set([amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000002')]))
+        step.store_result.assert_any_call(connection.query_all('Account')['records'][0])
+        step.store_result.assert_any_call(connection.query_all('Account')['records'][1])
+
     def test_perform_id_field_pass_ignores_empty_set(self):
         connection = Mock()
 
@@ -456,20 +499,125 @@ class test_SingleObjectExtraction(unittest.TestCase):
 
         step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], oc)
 
-        id_set = set()
-
         step.perform_id_field_pass('Lookup__c', set())
 
         connection.query_all.assert_not_called()
 
-    def test_perform_bulk_api_pass_extracts_records(self):
-        pass
+    def test_perform_bulk_api_pass_performs_query(self):
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+        bulk_proxy = Mock()
+        bulk_proxy.query = Mock(side_effect=lambda x: { 'records': [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}] })
+        oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
+
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.QUERY, ['Lookup__c'], oc)
+        step.store_result = Mock()
+
+        step.perform_bulk_api_pass('SELECT Id FROM Account')
+        oc.get_bulk_proxy_object.assert_called_once_with('Account')
+        bulk_proxy.query.assert_called_once_with('SELECT Id FROM Account')
+
+    def test_perform_bulk_api_pass_stores_results(self):
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+        bulk_proxy = Mock()
+        bulk_proxy.query = Mock(return_value={ 'records': [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}] })
+        oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], oc)
+        step.store_result = Mock()
+
+        step.perform_bulk_api_pass('SELECT Id FROM Account')
+        step.store_result.assert_any_call(bulk_proxy.query.return_value['records'][0])
+        step.store_result.assert_any_call(bulk_proxy.query.return_value['records'][1])
 
     def test_resolve_registered_dependencies_loads_records(self):
-        pass
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+        oc.get_dependencies = Mock(
+            side_effect=[
+                set([
+                    amaxa.SalesforceId('001000000000001'),
+                    amaxa.SalesforceId('001000000000002')
+                ]),
+                set()
+            ]
+        )
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], oc)
+        step.perform_id_field_pass = Mock()
+
+        step.resolve_registered_dependencies()
+
+        oc.get_dependencies.assert_has_calls([unittest.mock.call('Account'), unittest.mock.call('Account')])
+        step.perform_id_field_pass.assert_called_once_with('Id', set([amaxa.SalesforceId('001000000000001'),
+            amaxa.SalesforceId('001000000000002')]))
 
     def test_resolve_registered_dependencies_throws_exception_for_missing_ids(self):
-        pass
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+        oc.get_dependencies = Mock(
+            return_value=[
+                set([
+                    amaxa.SalesforceId('001000000000001'),
+                    amaxa.SalesforceId('001000000000002')
+                ]),
+                set([
+                    amaxa.SalesforceId('001000000000002')
+                ])
+            ]
+        )
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], oc)
+        step.perform_id_field_pass = Mock()
+
+        with self.assertRaises(Exception):
+            step.resolve_registered_dependencies()
 
     def test_execute_with_all_records_performs_bulk_api_pass(self):
         pass

@@ -54,6 +54,7 @@ class OperationContext(object):
         self.describe_info = {}
         self.field_maps = {}
         self.proxy_objects = {}
+        self.bulk_proxy_objects = {}
         self.required_ids = {}
         self.extracted_ids = {}
         self.output_files = {}
@@ -77,6 +78,12 @@ class OperationContext(object):
             self.proxy_objects[sobjectname] = self.connection.SFType(sobjectname)
 
         return self.proxy_objects[sobjectname]
+
+    def get_bulk_proxy_object(self, sobjectname):
+        if sobjectname not in self.bulk_proxy_objects:
+            self.bulk_proxy_objects[sobjectname] = self.connection.bulk.SFBulkType(sobjectname)
+
+        return self.bulk_proxy_objects[sobjectname]
 
     def get_describe(self, sobjectname):
         if sobjectname not in self.describe_info:
@@ -224,7 +231,7 @@ class SingleObjectExtraction(object):
 
 
     def perform_bulk_api_pass(self, query):
-        bulk_proxy = self.context.get_bulk_proxy(self.sobjectname)
+        bulk_proxy = self.context.get_bulk_proxy_object(self.sobjectname)
 
         results = bulk_proxy.query(query)
 
