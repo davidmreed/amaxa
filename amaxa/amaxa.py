@@ -192,7 +192,8 @@ class SingleObjectExtraction(object):
         self.resolve_registered_dependencies()
 
         # If we have any self-lookups, we now need to iterate to handle them.
-        if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL:
+        if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL \
+            and self.scope != ExtractionScope.ALL_RECORDS:
             # First we query up to the parents of objects we've already obtained (i.e. the targets of their lookups)
             # Then we query down to the children of all objects obtained.
             # Then we query parents and children again.
@@ -201,7 +202,7 @@ class SingleObjectExtraction(object):
             # Note that the initial parent query is handled in the dependency pass above, so we start on children.
 
             while True:
-                before_count = self.context.get_extracted_ids(self.sobjectname)
+                before_count = len(self.context.get_extracted_ids(self.sobjectname))
 
                 # Children
                 for l in self.self_lookups:
@@ -210,7 +211,7 @@ class SingleObjectExtraction(object):
                 # Parents
                 self.resolve_registered_dependencies()
 
-                after_count = self.context.get_extracted_ids(self.sobjectname)
+                after_count = len(self.context.get_extracted_ids(self.sobjectname))
 
                 if before_count == after_count:
                     break
@@ -226,7 +227,7 @@ class SingleObjectExtraction(object):
     def resolve_registered_dependencies(self):
         self.perform_id_field_pass('Id', self.context.get_dependencies(self.sobjectname))
         if len(self.context.get_dependencies(self.sobjectname)) > 0:
-            raise Exception('Unable to resolve dependencies with sObject {}. The following Ids could not be found: {}',
+            raise Exception('Unable to resolve dependencies for sObject {}. The following Ids could not be found: {}',
                 self.sobjectname, ', '.join(self.context.get_dependencies(self.sobjectname)))
 
 

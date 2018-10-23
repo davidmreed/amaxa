@@ -620,19 +620,154 @@ class test_SingleObjectExtraction(unittest.TestCase):
             step.resolve_registered_dependencies()
 
     def test_execute_with_all_records_performs_bulk_api_pass(self):
-        pass
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Name': {
+                'name': 'Name',
+                'type': 'text'
+            }
+        })
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Name'], oc)
+        step.perform_bulk_api_pass = Mock()
+
+        step.execute()
+
+        step.perform_bulk_api_pass.assert_called_once_with('SELECT Name FROM Account')
 
     def test_execute_with_query_performs_bulk_api_pass(self):
-        pass
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Name': {
+                'name': 'Name',
+                'type': 'text'
+            }
+        })
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.QUERY, ['Name'], oc, 'Name != null')
+        step.perform_bulk_api_pass = Mock()
+
+        step.execute()
+
+        step.perform_bulk_api_pass.assert_called_once_with('SELECT Name FROM Account WHERE Name != null')
 
     def test_execute_loads_all_descendents(self):
-        pass
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Contact']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Name': {
+                'name': 'Name',
+                'type': 'text'
+            },
+            'AccountId': {
+                'name': 'AccountId',
+                'type': 'reference',
+                'referenceTo': 'Account'
+            },
+            'Household__c': {
+                'name': 'Household__c',
+                'type': 'reference',
+                'referenceTo': 'Account'
+            },
+            'Event__c': {
+                'name': 'Event__c',
+                'type': 'reference',
+                'referenceTo': 'Event__c'
+            }
+        })
+
+        step = amaxa.SingleObjectExtraction('Contact', amaxa.ExtractionScope.DESCENDENTS, ['Name', 'AccountId', 'Household__c'], oc)
+        step.perform_lookup_pass = Mock()
+
+        step.execute()
+
+        step.perform_lookup_pass.assert_has_calls(
+            [
+                unittest.mock.call('AccountId'),
+                unittest.mock.call('Household__c')
+            ],
+            any_order=True
+        )
 
     def test_execute_resolves_self_lookups(self):
-        pass
+        connection = Mock()
 
-    def test_execute_resolves_dependencies(self):
-        pass
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.get_field_map = Mock(return_value={
+            'Name': {
+                'name': 'Name',
+                'type': 'text'
+            },
+            'ParentId': {
+                'name': 'ParentId',
+                'type': 'reference',
+                'referenceTo': [
+                    'Account'
+                ]
+            }
+        })
+        oc.get_extracted_ids = Mock(
+            side_effect=[
+                set([amaxa.SalesforceId('001000000000001')]),
+                set([amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000002')]),
+                set([amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000002')]),
+                set([amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000002')])
+            ]
+        )
+
+        step = amaxa.SingleObjectExtraction(
+            'Account',
+            amaxa.ExtractionScope.QUERY,
+            ['Name', 'ParentId'],
+            oc,
+            'Name = \'ACME\''
+        )
+        step.perform_bulk_api_pass = Mock()
+        step.perform_lookup_pass = Mock()
+        step.resolve_registered_dependencies = Mock()
+
+        self.assertEquals(set(['ParentId']), step.self_lookups)
+
+        step.execute()
+
+        step.perform_bulk_api_pass.assert_called_once_with('SELECT Name, ParentId FROM Account WHERE Name = \'ACME\'')
+        oc.get_extracted_ids.assert_has_calls(
+            [
+                unittest.mock.call('Account'),
+                unittest.mock.call('Account'),
+                unittest.mock.call('Account'),
+                unittest.mock.call('Account')
+            ]
+        )
+        step.perform_lookup_pass.assert_has_calls(
+            [
+                unittest.mock.call('ParentId'),
+                unittest.mock.call('ParentId')
+            ]
+        )
+        step.resolve_registered_dependencies.assert_has_calls(
+            [
+                unittest.mock.call(),
+                unittest.mock.call()
+            ]
+        )
 
 
 if __name__ == "__main__":
