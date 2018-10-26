@@ -1,5 +1,6 @@
 import csv
 import functools
+import simple_salesforce
 
 class ExtractionScope(object):
     ALL_RECORDS = 'all'
@@ -67,21 +68,21 @@ class OperationContext(object):
     def add_dependency(self, sobjectname, id):
         if sobjectname not in self.required_ids:
             self.required_ids[sobjectname] = set()
-
-        self.required_ids[sobjectname].add(SalesforceId(id))
+        if id not in self.get_extracted_ids(sobjectname):
+            self.required_ids[sobjectname].add(id)
 
     def get_dependencies(self, sobjectname):
         return self.required_ids[sobjectname] if sobjectname in self.required_ids else set()
 
     def get_proxy_object(self, sobjectname):
         if sobjectname not in self.proxy_objects:
-            self.proxy_objects[sobjectname] = self.connection.SFType(sobjectname)
+            self.proxy_objects[sobjectname] = getattr(self.connection, sobjectname)
 
         return self.proxy_objects[sobjectname]
 
     def get_bulk_proxy_object(self, sobjectname):
         if sobjectname not in self.bulk_proxy_objects:
-            self.bulk_proxy_objects[sobjectname] = self.connection.bulk.SFBulkType(sobjectname)
+            self.bulk_proxy_objects[sobjectname] = getattr(self.connection.bulk, sobjectname)
 
         return self.bulk_proxy_objects[sobjectname]
 
@@ -127,7 +128,7 @@ class OperationContext(object):
             else record
         )
 
-        if sobjectname in self.required_ids:
+        if sobjectname in self.required_ids and SalesforceId(record['Id']) in self.required_ids[sobjectname]:
             self.required_ids[sobjectname].remove(SalesforceId(record['Id']))
 
 class MultiObjectExtraction(object):
@@ -221,14 +222,16 @@ class SingleObjectExtraction(object):
         if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL:
             # Add a dependency for the reference in each self lookup of this record.
             for l in self.self_lookups:
-                if result[l] != '': #FIXME: is this accurate?
-                    self.context.add_dependency(self.sobjectname, result[l])
+                if result[l] is not None:
+                    self.context.add_dependency(self.sobjectname, SalesforceId(result[l]))
 
     def resolve_registered_dependencies(self):
-        self.perform_id_field_pass('Id', self.context.get_dependencies(self.sobjectname))
-        if len(self.context.get_dependencies(self.sobjectname)) > 0:
+        pre_deps = self.context.get_dependencies(self.sobjectname).copy()
+        self.perform_id_field_pass('Id', pre_deps)
+        missing = self.context.get_dependencies(self.sobjectname).intersection(pre_deps)
+        if len(missing) > 0:
             raise Exception('Unable to resolve dependencies for sObject {}. The following Ids could not be found: {}',
-                self.sobjectname, ', '.join(self.context.get_dependencies(self.sobjectname)))
+                self.sobjectname, ', '.join([str(i) for i in missing]))
 
 
     def perform_bulk_api_pass(self, query):
@@ -238,7 +241,7 @@ class SingleObjectExtraction(object):
 
         # FIXME: error handling.
 
-        for rec in results.get('records'):
+        for rec in results:
             self.store_result(rec)
 
     def perform_id_field_pass(self, id_field, id_set):

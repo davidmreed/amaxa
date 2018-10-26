@@ -1,6 +1,7 @@
 import unittest
 import amaxa
-from unittest.mock import Mock
+import simple_salesforce
+from unittest.mock import Mock, PropertyMock, patch
 
 class test_SalesforceId(unittest.TestCase):
     def test_converts_real_id_pairs(self):
@@ -44,7 +45,6 @@ class test_SalesforceId(unittest.TestCase):
             id_set.add(new_id)
             self.assertIn(new_id, id_set)
 
-
 class test_OperationContext(unittest.TestCase):
     def test_tracks_dependencies(self):
         connection = Mock()
@@ -58,9 +58,24 @@ class test_OperationContext(unittest.TestCase):
         oc.add_dependency('Account', amaxa.SalesforceId('001000000000000'))
         self.assertEqual(set([amaxa.SalesforceId('001000000000000')]), oc.get_dependencies('Account'))
 
+    def test_doesnt_add_dependency_for_extracted_record(self):
+        connection = Mock()
+
+        oc = amaxa.OperationContext(
+            connection,
+            ['Account']
+        )
+        oc.output_files['Account'] = Mock()
+
+        oc.store_result('Account', { 'Id': '001000000000000', 'Name': 'Caprica Steel' })
+        self.assertEqual(set(), oc.get_dependencies('Account'))
+        oc.add_dependency('Account', amaxa.SalesforceId('001000000000000'))
+        self.assertEqual(set(), oc.get_dependencies('Account'))
+
     def test_creates_and_caches_proxy_objects(self):
         connection = Mock()
-        connection.SFType = Mock(return_value='Account')
+        p = PropertyMock(return_value='Account')
+        type(connection).Account = p
 
         oc = amaxa.OperationContext(
             connection,
@@ -70,18 +85,19 @@ class test_OperationContext(unittest.TestCase):
         proxy = oc.get_proxy_object('Account')
 
         self.assertEqual('Account', proxy)
-        connection.SFType.assert_called_once_with('Account')
+        p.assert_called_once_with()
 
-        connection.reset_mock()
+        p.reset_mock()
         proxy = oc.get_proxy_object('Account')
 
         # Proxy should be cached
         self.assertEqual('Account', proxy)
-        connection.SFType.assert_not_called()
+        p.assert_not_called()
 
     def test_creates_and_caches_bulk_proxy_objects(self):
         connection = Mock()
-        connection.bulk.SFBulkType = Mock(return_value='Account')
+        p = PropertyMock(return_value='Account')
+        type(connection.bulk).Account = p
 
         oc = amaxa.OperationContext(
             connection,
@@ -91,22 +107,25 @@ class test_OperationContext(unittest.TestCase):
         proxy = oc.get_bulk_proxy_object('Account')
 
         self.assertEqual('Account', proxy)
-        connection.bulk.SFBulkType.assert_called_once_with('Account')
+        p.assert_called_once_with()
 
-        connection.reset_mock()
+        p.reset_mock()
         proxy = oc.get_bulk_proxy_object('Account')
 
         # Proxy should be cached
         self.assertEqual('Account', proxy)
-        connection.bulk.SFBulkType.assert_not_called()
-    def test_caches_describe_results(self):
+        p.assert_not_called()
+
+    @patch('amaxa.OperationContext.get_proxy_object')
+    def test_caches_describe_results(self, proxy_mock):
         connection = Mock()
         account_mock = Mock()
 
         fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
         describe_info = { 'fields' : fields }
+
         account_mock.describe = Mock(return_value=describe_info)
-        connection.SFType = Mock(return_value=account_mock)
+        proxy_mock.return_value = account_mock
 
         oc = amaxa.OperationContext(
             connection,
@@ -122,14 +141,16 @@ class test_OperationContext(unittest.TestCase):
         self.assertEqual(describe_info, retval)
         account_mock.describe.assert_not_called()
 
-    def test_caches_field_maps(self):
+    @patch('amaxa.OperationContext.get_proxy_object')
+    def test_caches_field_maps(self, proxy_mock):
         connection = Mock()
         account_mock = Mock()
 
         fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
         describe_info = { 'fields' : fields }
+
         account_mock.describe = Mock(return_value=describe_info)
-        connection.SFType = Mock(return_value=account_mock)
+        proxy_mock.return_value = account_mock
 
         oc = amaxa.OperationContext(
             connection,
@@ -145,14 +166,16 @@ class test_OperationContext(unittest.TestCase):
         self.assertEqual({ 'Name': { 'name': 'Name' }, 'Id': { 'name': 'Id' } }, retval)
         account_mock.describe.assert_not_called()
 
-    def test_filters_field_maps(self):
+    @patch('amaxa.OperationContext.get_proxy_object')
+    def test_filters_field_maps(self, proxy_mock):
         connection = Mock()
         account_mock = Mock()
 
         fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
         describe_info = { 'fields' : fields }
+
         account_mock.describe = Mock(return_value=describe_info)
-        connection.SFType = Mock(return_value=account_mock)
+        proxy_mock.return_value = account_mock
 
         oc = amaxa.OperationContext(
             connection,
@@ -217,7 +240,7 @@ class test_OperationContext(unittest.TestCase):
         )
 
         oc.output_files['Account'] = Mock()
-        oc.add_dependency('Account', '001000000000000')
+        oc.add_dependency('Account', amaxa.SalesforceId('001000000000000'))
 
         oc.store_result('Account', { 'Id': '001000000000000', 'Name': 'Caprica Steel' })
         self.assertEqual(set(), oc.get_dependencies('Account'))
@@ -294,7 +317,6 @@ class test_SingleObjectExtraction(unittest.TestCase):
         step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'], oc)
 
         self.assertEqual(set(['Lookup__c']), step.self_lookups)
-
 
     def test_throws_exception_for_polymorphic_self_lookup(self):
         connection = Mock()
@@ -544,15 +566,15 @@ class test_SingleObjectExtraction(unittest.TestCase):
             }
         })
         bulk_proxy = Mock()
-        bulk_proxy.query = Mock(return_value={ 'records': [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}] })
+        bulk_proxy.query = Mock(return_value=[{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}])
         oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
 
         step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], oc)
         step.store_result = Mock()
 
         step.perform_bulk_api_pass('SELECT Id FROM Account')
-        step.store_result.assert_any_call(bulk_proxy.query.return_value['records'][0])
-        step.store_result.assert_any_call(bulk_proxy.query.return_value['records'][1])
+        step.store_result.assert_any_call(bulk_proxy.query.return_value[0])
+        step.store_result.assert_any_call(bulk_proxy.query.return_value[1])
 
     def test_resolve_registered_dependencies_loads_records(self):
         connection = Mock()

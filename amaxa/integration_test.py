@@ -1,0 +1,61 @@
+import unittest
+import amaxa
+import os
+from simple_salesforce import Salesforce
+from unittest.mock import Mock
+
+class test_Extraction(unittest.TestCase):
+    def setUp(self):
+        self.assertIn('INSTANCE_URL', os.environ)
+        self.assertIn('ACCESS_TOKEN', os.environ)
+        self.connection = Salesforce(
+            instance_url=os.environ['INSTANCE_URL'],
+            session_id=os.environ['ACCESS_TOKEN']
+        )
+    
+    def test_all_records_extracts_accounts(self):
+        oc = amaxa.OperationContext(self.connection, 'Account')
+        oc.set_output_file('Account', Mock())
+
+        extraction = amaxa.SingleObjectExtraction(
+            'Account',
+            amaxa.ExtractionScope.ALL_RECORDS,
+            ['Id', 'Name'],
+            oc
+        )
+
+        extraction.execute()
+
+        self.assertEqual(5, len(oc.get_extracted_ids('Account')))
+    
+    def test_query_extracts_self_lookup_hierarchy(self):
+        expected_names = {'Caprica Cosmetics', 'Gemenon Gastronomy', 'Aerilon Agrinomics'}
+        oc = amaxa.OperationContext(self.connection, 'Account')
+        output = Mock()
+        oc.set_output_file('Account', output)
+
+        rec = self.connection.query('SELECT Id FROM Account WHERE Name = \'Caprica Cosmetics\'')
+        oc.add_dependency('Account', rec.get('records')[0]['Id'])
+
+        extraction = amaxa.SingleObjectExtraction(
+            'Account',
+            amaxa.ExtractionScope.SELECTED_RECORDS,
+            ['Id', 'Name', 'ParentId'],
+            oc
+        )
+
+        extraction.execute()
+
+        self.assertEqual(3, len(oc.get_extracted_ids('Account')))
+        for c in output.call_args_list:
+            self.assertIn(c['Name'], expected_names)
+            expected_names.remove(c['Name'])
+    
+    def test_descendents_extracts_object_network(self):
+        pass
+    
+    def test_trace_handler(self):
+        pass
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,47 @@
+{
+    "records": [
+        {
+            "attributes": {
+                "type": "Account",
+                "referenceId": "AccountRef4"
+            },
+            "Name": "Picon Fleet Headquarters"
+        },
+        {
+            "attributes": {
+                "type": "Account",
+                "referenceId": "AccountRef5"
+            },
+            "Name": "Herakleides of Tauron"
+        },
+        {
+            "attributes": {
+                "type": "Account",
+                "referenceId": "AccountRef7"
+            },
+            "Name": "Aerilon Agrinomics",
+            "childAccounts" : {
+                "records": [
+                    {
+                        "attributes": {
+                            "type": "Account",
+                            "referenceId": "AccountRef3"
+                        },
+                        "Name": "Caprica Cosmetics",
+                        "childAccounts": {
+                            "records": [
+                                {
+                                    "attributes": {
+                                        "type": "Account",
+                                        "referenceId": "AccountRef6"
+                                    },
+                                    "Name": "Gemenon Gastronomy"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,40 @@
+{
+    "records": [
+        {
+            "attributes": {
+                "type": "Contact",
+                "referenceId": "ContactRef1"
+            },
+            "FirstName": "Elosha",
+            "LastName": "Stark",
+            "AccountId": "@AccountRef6"
+        },
+        {
+            "attributes": {
+                "type": "Contact",
+                "referenceId": "ContactRef2"
+            },
+            "FirstName": "Gaius",
+            "LastName": "Baltar",
+            "AccountId": "@AccountRef7"
+        },
+        {
+            "attributes": {
+                "type": "Contact",
+                "referenceId": "ContactRef3"
+            },
+            "FirstName": "Admiral",
+            "LastName": "Nagata",
+            "AccountId": "@AccountRef4"
+        },
+        {
+            "attributes": {
+                "type": "Contact",
+                "referenceId": "ContactRef4"
+            },
+            "FirstName": "Sam",
+            "LastName": "Adama",
+            "AccountId": "@AccountRef5"
+        }
+    ]
+}
