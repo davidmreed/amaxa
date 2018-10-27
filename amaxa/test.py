@@ -719,8 +719,53 @@ class test_SingleObjectExtraction(unittest.TestCase):
             ]
         )
 
+    def test_execute_does_not_trace_self_lookups_without_trace_all(self):
+        connection = Mock()
+
+        oc = amaxa.OperationContext(connection)
+        oc.get_field_map = Mock(return_value={
+            'Name': {
+                'name': 'Name',
+                'type': 'text'
+            },
+            'ParentId': {
+                'name': 'ParentId',
+                'type': 'reference',
+                'referenceTo': [
+                    'Account'
+                ]
+            }
+        })
+        oc.get_extracted_ids = Mock()
+
+        step = amaxa.SingleObjectExtraction(
+            'Account',
+            amaxa.ExtractionScope.QUERY,
+            ['Name', 'ParentId'],
+            oc,
+            'Name = \'ACME\'',
+            amaxa.SelfLookupBehavior.TRACE_NONE
+        )
+        step.perform_bulk_api_pass = Mock()
+        step.perform_lookup_pass = Mock()
+        step.resolve_registered_dependencies = Mock()
+
+        self.assertEquals(set(['ParentId']), step.self_lookups)
+
+        step.execute()
+
+        step.resolve_registered_dependencies.assert_called_once_with()
+        oc.get_extracted_ids.assert_not_called()
+
 class test_MultiObjectExtraction(unittest.TestCase):
-    pass #FIXME
+    steps = [Mock(), Mock(), Mock()]
+
+    moe = amaxa.MultiObjectExtraction(steps)
+
+    moe.execute()
+
+    for s in steps:
+        s.execute.assert_called_once_with()
 
 
 if __name__ == "__main__":

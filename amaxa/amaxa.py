@@ -274,9 +274,6 @@ class SingleObjectExtraction(object):
             self.context.get_sobject_ids_for_reference(self.sobjectname, field)
         )
 
-class DanglingReferenceHandler(object):
-    pass
-
 
 class ExtractMapper(object):
     def __init__(self, field_name_mapping={}, field_transforms={}):
