@@ -32,9 +32,8 @@ def load_extraction_from_yaml(f, credentials = None):
                                                   session_id=credentials['access-token'])
     else:
         raise Exception('A set of valid credentials was not provided.')
-
+    
     context = amaxa.OperationContext(connection)
-
     steps = []
 
     for entry in incoming['extraction']:
@@ -46,23 +45,23 @@ def load_extraction_from_yaml(f, credentials = None):
         to_extract = entry.get('extract')
         query = None
         if isinstance(to_extract, str) and to_extract == 'all':
-            scope = amaxa.ALL_RECORDS
+            scope = amaxa.ExtractionScope.ALL_RECORDS
         elif isinstance(to_extract, dict):
             ids = to_extract.get('ids')
             query = to_extract.get('query')
-            scope = amaxa.QUERY
+            scope = amaxa.ExtractionScope.QUERY
             if 'ids' in to_extract:
                 # Register the required IDs in the context
                 for id in to_extract.get(ids):
                     context.add_dependency(sobject, amaxa.SalesforceId(id))
                 
-                scope = amaxa.SELECTED_RECORDS
+                scope = amaxa.ExtractionScope.SELECTED_RECORDS
             
             if 'query' in to_extract:
                 query = to_extract['query']
-                scope = amaxa.QUERY
+                scope = amaxa.ExtractionScope.QUERY
         else:
-            scope = amaxa.DESCENDENTS
+            scope = amaxa.ExtractionScope.DESCENDENTS
         
         # Determine the field scope
         fields = entry.get('fields')
@@ -92,11 +91,13 @@ def load_extraction_from_yaml(f, credentials = None):
 
         field_set.add('Id')
         
-        step = amaxa.ExtractionStep(entry['sobject'], 
-                                    scope, 
-                                    field_set, 
-                                    context, 
-                                    where_clause = query)
+        step = amaxa.SingleObjectExtraction(
+            entry['sobject'], 
+            scope, 
+            field_set, 
+            context, 
+            where_clause = query
+        )
         
         steps.append(step)
 
@@ -105,4 +106,4 @@ def load_extraction_from_yaml(f, credentials = None):
         output.writeheader()
         context.set_output_file(sobject, output)
 
-    return amaxa.MultiObjectExtraction(steps, context)
+    return amaxa.MultiObjectExtraction(steps)

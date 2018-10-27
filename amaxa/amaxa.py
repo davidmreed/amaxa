@@ -50,7 +50,7 @@ class SalesforceId(object):
         return 'Salesforce Id: ' + self.id
 
 class OperationContext(object):
-    def __init__(self, connection, sobjectlist):
+    def __init__(self, connection):
         self.connection = connection
         self.describe_info = {}
         self.field_maps = {}
@@ -60,7 +60,6 @@ class OperationContext(object):
         self.extracted_ids = {}
         self.output_files = {}
         self.mappers = {}
-        self.sobjectlist = sobjectlist
 
     def set_output_file(self, sobjectname, f):
         self.output_files[sobjectname] = f
@@ -132,9 +131,8 @@ class OperationContext(object):
             self.required_ids[sobjectname].remove(SalesforceId(record['Id']))
 
 class MultiObjectExtraction(object):
-    def __init__(self, steps, context):
+    def __init__(self, steps):
         self.steps = steps
-        self.context = context
 
     def execute(self):
         for s in self.steps:

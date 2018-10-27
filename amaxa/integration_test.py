@@ -12,9 +12,9 @@ class test_Extraction(unittest.TestCase):
             instance_url=os.environ['INSTANCE_URL'],
             session_id=os.environ['ACCESS_TOKEN']
         )
-    
+
     def test_all_records_extracts_accounts(self):
-        oc = amaxa.OperationContext(self.connection, 'Account')
+        oc = amaxa.OperationContext(self.connection)
         oc.set_output_file('Account', Mock())
 
         extraction = amaxa.SingleObjectExtraction(
@@ -30,7 +30,7 @@ class test_Extraction(unittest.TestCase):
     
     def test_query_extracts_self_lookup_hierarchy(self):
         expected_names = {'Caprica Cosmetics', 'Gemenon Gastronomy', 'Aerilon Agrinomics'}
-        oc = amaxa.OperationContext(self.connection, 'Account')
+        oc = amaxa.OperationContext(self.connection)
         output = Mock()
         oc.set_output_file('Account', output)
 
@@ -52,8 +52,41 @@ class test_Extraction(unittest.TestCase):
             expected_names.remove(c['Name'])
     
     def test_descendents_extracts_object_network(self):
-        pass
-    
+        expected_names = {'Elosha', 'Gaius'}
+        oc = amaxa.OperationContext(self.connection)
+        output_accounts = Mock()
+        output_contacts = Mock()
+        oc.set_output_file('Account', output_accounts)
+        oc.set_output_file('Contact', output_contacts)
+
+        rec = self.connection.query('SELECT Id FROM Account WHERE Name = \'Caprica Cosmetics\'')
+        oc.add_dependency('Account', rec.get('records')[0]['Id'])
+
+        extraction = amaxa.MultiObjectExtraction(
+            [
+                amaxa.SingleObjectExtraction(
+                    'Account',
+                    amaxa.ExtractionScope.SELECTED_RECORDS,
+                    ['Id', 'Name', 'ParentId'],
+                    oc
+                ),
+                amaxa.SingleObjectExtraction(
+                    'Contact',
+                    amaxa.ExtractionScope.DESCENDENTS,
+                    ['Id', 'FirstName', 'LastName', 'AccountId'],
+                    oc
+                )
+            ]
+        )
+
+        extraction.execute()
+
+        self.assertEqual(3, len(oc.get_extracted_ids('Account')))
+        self.assertEqual(2, len(oc.get_extracted_ids('Contact')))
+        for c in output_contacts.call_args_list:
+            self.assertIn(c['FirstName'], expected_names)
+            expected_names.remove(c['FirstName'])
+
     def test_trace_handler(self):
         pass
 
