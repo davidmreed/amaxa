@@ -1,0 +1,2 @@
+pyyaml
+simple_salesforce
