@@ -7,7 +7,7 @@ credentials:
 extraction:
     - 
         sobject: Account
-        target-file: Account.csv
+        target-file: 'Account.csv'
         fields: 
             - Name
             - Id
@@ -18,16 +18,17 @@ extraction:
                 transforms:
                     - strip
                     - lowercase
-        extract: all
+        extract: 
+            all: True
     - 
         sobject: Contact
-        target-file: Contact.csv
+        target-file: 'Contact.csv'
         sdl: Contact.sdl
         outside-leaf-behavior: blank 
         extract:
             query: "LastName = 'Test'"
-            ids: 
-              - 003XXXXXXXXXXXX
     - 
         sobject: Opportunity
-        fields: readable
+        field-group: readable
+        extract:
+            descendents: True

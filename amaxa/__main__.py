@@ -1,5 +1,8 @@
+import simple_salesforce
 import argparse
 import yaml
+import json
+from . import schema, amaxa, loader
 
 def main():
     a = argparse.ArgumentParser()
@@ -9,14 +12,19 @@ def main():
 
     args = a.parse_args()
 
-    connection = None
+    credentials = None
 
-    if args.access_token is not None and args.instance_url is not None:
-        connection = simple_salesforce.Salesforce(instance_url=args.instance_url, 
-                                                  session_id=args.access_token)
-    elif args.user is not None and args.password is not None and args.token is not None:
-        connection = simple_salesforce.Salesforce(username=args.user, 
-                                                  password=args.password, 
-                                                  security_token=args.token, 
-                                                  sandbox=args.sandbox)
-                                                  
+    # If we have a credential file specified separately, grab that first.
+    if hasattr(args, 'credentials'):
+        f = args.credentials
+        if f.name.endswith('json'):
+            credentials = json.load(f)
+        else:
+            credentials = yaml.safe_load(f)
+
+    if args.config.name.endswith('json'):
+        config = json.load(args.config)
+    else:
+        config = yaml.safe_load(args.config)
+
+    loader.load_extraction(config, credentials).execute()

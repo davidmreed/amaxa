@@ -87,8 +87,6 @@ class test_Extraction(unittest.TestCase):
             self.assertIn(c['FirstName'], expected_names)
             expected_names.remove(c['FirstName'])
 
-    def test_trace_handler(self):
-        pass
 
 if __name__ == "__main__":
     unittest.main()
