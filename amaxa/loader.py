@@ -3,7 +3,6 @@ import simple_salesforce
 import cerberus
 from . import amaxa
 from . import transforms
-from . import schema
 
 def validate_extraction(ex, context):
     # Iterate through the extraction steps

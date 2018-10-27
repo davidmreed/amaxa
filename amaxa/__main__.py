@@ -1,8 +1,7 @@
-import simple_salesforce
 import argparse
 import yaml
 import json
-from . import schema, amaxa, loader
+from . import amaxa, loader
 
 def main():
     a = argparse.ArgumentParser()
