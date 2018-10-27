@@ -1,11 +1,11 @@
-import yaml
 import csv
-import transforms
 import simple_salesforce
+import yaml
 from . import amaxa
+from . import transforms
 
 def load_extraction_from_yaml(f, credentials = None):
-    incoming = yaml.sload(f)
+    incoming = yaml.safe_load(f)
 
     connection = None
 

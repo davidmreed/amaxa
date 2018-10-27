@@ -1,7 +1,8 @@
 import unittest
-import amaxa
 import simple_salesforce
 from unittest.mock import Mock, PropertyMock, patch
+from . import amaxa
+from . import transforms
 
 class test_SalesforceId(unittest.TestCase):
     def test_converts_real_id_pairs(self):
@@ -243,13 +244,28 @@ class test_OperationContext(unittest.TestCase):
 
 class test_ExtractMapper(unittest.TestCase):
     def test_transform_key_applies_mapping(self):
-        pass #FIXME
+        mapper = amaxa.ExtractMapper({ 'Test': 'Value' })
+
+        self.assertEqual('Value', mapper.transform_key('Test'))
+        self.assertEqual('Foo', mapper.transform_key('Foo'))
 
     def test_transform_value_applies_transformations(self):
-        pass #FIXME
+        mapper = amaxa.ExtractMapper({}, { 'Test__c': [transforms.strip, transforms.lowercase] })
+
+        self.assertEqual('value', mapper.transform_value('Test__c', ' VALUE  '))
 
     def test_transform_record_does(self):
-        pass #FIXME
+        mapper = amaxa.ExtractMapper(
+            { 'Test__c': 'Value' },
+            { 'Test__c': [transforms.strip, transforms.lowercase] }
+        )
+
+        self.assertEqual(
+            { 'Value': 'nothing much', 'Second Key': 'another Response' },
+            mapper.transform_record(
+                { 'Test__c': '  NOTHING MUCH', 'Second Key': 'another Response' }
+            )
+        )
 
 class test_SingleObjectExtraction(unittest.TestCase):
     def test_identifies_self_lookups(self):

@@ -1,4 +1,3 @@
-import csv
 import functools
 import simple_salesforce
 
@@ -280,7 +279,7 @@ class DanglingReferenceHandler(object):
 
 
 class ExtractMapper(object):
-    def __init__(self, field_name_mapping = {}, field_transforms={}):
+    def __init__(self, field_name_mapping={}, field_transforms={}):
         self.field_name_mapping = field_name_mapping
         self.field_transforms = field_transforms
 
@@ -291,4 +290,4 @@ class ExtractMapper(object):
         return self.field_name_mapping.get(k, k)
 
     def transform_value(self, k, v):
-        return functools.reduce(lambda x, f: f(x), self.field_transforms[k], v)
+        return functools.reduce(lambda x, f: f(x), self.field_transforms.get(k,[]), v)
