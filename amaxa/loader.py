@@ -4,34 +4,10 @@ import cerberus
 from . import amaxa
 from . import transforms
 
-def validate_extraction(ex, context):
-    # Iterate through the extraction steps
-    # Validate that all sObjects and field API names are real and visible.
-    errors = []
-    global_describe = context.connection.describe()["sobjects"]
-
-    for step in ex.steps:
-        if step.sobjectname not in global_describe or not global_describe[step.sobjectname]['retrieveable']:
-            errors.append('sObject {} does not exist or is not visible.'.format(step.sobjectname))
-        else:
-            for f in step.field_scope:
-                if f not in context.get_field_map(step.sobjectname):
-                    errors.append('Field {}.{} does not exist or is not visible.'.format(step.sobjectname, f))
-    
-    return (len(errors) == 0, errors)
-
-def load_extraction(incoming, credentials = None):
-    # Inbound is raw, deserialized structures from JSON or YAML input files.
-    # First, validate them against our schema and normalize them.
-
-    incoming = normalize_extraction_schema(incoming)
-
-    if credentials is not None:
-        credentials = validate_credential_schema(credentials)
-    else:
-        credentials = incoming['credentials']
-    
-    #FIXME: handle schema errors here.
+def load_credentials(incoming):
+    (credentials, errors) = validate_credential_schema(incoming)
+    if credentials is None:
+        return (None, errors) #FIXME: what is the structure of this dict? turn into list
 
     connection = None
 
@@ -49,14 +25,31 @@ def load_extraction(incoming, credentials = None):
         connection = simple_salesforce.Salesforce(instance_url=credentials['instance-url'], 
                                                   session_id=credentials['access-token'])
     else:
-        raise Exception('A set of valid credentials was not provided.')
+        return (None, ['A set of valid credentials was not provided.'])
     
     context = amaxa.OperationContext(connection)
+    
+    return (context, [])
+
+def load_extraction(incoming, context):
+    # Inbound is raw, deserialized structures from JSON or YAML input files.
+    # First, validate them against our schema and normalize them.
+
+    (incoming, errors) = validate_extraction_schema(incoming)
+    if incoming is None:
+        return (None, errors)
+ 
+    global_describe = context.connection.describe()["sobjects"]
+
     steps = []
+    errors = []
 
     for entry in incoming['extraction']:
         sobject = entry['sobject']
-        target_file = entry.get('target-file')
+
+        if sobject not in global_describe or not global_describe[sobject]['retrieveable']:
+            errors.append('sObject {} does not exist or is not visible.'.format(sobject))
+            continue
 
         # Determine the type of extraction
         query = None
@@ -106,6 +99,16 @@ def load_extraction(incoming, credentials = None):
 
         field_set.add('Id')
 
+        # Validate that all fields are real and readable by this user.
+        for f in field_set:
+            if f not in context.get_field_map(sobject):
+                errors.append('Field {}.{} does not exist or is not visible.'.format(sobject, f))
+        
+        # If we've located any errors, continue to validate the rest of the extraction,
+        # but don't actually create any steps or files.
+        if len(errors) > 0:
+            continue
+
         step = amaxa.SingleObjectExtraction(
             sobject, 
             scope, 
@@ -116,60 +119,76 @@ def load_extraction(incoming, credentials = None):
         
         steps.append(step)
 
-        # Create the output DictWriter
-        output = csv.DictWriter(open(target_file, 'w'), fieldnames = fields)
-        output.writeheader()
-        context.set_output_file(sobject, output)
+    if len(errors) > 0:
+        return (None, errors)
+    
+    # Open all of the output files
+    # Create DictWriters and populate them in the context
+    for (s, e) in zip(steps, incoming['extraction']):
+        try:
+            output = csv.DictWriter(open(e['target-file'], 'w'), fieldnames = s.field_scope)
+            output.writeheader()
+            context.set_output_file(s.sobjectname, output)
+        except Exception as e:
+            return (None, ['Unable to open file {} for writing ({}).'.format(target_file, e)])
 
-    return amaxa.MultiObjectExtraction(steps)
+    ex = amaxa.MultiObjectExtraction(steps)
+    return (ex, [])
 
 def validate_extraction_schema(input):
-    return cerberus.Validator().validate(
-        input,
-        schema
-    )
-
-def normalize_extraction_schema(input):
-    return cerberus.Validator.normalized(
-        input,
-        schema
+    v = cerberus.Validator(schema)
+    return (
+        v.validated(input),
+        v.errors
     )
 
 def validate_credential_schema(input):
-    return cerberus.Validator().validate(
-        input,
-        credential_schema
+    v = cerberus.Validator(credential_schema)
+    return (
+        v.validated(input),
+        v.errors
     )
 
 credential_schema = {
-    'username': {
-        'dependencies': ['password'],
-        'type': 'string',
-        'excludes': ['access-token', 'instance-url']
+    'version': {
+        'type': 'integer',
+        'required': True,
+        'allowed': [1]
     },
-    'sandbox': {
-        'type': 'boolean',
-        'default': False
-    },
-    'access-token': {
-        'dependencies': ['instance-url'],
-        'type': 'string',
-        'excludes': ['username', 'password', 'security-token']
-    },
-    'password': {
-        'dependencies': ['username'],
-        'type': 'string',
-        'excludes': ['access-token', 'instance-url']
-    },
-    'security-token': {
-        'dependencies': ['username', 'password'],
-        'type': 'string',
-        'excludes': ['access-token', 'instance-url']
-    },
-    'instance-url': {
-        'dependencies': ['access-token'],
-        'type': 'string',
-        'excludes': ['username', 'password', 'security-token']
+    'credentials': {
+        'type': 'dict',
+        'required': True,
+        'schema': {
+            'username': {
+                'dependencies': ['password'],
+                'type': 'string',
+                'excludes': ['access-token', 'instance-url']
+            },
+            'sandbox': {
+                'type': 'boolean',
+                'default': False
+            },
+            'access-token': {
+                'dependencies': ['instance-url'],
+                'type': 'string',
+                'excludes': ['username', 'password', 'security-token']
+            },
+            'password': {
+                'dependencies': ['username'],
+                'type': 'string',
+                'excludes': ['access-token', 'instance-url']
+            },
+            'security-token': {
+                'dependencies': ['username', 'password'],
+                'type': 'string',
+                'excludes': ['access-token', 'instance-url']
+            },
+            'instance-url': {
+                'dependencies': ['access-token'],
+                'type': 'string',
+                'excludes': ['username', 'password', 'security-token']
+            }
+        }
     }
 }
 
@@ -178,11 +197,6 @@ schema = {
         'type': 'integer',
         'required': True,
         'allowed': [1]
-    },
-    'credentials': {
-        'type': 'dict',
-        'required': False,
-        'schema': credential_schema
     },
     'extraction': {
         'type': 'list',
@@ -195,7 +209,7 @@ schema = {
                 },
                 'target-file': {
                     'type': 'string',
-                    'default_setter': lambda doc: doc['sobject'] + 'csv'
+                    'default_setter': lambda doc: doc['sobject'] + '.csv'
                 },
                 'sdl': {
                     'type': 'string',
@@ -209,6 +223,7 @@ schema = {
                 },
                 'extract': {
                     'type': 'dict',
+                    'required': True,
                     'schema': {
                         'all': {
                             'type': 'boolean',
@@ -236,11 +251,11 @@ schema = {
                 'field-group': {
                     'type': 'string',
                     'allowed': ['readable', 'writable'],
-                    'excludes': 'sdl'
+                    'excludes': ['sdl', 'fields']
                 },
                 'fields': {
                     'type': 'list',
-                    'excludes': 'sdl',
+                    'excludes': ['sdl' 'field-group'],
                     'schema': {
                         'type': ['string', 'dict'],
                         'schema': {

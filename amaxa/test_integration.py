@@ -4,10 +4,10 @@ import os
 from simple_salesforce import Salesforce
 from unittest.mock import Mock
 
+@unittest.skipIf(any(['INSTANCE_URL' not in os.environ, 'ACCESS_TOKEN' not in os.environ]),
+                 'environment not configured for integration test')
 class test_Extraction(unittest.TestCase):
     def setUp(self):
-        self.assertIn('INSTANCE_URL', os.environ)
-        self.assertIn('ACCESS_TOKEN', os.environ)
         self.connection = Salesforce(
             instance_url=os.environ['INSTANCE_URL'],
             session_id=os.environ['ACCESS_TOKEN']
