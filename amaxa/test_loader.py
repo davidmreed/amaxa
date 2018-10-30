@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock
 from . import amaxa, loader
 
-class test_schemas(unittest.TestCase):
+class test_load_credentials(unittest.TestCase):
     def test_credential_schema_validates_username_password(self):
         (result, errors) = loader.validate_credential_schema(
             {
@@ -17,7 +17,7 @@ class test_schemas(unittest.TestCase):
         )
 
         self.assertIsNotNone(result)
-        self.assertEqual({}, errors)
+        self.assertEqual([], errors)
 
     def test_credential_schema_validates_access_token(self):
         (result, errors) = loader.validate_credential_schema(
@@ -31,7 +31,7 @@ class test_schemas(unittest.TestCase):
         )
 
         self.assertIsNotNone(result)
-        self.assertEqual({}, errors)
+        self.assertEqual([], errors)
 
     def test_credential_schema_fails_mixed_values(self):
         (result, errors) = loader.validate_credential_schema(
@@ -50,16 +50,67 @@ class test_schemas(unittest.TestCase):
         self.assertIsNone(result)
         self.assertGreater(len(errors), 0)
     
-    def test_extraction_schema_validates_with_credentials(self):
-        pass
     def test_validate_extraction_schema_returns_normalized_input(self):
-        pass
+        (result, errors) = loader.validate_extraction_schema(
+            {
+                'version': 1,
+                'extraction': [
+                    { 
+                        'sobject': 'Account',
+                        'fields': [ 'Name', 'ParentId' ],
+                        'extract': { 'all': True }
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual('Account.csv', result['extraction'][0]['target-file'])
+        self.assertEqual([], errors)
+
     def test_validate_extraction_schema_returns_errors(self):
-        pass
+        (result, errors) = loader.validate_extraction_schema(
+            {
+                'extraction': [
+                    { 
+                        'sobject': 'Account',
+                        'fields': [ 'Name', 'ParentId' ],
+                        'extract': { 'all': True }
+                    }
+                ]
+            }
+        )
+
+        self.assertIsNone(result)
+        self.assertEquals(['version: [\'required field\']'], errors)
+
+
     def test_validate_credential_schema_returns_normalized_input(self):
-        pass
+        credentials = {
+            'version': 1,
+            'credentials': {
+                'username': 'baltar@ucaprica.edu',
+                'password': '666666666'
+            }
+        }
+
+        (result, errors) = loader.validate_credential_schema(credentials)
+
+        self.assertEquals(False, result['credentials']['sandbox'])
+        self.assertEquals([], errors)
+
     def test_validate_credential_schema_returns_errors(self):
-        pass
+        credentials = {
+            'credentials': {
+                'username': 'baltar@ucaprica.edu',
+                'password': '666666666'
+            }
+        }
+
+        (result, errors) = loader.validate_credential_schema(credentials)
+
+        self.assertIsNone(result)
+        self.assertEquals(['version: [\'required field\']'], errors)
+
 
 class test_load_extraction(unittest.TestCase):
     def test_load_extraction_flags_missing_sobjects(self):
@@ -449,6 +500,3 @@ class test_load_extraction(unittest.TestCase):
             {'Account Name': 'university of caprica', 'Industry': 'Education'},
             mapper.transform_record({ 'Name': 'UNIversity of caprica  ', 'Industry': 'Education' })
         )
-
-    def test_load_extraction_creates_all_steps(self):
-        pass

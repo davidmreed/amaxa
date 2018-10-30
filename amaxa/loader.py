@@ -7,7 +7,7 @@ from . import transforms
 def load_credentials(incoming):
     (credentials, errors) = validate_credential_schema(incoming)
     if credentials is None:
-        return (None, errors) #FIXME: what is the structure of this dict? turn into list
+        return (None, errors)
 
     connection = None
 
@@ -18,8 +18,8 @@ def load_credentials(incoming):
             username = credentials['username'],
             password = credentials['password'],
             security_token = credentials.get('security-token') or '',
-            organizationId = credentials.get('organization-id'),
-            sandbox = credentials.get('sandbox') or False
+            organizationId = credentials.get('organization-id') or '',
+            sandbox = credentials.get('sandbox')
         )
     elif 'access-token' in credentials and 'instance-url' in credentials:
         connection = simple_salesforce.Salesforce(instance_url=credentials['instance-url'], 
@@ -139,14 +139,14 @@ def validate_extraction_schema(input):
     v = cerberus.Validator(schema)
     return (
         v.validated(input),
-        v.errors
+        ['{}: {}'.format(k, v.errors[k]) for k in v.errors]
     )
 
 def validate_credential_schema(input):
     v = cerberus.Validator(credential_schema)
     return (
         v.validated(input),
-        v.errors
+        ['{}: {}'.format(k, v.errors[k]) for k in v.errors]
     )
 
 credential_schema = {
@@ -179,6 +179,11 @@ credential_schema = {
                 'excludes': ['access-token', 'instance-url']
             },
             'security-token': {
+                'dependencies': ['username', 'password'],
+                'type': 'string',
+                'excludes': ['access-token', 'instance-url']
+            },
+            'organization-id': {
                 'dependencies': ['username', 'password'],
                 'type': 'string',
                 'excludes': ['access-token', 'instance-url']
