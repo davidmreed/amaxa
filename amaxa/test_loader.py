@@ -166,7 +166,180 @@ class test_load_extraction(unittest.TestCase):
             errors
         )
 
-    def test_validate_extraction_passes(self):
+    def test_load_extraction_creates_valid_steps(self):
+        context = amaxa.OperationContext(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': {
+                    'Account': {
+                        'retrieveable': True
+                    },
+                    'Contact': {
+                        'retrieveable': True
+                    }
+                }
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string'
+                },
+                'Id': {
+                    'type': 'string'
+                }
+            }
+        )
+        context.add_dependency = Mock()
+
+        ex = {
+            'version': 1,
+            'extraction': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [ 'Name' ],
+                    'extract': { 'all': True }
+                },
+                { 
+                    'sobject': 'Contact',
+                    'fields': [ 'Name' ],
+                    'extract': { 
+                        'ids': [
+                            '003000000000000',
+                            '003000000000001'
+                        ]
+                    }
+                }
+
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction(ex, context)
+            
+        m.assert_has_calls(
+            [
+                unittest.mock.call('Account.csv', 'w'),
+                unittest.mock.call('Contact.csv', 'w')
+            ],
+            any_order=True
+        )
+
+        context.add_dependency.assert_has_calls(
+            [
+                unittest.mock.call('Contact', amaxa.SalesforceId('003000000000000')),
+                unittest.mock.call('Contact', amaxa.SalesforceId('003000000000001'))
+            ]
+        )
+
+        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertEqual([], errors)
+        self.assertEqual(2, len(result.steps))
+        self.assertEqual('Account', result.steps[0].sobjectname)
+        self.assertEqual(amaxa.ExtractionScope.ALL_RECORDS, result.steps[0].scope)
+        self.assertEqual('Contact', result.steps[1].sobjectname)
+        self.assertEqual(amaxa.ExtractionScope.SELECTED_RECORDS, result.steps[1].scope)
+
+    def test_load_extraction_finds_readable_field_group(self):
+        context = amaxa.OperationContext(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': {
+                    'Account': {
+                        'retrieveable': True
+                    }
+                }
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'isAccessible': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'isAccessible': True
+                },
+                'Industry': {
+                    'type': 'string',
+                    'isAccessible': False
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'extraction': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'readable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction(ex, context)
+            
+        m.assert_called_once_with('Account.csv', 'w')
+
+        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertEqual([], errors)
+
+        self.assertEqual({'Name', 'Id'}, result.steps[0].field_scope)
+
+    def test_load_extraction_finds_writeable_field_group(self):
+        context = amaxa.OperationContext(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': {
+                    'Account': {
+                        'retrieveable': True
+                    }
+                }
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'isUpdateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'isUpdateable': True
+                },
+                'Industry': {
+                    'type': 'string',
+                    'isUpdateable': False
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'extraction': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'writable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction(ex, context)
+            
+        m.assert_called_once_with('Account.csv', 'w')
+
+        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertEqual([], errors)
+
+    def test_load_extraction_generates_field_list(self):
         context = Mock()
         context.connection.describe = Mock(
             return_value={
@@ -184,6 +357,9 @@ class test_load_extraction(unittest.TestCase):
                 },
                 'Id': {
                     'type': 'string'
+                },
+                'Industry': {
+                    'type': 'string'
                 }
             }
         )
@@ -193,7 +369,10 @@ class test_load_extraction(unittest.TestCase):
             'extraction': [
                 { 
                     'sobject': 'Account',
-                    'fields': [ 'Name' ],
+                    'fields': [
+                        'Name', 
+                        'Industry'
+                    ],
                     'extract': { 'all': True }
                 }
             ]
@@ -208,17 +387,68 @@ class test_load_extraction(unittest.TestCase):
         self.assertIsInstance(result, amaxa.MultiObjectExtraction)
         self.assertEqual([], errors)
 
-    def test_load_extraction_finds_readable_field_group(self):
-        pass
-    def test_load_extraction_finds_writeable_field_group(self):
-        pass
-    def test_load_extraction_generates_field_list(self):
-        pass
+        self.assertEqual({'Name', 'Industry', 'Id'}, result.steps[0].field_scope)
+
     def test_load_extraction_creates_export_mapper(self):
-        pass
-    def test_load_extraction_chooses_correct_scope(self):
-        pass
-    def test_load_extraction_opens_export_files(self):
-        pass
+        context = amaxa.OperationContext(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': {
+                    'Account': {
+                        'retrieveable': True
+                    }
+                }
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string'
+                },
+                'Id': {
+                    'type': 'string'
+                },
+                'Industry': {
+                    'type': 'string'
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'extraction': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        {
+                            'field': 'Name',
+                            'target-column': 'Account Name',
+                            'transforms': ['strip', 'lowercase']
+                        },
+                        'Industry'
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction(ex, context)
+            
+        m.assert_called_once_with('Account.csv', 'w')
+
+        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertEqual([], errors)
+
+        self.assertEqual({'Name', 'Industry', 'Id'}, result.steps[0].field_scope)
+        self.assertIn('Account', context.mappers)
+
+        mapper = context.mappers['Account']
+        self.assertEqual(
+            {'Account Name': 'university of caprica', 'Industry': 'Education'},
+            mapper.transform_record({ 'Name': 'UNIversity of caprica  ', 'Industry': 'Education' })
+        )
+
     def test_load_extraction_creates_all_steps(self):
         pass
