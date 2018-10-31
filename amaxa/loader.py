@@ -129,8 +129,8 @@ def load_extraction(incoming, context):
             output = csv.DictWriter(open(e['target-file'], 'w'), fieldnames = s.field_scope)
             output.writeheader()
             context.set_output_file(s.sobjectname, output)
-        except Exception as e:
-            return (None, ['Unable to open file {} for writing ({}).'.format(target_file, e)])
+        except Exception as exp:
+            return (None, ['Unable to open file {} for writing ({}).'.format(e['target-file'], exp)])
 
     ex = amaxa.MultiObjectExtraction(steps)
     return (ex, [])

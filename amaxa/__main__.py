@@ -6,7 +6,7 @@ from . import amaxa, loader
 def main():
     a = argparse.ArgumentParser()
 
-    a.add_argument('config', dest='config', type=argparse.FileType('r'))
+    a.add_argument('config', type=argparse.FileType('r'))
     a.add_argument('-c', '--credentials', required=True, dest='credentials', type=argparse.FileType('r'))
 
     args = a.parse_args()
@@ -38,3 +38,5 @@ def main():
     else:
         print('Unable to execute operation due to the following errors: {}'.format('\n'.join(errors)))
         return -1
+
+    return 0
