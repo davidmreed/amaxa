@@ -284,7 +284,7 @@ class test_load_extraction(unittest.TestCase):
             ]
         )
 
-        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertIsInstance(result, amaxa.OperationContext)
         self.assertEqual([], errors)
         self.assertEqual(2, len(result.steps))
         self.assertEqual('Account', result.steps[0].sobjectname)
@@ -337,7 +337,7 @@ class test_load_extraction(unittest.TestCase):
             
         m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertIsInstance(result, amaxa.OperationContext)
         self.assertEqual([], errors)
 
         self.assertEqual({'Name', 'Id'}, result.steps[0].field_scope)
@@ -387,11 +387,12 @@ class test_load_extraction(unittest.TestCase):
             
         m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertIsInstance(result, amaxa.OperationContext)
         self.assertEqual([], errors)
 
     def test_load_extraction_generates_field_list(self):
-        context = Mock()
+        connection = Mock()
+        context = amaxa.OperationContext(connection)
         context.connection.describe = Mock(
             return_value={
                 'sobjects': {
@@ -435,7 +436,7 @@ class test_load_extraction(unittest.TestCase):
             
         m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertIsInstance(result, amaxa.OperationContext)
         self.assertEqual([], errors)
 
         self.assertEqual({'Name', 'Industry', 'Id'}, result.steps[0].field_scope)
@@ -489,7 +490,7 @@ class test_load_extraction(unittest.TestCase):
             
         m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertIsInstance(result, amaxa.MultiObjectExtraction)
+        self.assertIsInstance(result, amaxa.OperationContext)
         self.assertEqual([], errors)
 
         self.assertEqual({'Name', 'Industry', 'Id'}, result.steps[0].field_scope)

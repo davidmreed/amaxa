@@ -41,7 +41,6 @@ def load_extraction(incoming, context):
  
     global_describe = context.connection.describe()["sobjects"]
 
-    steps = []
     errors = []
 
     for entry in incoming['extraction']:
@@ -113,18 +112,17 @@ def load_extraction(incoming, context):
             sobject, 
             scope, 
             field_set, 
-            context, 
             where_clause = query
         )
         
-        steps.append(step)
+        context.add_step(step)
 
     if len(errors) > 0:
         return (None, errors)
     
     # Open all of the output files
     # Create DictWriters and populate them in the context
-    for (s, e) in zip(steps, incoming['extraction']):
+    for (s, e) in zip(context.steps, incoming['extraction']):
         try:
             output = csv.DictWriter(open(e['target-file'], 'w'), fieldnames = s.field_scope)
             output.writeheader()
@@ -132,8 +130,7 @@ def load_extraction(incoming, context):
         except Exception as exp:
             return (None, ['Unable to open file {} for writing ({}).'.format(e['target-file'], exp)])
 
-    ex = amaxa.MultiObjectExtraction(steps)
-    return (ex, [])
+    return (context, [])
 
 def validate_extraction_schema(input):
     v = cerberus.Validator(schema)

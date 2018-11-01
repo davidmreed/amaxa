@@ -20,9 +20,9 @@ class test_Extraction(unittest.TestCase):
         extraction = amaxa.SingleObjectExtraction(
             'Account',
             amaxa.ExtractionScope.ALL_RECORDS,
-            ['Id', 'Name'],
-            oc
+            ['Id', 'Name']
         )
+        oc.add_step(extraction)
 
         extraction.execute()
 
@@ -40,9 +40,9 @@ class test_Extraction(unittest.TestCase):
         extraction = amaxa.SingleObjectExtraction(
             'Account',
             amaxa.ExtractionScope.SELECTED_RECORDS,
-            ['Id', 'Name', 'ParentId'],
-            oc
+            ['Id', 'Name', 'ParentId']
         )
+        oc.add_step(extraction)
 
         extraction.execute()
 
@@ -62,24 +62,22 @@ class test_Extraction(unittest.TestCase):
         rec = self.connection.query('SELECT Id FROM Account WHERE Name = \'Caprica Cosmetics\'')
         oc.add_dependency('Account', rec.get('records')[0]['Id'])
 
-        extraction = amaxa.MultiObjectExtraction(
-            [
-                amaxa.SingleObjectExtraction(
-                    'Account',
-                    amaxa.ExtractionScope.SELECTED_RECORDS,
-                    ['Id', 'Name', 'ParentId'],
-                    oc
-                ),
-                amaxa.SingleObjectExtraction(
-                    'Contact',
-                    amaxa.ExtractionScope.DESCENDENTS,
-                    ['Id', 'FirstName', 'LastName', 'AccountId'],
-                    oc
-                )
-            ]
+        oc.add_step(
+            amaxa.SingleObjectExtraction(
+                'Account',
+                amaxa.ExtractionScope.SELECTED_RECORDS,
+                ['Id', 'Name', 'ParentId']
+            )
+        )
+        oc.add_step(
+            amaxa.SingleObjectExtraction(
+                'Contact',
+                amaxa.ExtractionScope.DESCENDENTS,
+                ['Id', 'FirstName', 'LastName', 'AccountId']
+            )
         )
 
-        extraction.execute()
+        oc.execute()
 
         self.assertEqual(3, len(oc.get_extracted_ids('Account')))
         self.assertEqual(2, len(oc.get_extracted_ids('Contact')))
@@ -87,6 +85,8 @@ class test_Extraction(unittest.TestCase):
             self.assertIn(c['FirstName'], expected_names)
             expected_names.remove(c['FirstName'])
 
+    def test_cli_command_extracts_records(self):
+        pass #FIXME
 
 if __name__ == "__main__":
     unittest.main()

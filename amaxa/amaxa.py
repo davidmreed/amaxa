@@ -11,6 +11,13 @@ class SelfLookupBehavior:
     TRACE_ALL = 'trace-all'
     TRACE_NONE = 'trace-none'
 
+class OutsideReferenceBehavior:
+    DROP_RECORD = 'drop-record'
+    DROP_FIELD = 'drop-field'
+    INCLUDE = 'include'
+    RECURSE = 'recurse'
+    ERROR = 'error'
+
 class SalesforceId(object):
     def __init__(self, idstr):
         if isinstance(idstr, SalesforceId):
@@ -50,6 +57,7 @@ class SalesforceId(object):
 
 class OperationContext(object):
     def __init__(self, connection):
+        self.steps = []
         self.connection = connection
         self.describe_info = {}
         self.field_maps = {}
@@ -59,6 +67,14 @@ class OperationContext(object):
         self.extracted_ids = {}
         self.output_files = {}
         self.mappers = {}
+    
+    def add_step(self, step):
+        step.context = self
+        self.steps.append(step)
+
+    def execute(self):
+        for s in self.steps:
+            s.execute()
 
     def set_output_file(self, sobjectname, f):
         self.output_files[sobjectname] = f
@@ -128,40 +144,40 @@ class OperationContext(object):
 
         if sobjectname in self.required_ids and SalesforceId(record['Id']) in self.required_ids[sobjectname]:
             self.required_ids[sobjectname].remove(SalesforceId(record['Id']))
+    
+    def get_sobject_list(self):
+        return [step.sobjectname for step in self.steps]
 
-class MultiObjectExtraction(object):
-    def __init__(self, steps):
-        self.steps = steps
-
-    def execute(self):
-        for s in self.steps:
-            s.execute()
 
 class SingleObjectExtraction(object):
-    def __init__(self, sobjectname, scope, field_scope, context, where_clause=None, self_lookup_behavior=SelfLookupBehavior.TRACE_ALL):
+    def __init__(self, sobjectname, scope, field_scope, where_clause=None, self_lookup_behavior=SelfLookupBehavior.TRACE_ALL):
         self.sobjectname = sobjectname
         self.scope = scope
         self.field_scope = field_scope
-        self.context = context
         self.where_clause = where_clause
         self.self_lookup_behavior = self_lookup_behavior
 
-        # Determine whether we have any self-lookups.
-        self.self_lookups = set()
-
-        field_map = self.context.get_field_map(self.sobjectname)
-        for f in self.field_scope:
-            if field_map[f]['type'] == 'reference':
-                if len(field_map[f]['referenceTo']) > 1:
-                    # Polymorphic lookup. Should not be a self-lookup as well.
-                    assert self.sobjectname not in field_map[f]['referenceTo'], 'Field {}.{} is a polymorphic self-lookup, which isn\'t supported'.format(self.sobjectname, f)
-                elif self.sobjectname in field_map[f]['referenceTo']:
-                    self.self_lookups.add(f)
+        self.context = None
 
     def get_field_list(self):
         return ', '.join(self.field_scope)
 
+    def scan_fields(self):
+        # Determine whether we have any self-lookups or dependent lookups
+        field_map = self.context.get_field_map(self.sobjectname)
+
+        self.all_lookups = { f for f in self.field_scope if field_map[f]['type'] == 'reference' }
+        self.self_lookups = { f for f in self.all_lookups if self.sobjectname in field_map[f]['referenceTo'] }
+        self.dependent_lookups = { 
+            f for f in self.all_lookups
+            if f not in self.self_lookups and \
+                field_map[f]['referenceTo'][0] in self.context.get_sobject_list() and \
+                self.context.get_sobject_list().index(field_map[f]['referenceTo'][0]) \
+                > self.context.get_sobject_list().index(self.sobjectname) }
+        # FIXME: we may need to add some polymorphic lookup handling here.
+
     def execute(self):
+        self.scan_fields()
         # If scope if ALL_RECORDS, execute a Bulk API job to extract all records
         # If scope is QUERY, execute a Bulk API job to download a query with where_clause
         # If scope is DESCENDENTS, pull based on objects that look up to any already
@@ -215,12 +231,27 @@ class SingleObjectExtraction(object):
                     break
 
     def store_result(self, result):
+        # Examine the received data to determine whether we have any cross-hierarchy lookups
+        
         self.context.store_result(self.sobjectname, result)
+
         if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL:
             # Add a dependency for the reference in each self lookup of this record.
             for l in self.self_lookups:
                 if result[l] is not None:
                     self.context.add_dependency(self.sobjectname, SalesforceId(result[l]))
+
+        # Register any dependencies from dependent lookups
+        if len(self.dependent_lookups) > 0:
+            field_map = self.context.get_field_map[self.sobjectname]
+            for f in self.dependent_lookups:
+                lookup_value = result[f]
+                if lookup_value is not None:
+                    self.context.add_dependency(
+                        field_map[f]['referenceTo'][0],
+                        SalesforceId(lookup_value)
+                    ) #FIXME: issue with polymorphic lookups here
+
 
     def resolve_registered_dependencies(self):
         pre_deps = self.context.get_dependencies(self.sobjectname).copy()
