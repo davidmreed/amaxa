@@ -1,5 +1,10 @@
 [run]
 branch = True
+omit =
+    *_test.py
+    test_*.py
+    test/*.py
+    node_modules/*
 
 [report]
 exclude_lines =
@@ -9,7 +14,3 @@ exclude_lines =
     if __name__ == .__main__.:
     pass
 ignore_errors = True
-omit =
-    *_test.py
-    test_*.py
-    test/*.py

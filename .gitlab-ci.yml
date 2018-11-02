@@ -7,30 +7,33 @@ cache:
   paths:
     - .cache/pip
     - venv/
-    - node_modules
+    - node_modules/
 
 before_script:
-  - python -V 
-    python -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
+  - python -V
+  - python -m venv venv
+  - source venv/bin/activate
+  - pip install -r requirements.txt -r testing-requirements.txt
 
 test:
   script:
-    - pip install -r testing-requirements.txt
-      if [ ! -d node_modules/sfdx-cli ]; then
-          export SFDX_AUTOUPDATE_DISABLE=true
-          export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
-          export SFDX_DOMAIN_RETRY=300
-          npm install sfdx-cli
-          node_modules/sfdx-cli/bin/run --version
-          node_modules/sfdx-cli/bin/run plugins --core
-      fi
-      openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d
-      node_modules/sfdx-cli/bin/run force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
-      node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f config/project-scratch-def.json -a scratch
-      rm assets/server.key
-      export ACCESS_TOKEN=$(node_modules/sfdx-cli/bin/run force:user:display --json | python -c "import json; import sys; print(json.load(sys.stdin)['result']['accessToken'])")
-      export INSTANCE_URL=$(node_modules/sfdx-cli/bin/run force:user:display --json | python -c "import json; import sys; print(json.load(sys.stdin)['result']['instanceUrl'])")
-      pytest --junitxml=test-reports/junit.xml --cov-config .coveragerc --cov=amaxa
-      node_modules/sfdx-cli/bin/run force:org:delete -u scratch -p
+    - if [ ! -d node_modules/sfdx-cli ]; then
+          export SFDX_AUTOUPDATE_DISABLE=true;
+          export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true;
+          export SFDX_DOMAIN_RETRY=300;
+          npm install sfdx-cli;
+          node_modules/sfdx-cli/bin/run --version;
+          node_modules/sfdx-cli/bin/run plugins --core;
+      fi;
+    - openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d
+    - node_modules/sfdx-cli/bin/run force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
+    - node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f assets/project-scratch-def.json -a scratch
+    - node_modules/sfdx-cli/bin/run force:data:tree:import -p test_data/Account-Contact-plan.json -u scratch
+    - export ACCESS_TOKEN=$(node_modules/sfdx-cli/bin/run force:user:display --json | python -c "import json; import sys; print(json.load(sys.stdin)['result']['accessToken'])")
+    - export INSTANCE_URL=$(node_modules/sfdx-cli/bin/run force:user:display --json | python -c "import json; import sys; print(json.load(sys.stdin)['result']['instanceUrl'])")
+    - cd amaxa && pytest --junitxml=../test-reports/junit.xml --cov-config ../.coveragerc --cov=amaxa
+    - cd ..
+
+  after-script:
+    - node_modules/sfdx-cli/bin/run force:org:delete -u scratch -p
+    - rm assets/server.key
