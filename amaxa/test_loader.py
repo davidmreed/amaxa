@@ -81,7 +81,7 @@ class test_load_credentials(unittest.TestCase):
         )
 
         self.assertIsNone(result)
-        self.assertEquals(['version: [\'required field\']'], errors)
+        self.assertEqual(['version: [\'required field\']'], errors)
 
 
     def test_validate_credential_schema_returns_normalized_input(self):
@@ -95,8 +95,8 @@ class test_load_credentials(unittest.TestCase):
 
         (result, errors) = loader.validate_credential_schema(credentials)
 
-        self.assertEquals(False, result['credentials']['sandbox'])
-        self.assertEquals([], errors)
+        self.assertEqual(False, result['credentials']['sandbox'])
+        self.assertEqual([], errors)
 
     def test_validate_credential_schema_returns_errors(self):
         credentials = {
@@ -109,7 +109,7 @@ class test_load_credentials(unittest.TestCase):
         (result, errors) = loader.validate_credential_schema(credentials)
 
         self.assertIsNone(result)
-        self.assertEquals(['version: [\'required field\']'], errors)
+        self.assertEqual(['version: [\'required field\']'], errors)
 
 
 class test_load_extraction(unittest.TestCase):

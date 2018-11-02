@@ -741,7 +741,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.add_step(step)
         step.scan_fields()
 
-        self.assertEquals(set(['ParentId']), step.self_lookups)
+        self.assertEqual(set(['ParentId']), step.self_lookups)
 
         step.execute()
 
@@ -802,7 +802,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
 
         step.execute()
 
-        self.assertEquals(set(['ParentId']), step.self_lookups)
+        self.assertEqual(set(['ParentId']), step.self_lookups)
         step.resolve_registered_dependencies.assert_called_once_with()
         oc.get_extracted_ids.assert_not_called()
 
