@@ -387,7 +387,31 @@ class test_SingleObjectExtraction(unittest.TestCase):
         step.scan_fields()
 
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '001000000000001', 'Name': 'Picon Fleet Headquarters' })
-        oc.add_dependency.assert_called_once_with('Account', '001000000000001')
+        oc.add_dependency.assert_called_once_with('Account', amaxa.SalesforceId('001000000000001'))
+
+    def test_store_result_registered_dependent_lookup_dependencies(self):
+        connection = Mock()
+
+        oc = amaxa.OperationContext(connection)
+
+        oc.store_result = Mock()
+        oc.add_dependency = Mock()
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Opportunity']
+            }
+        })
+        oc.get_sobject_list = Mock(return_value=['Account', 'Opportunity'])
+
+        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        oc.add_step(step)
+        step.scan_fields()
+
+        step.store_result({ 'Id': '001000000000000', 'Lookup__c': '006000000000001', 'Name': 'Picon Fleet Headquarters' })
+        oc.add_dependency.assert_called_once_with('Opportunity', amaxa.SalesforceId('006000000000001'))
+
 
     def test_perform_lookup_pass_executes_correct_query(self):
         connection = Mock()

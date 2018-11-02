@@ -243,7 +243,7 @@ class SingleObjectExtraction(object):
 
         # Register any dependencies from dependent lookups
         if len(self.dependent_lookups) > 0:
-            field_map = self.context.get_field_map[self.sobjectname]
+            field_map = self.context.get_field_map(self.sobjectname)
             for f in self.dependent_lookups:
                 lookup_value = result[f]
                 if lookup_value is not None:
