@@ -85,8 +85,5 @@ class test_Extraction(unittest.TestCase):
             self.assertIn(c['FirstName'], expected_names)
             expected_names.remove(c['FirstName'])
 
-    def test_cli_command_extracts_records(self):
-        pass #FIXME
-
 if __name__ == "__main__":
     unittest.main()
