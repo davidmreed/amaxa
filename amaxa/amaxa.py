@@ -1,5 +1,6 @@
 import functools
 import simple_salesforce
+import logging
 
 class ExtractionScope(object):
     ALL_RECORDS = 'all'
@@ -67,13 +68,16 @@ class OperationContext(object):
         self.extracted_ids = {}
         self.output_files = {}
         self.mappers = {}
+        self.logger = logging.getLogger('amaxa')
     
     def add_step(self, step):
         step.context = self
         self.steps.append(step)
 
     def execute(self):
+        self.logger.info('Starting extraction with sObjects %s', self.get_sobject_list())
         for s in self.steps:
+            self.logger.info('Extracting %s', s.sobjectname)
             s.execute()
 
     def set_output_file(self, sobjectname, f):
@@ -136,6 +140,7 @@ class OperationContext(object):
         if sobjectname not in self.extracted_ids:
             self.extracted_ids[sobjectname] = set()
 
+        self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
         self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
         self.output_files[sobjectname].writerow(
             self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
@@ -186,15 +191,20 @@ class SingleObjectExtraction(object):
         # perform a query to extract those records by Id.
 
         if self.scope == ExtractionScope.ALL_RECORDS:
-            self.perform_bulk_api_pass(
-                'SELECT {} FROM {}'.format(self.get_field_list(), self.sobjectname)
-            )
+            query = 'SELECT {} FROM {}'.format(self.get_field_list(), self.sobjectname)
+
+            self.context.logger.debug('%s: extracting all records using Bulk API query %s', self.sobjectname, query)
+            self.perform_bulk_api_pass(query)
         elif self.scope == ExtractionScope.QUERY:
-            self.perform_bulk_api_pass(
-                'SELECT {} FROM {} WHERE {}'.format(self.get_field_list(), self.sobjectname, self.where_clause)
-            )
+            query = 'SELECT {} FROM {} WHERE {}'.format(self.get_field_list(), self.sobjectname, self.where_clause)
+
+            self.context.logger.debug('%s: extracting filtered records using Bulk API query %s', self.sobjectname, query)
+            self.perform_bulk_api_pass(query)
         elif self.scope == ExtractionScope.DESCENDENTS:
             lookups = self.context.get_filtered_field_map(self.sobjectname, lambda f: f['type'] == 'reference')
+
+            self.context.logger.debug('%s: extracting descendent records based on lookups %s', self.sobjectname, ', '.join(lookups))
+
             for f in self.field_scope:
                 if f in lookups:
                     self.perform_lookup_pass(f)
@@ -214,6 +224,8 @@ class SingleObjectExtraction(object):
             # We repeat until we get back no new Ids, which indicates that all references have been resolved.
 
             # Note that the initial parent query is handled in the dependency pass above, so we start on children.
+
+            self.context.logger.debug('%s: recursing to trace self-lookups', self.sobjectname)
 
             while True:
                 before_count = len(self.context.get_extracted_ids(self.sobjectname))
@@ -293,8 +305,6 @@ class SingleObjectExtraction(object):
             results = self.context.connection.query_all(
                 query.format(self.get_field_list(), self.sobjectname, id_field, id_list)
             )
-
-            # FIXME: Error handling
 
             for rec in results.get('records'):
                 self.store_result(rec)

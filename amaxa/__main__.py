@@ -1,4 +1,5 @@
 import argparse
+import logging
 import yaml
 import json
 from . import amaxa, loader
@@ -8,8 +9,18 @@ def main():
 
     a.add_argument('config', type=argparse.FileType('r'))
     a.add_argument('-c', '--credentials', required=True, dest='credentials', type=argparse.FileType('r'))
+    verbosity_levels = {'quiet': logging.NOTSET, 'errors': logging.ERROR,
+                        'normal': logging.INFO, 'verbose': logging.DEBUG}
+
+    a.add_argument('-v', '--verbosity',
+                   choices=verbosity_levels.keys(),
+                   dest='verbosity', default='normal',
+                   help='Log all actions')
 
     args = a.parse_args()
+
+    logging.getLogger('amaxa').setLevel(verbosity_levels[args.verbosity])
+    logging.getLogger('amaxa').handlers[:] = [logging.StreamHandler()]
 
     credentials = None
 

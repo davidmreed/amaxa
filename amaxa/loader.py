@@ -1,6 +1,7 @@
 import csv
 import simple_salesforce
 import cerberus
+import logging
 from . import amaxa
 from . import transforms
 
@@ -21,9 +22,12 @@ def load_credentials(incoming):
             organizationId = credentials.get('organization-id') or '',
             sandbox = credentials.get('sandbox')
         )
+
+        logging.getLogger('amaxa').debug('Authenticating to Salesforce with user name and password')
     elif 'access-token' in credentials and 'instance-url' in credentials:
         connection = simple_salesforce.Salesforce(instance_url=credentials['instance-url'], 
                                                   session_id=credentials['access-token'])
+        logging.getLogger('amaxa').debug('Authenticating to Salesforce with access token')
     else:
         return (None, ['A set of valid credentials was not provided.'])
     
@@ -38,8 +42,12 @@ def load_extraction(incoming, context):
     (incoming, errors) = validate_extraction_schema(incoming)
     if incoming is None:
         return (None, errors)
- 
-    global_describe = context.connection.describe()["sobjects"]
+    
+    try:
+        global_describe = context.connection.describe()["sobjects"]
+    except Exception as e:
+        errors.append('Unable to authenticate to Salesforce: {}'.format(e))
+        return (None, errors)
 
     errors = []
 
