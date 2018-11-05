@@ -333,7 +333,7 @@ class SingleObjectExtraction(object):
         for f in self.descendent_lookups:
             lookup_value = result[f]
             if len(field_map[f]['referenceTo']) == 1:
-                target_sobject = field_map[f]['referenceTo']
+                target_sobject = field_map[f]['referenceTo'][0]
             else:
                 target_sobject = self.context.get_sobject_name_for_id(lookup_value)
             
