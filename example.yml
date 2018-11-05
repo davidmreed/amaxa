@@ -9,7 +9,7 @@ extraction:
             - ParentId
             - 
                 field: Description
-                target-column: Desc
+                column: Desc
                 transforms:
                     - strip
                     - lowercase

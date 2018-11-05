@@ -474,7 +474,7 @@ class test_load_extraction(unittest.TestCase):
                     'fields': [
                         {
                             'field': 'Name',
-                            'target-column': 'Account Name',
+                            'column': 'Account Name',
                             'transforms': ['strip', 'lowercase']
                         },
                         'Industry'
@@ -500,6 +500,66 @@ class test_load_extraction(unittest.TestCase):
         self.assertEqual(
             {'Account Name': 'university of caprica', 'Industry': 'Education'},
             mapper.transform_record({ 'Name': 'UNIversity of caprica  ', 'Industry': 'Education' })
+        )
+
+    def test_load_extraction_catches_duplicate_columns(self):
+        context = amaxa.OperationContext(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': {
+                    'Account': {
+                        'retrieveable': True
+                    }
+                }
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string'
+                },
+                'Id': {
+                    'type': 'string'
+                },
+                'Industry': {
+                    'type': 'string'
+                },
+                'AccountSite': {
+                    'type': 'string'
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'extraction': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        {
+                            'field': 'Name',
+                            'column': 'Industry',
+                        },
+                        'Industry',
+                        {
+                            'field': 'AccountSite',
+                            'column': 'Industry'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction(ex, context)
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            ['Field Account.Industry is mapped to column Industry, but this column is already mapped.',
+            'Field Account.AccountSite is mapped to column Industry, but this column is already mapped.'],
+            errors
         )
 
     def test_load_extraction_populates_lookup_behaviors(self):

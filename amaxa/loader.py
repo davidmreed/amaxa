@@ -89,6 +89,8 @@ def load_extraction(incoming, context):
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
         else:
             fields = entry.get('fields')
+            mapped_columns = set()
+
             # Determine whether we are doing any mapping
             if any([isinstance(f, dict) for f in fields]):
                 mapper = amaxa.ExtractMapper()
@@ -96,10 +98,18 @@ def load_extraction(incoming, context):
                 for f in fields:
                     if isinstance(f, str):
                         field_set.add(f)
+                        if f not in mapped_columns:
+                            mapped_columns.add(f)
+                        else:
+                            errors.append('Field {}.{} is mapped to column {}, but this column is already mapped.'.format(sobject, f, f))
                     else:
                         field_set.add(f['field'])
-                        if 'target-column' in f:
-                            mapper.field_name_mapping[f['field']] = f['target-column']
+                        if 'column' in f:
+                            mapper.field_name_mapping[f['field']] = f['column']
+                            if f['column'] not in mapped_columns:
+                                mapped_columns.add(f['column'])
+                            else:
+                                errors.append('Field {}.{} is mapped to column {}, but this column is already mapped.'.format(sobject, f['field'], f['column']))
                         if 'transforms' in f:
                             mapper.field_transforms[f['field']] = [getattr(transforms,t) for t in f['transforms']]
                         if 'self-lookup-behavior' in f:
@@ -303,7 +313,7 @@ schema = {
                                 'type': 'string',
                                 'required': True
                             },
-                            'target-column': {
+                            'column': {
                                 'type': 'string',
                                 'required': False
                             },
