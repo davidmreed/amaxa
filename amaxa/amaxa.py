@@ -55,6 +55,52 @@ class SalesforceId(object):
     def __repr__(self):
         return self.id
 
+class LoadOperation(object):
+    def __init__(self, connection):
+        self.steps = []
+        self.connection = connection
+        self.describe_info = {}
+        self.field_maps = {}
+        self.proxy_objects = {}
+        self.bulk_proxy_objects = {}
+        self.required_ids = {}
+        self.extracted_ids = {}
+        self.output_files = {}
+        self.mappers = {}
+        self.key_prefix_map = None
+        self.logger = logging.getLogger('amaxa')
+
+    def execute(self):
+        self.logger.info('Starting load with sObjects %s', self.get_sobject_list())
+        for s in self.steps:
+            self.logger.info('Loading %s', s.sobjectname)
+            s.execute()
+        
+        for s in self.steps:
+            self.logger.info('Populating dependent and self-lookups for %s', s.sobjectname)
+            s.execute_dependent_updates()
+
+    def get_sobject_list(self):
+        return [step.sobjectname for step in self.steps]
+
+class SingleObjectLoad(object):
+    def __init__(self, sobjectname, dict_reader, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
+        self.sobjectname = sobjectname
+        self.reader = dict_reader
+        self.outside_lookup_behavior = outside_lookup_behavior
+        self.lookup_behaviors = {}
+
+        self.operation = None
+
+    def execute(self):
+        # Read our incoming file.
+        # Apply transformations specified in our configuration file (column name -> field name, for example)
+        # Then, populate all direct lookups. Dependent lookups and self-lookups will be populated in a later pass.
+        for record in self.reader:
+            self.populate_lookups(self.transform_record(record))
+        
+        
+
 class OperationContext(object):
     def __init__(self, connection):
         self.steps = []
