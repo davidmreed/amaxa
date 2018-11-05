@@ -8,12 +8,11 @@ class ExtractionScope(object):
     SELECTED_RECORDS = 'some'
     DESCENDENTS = 'children'
 
-class SelfLookupBehavior:
+class SelfLookupBehavior(object):
     TRACE_ALL = 'trace-all'
     TRACE_NONE = 'trace-none'
 
-class OutsideReferenceBehavior:
-    DROP_RECORD = 'drop-record'
+class OutsideLookupBehavior(object):
     DROP_FIELD = 'drop-field'
     INCLUDE = 'include'
     RECURSE = 'recurse'
@@ -54,7 +53,7 @@ class SalesforceId(object):
         return self.id
 
     def __repr__(self):
-        return 'Salesforce Id: ' + self.id
+        return self.id
 
 class OperationContext(object):
     def __init__(self, connection):
@@ -68,6 +67,7 @@ class OperationContext(object):
         self.extracted_ids = {}
         self.output_files = {}
         self.mappers = {}
+        self.key_prefix_map = None
         self.logger = logging.getLogger('amaxa')
     
     def add_step(self, step):
@@ -91,6 +91,15 @@ class OperationContext(object):
 
     def get_dependencies(self, sobjectname):
         return self.required_ids[sobjectname] if sobjectname in self.required_ids else set()
+
+    def get_sobject_name_for_id(self, id):
+        if self.key_prefix_map is None:
+            global_describe = self.connection.describe()['sobjects']
+            self.key_prefix_map = {
+                global_describe[name]['keyPrefix']: name for name in global_describe
+            }
+        
+        return self.key_prefix_map[id[:3]]
 
     def get_proxy_object(self, sobjectname):
         if sobjectname not in self.proxy_objects:
@@ -155,31 +164,70 @@ class OperationContext(object):
 
 
 class SingleObjectExtraction(object):
-    def __init__(self, sobjectname, scope, field_scope, where_clause=None, self_lookup_behavior=SelfLookupBehavior.TRACE_ALL):
+    def __init__(self, sobjectname, scope, field_scope, where_clause=None, self_lookup_behavior=SelfLookupBehavior.TRACE_ALL, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
         self.sobjectname = sobjectname
         self.scope = scope
         self.field_scope = field_scope
         self.where_clause = where_clause
         self.self_lookup_behavior = self_lookup_behavior
+        self.outside_lookup_behavior = outside_lookup_behavior
+        self.lookup_behaviors = {}
 
         self.context = None
 
     def get_field_list(self):
         return ', '.join(self.field_scope)
+    
+    def set_lookup_behavior_for_field(self, f, behavior):
+        self.lookup_behaviors[f] = behavior
+
+    def get_self_lookup_behavior_for_field(self, f):
+        return self.lookup_behaviors.get(f, self.self_lookup_behavior)
+    
+    def get_outside_lookup_behavior_for_field(self, f):
+        return self.lookup_behaviors.get(f, self.outside_lookup_behavior)
 
     def scan_fields(self):
         # Determine whether we have any self-lookups or dependent lookups
         field_map = self.context.get_field_map(self.sobjectname)
+        sobjects = self.context.get_sobject_list()
 
-        self.all_lookups = { f for f in self.field_scope if field_map[f]['type'] == 'reference' }
-        self.self_lookups = { f for f in self.all_lookups if self.sobjectname in field_map[f]['referenceTo'] }
+        # Filter for lookup fields that have at least one referent that is part of
+        # this extraction. Users will see a warning for other lookups (on load),
+        # and we'll just treat them like normal exported non-lookup fields
+        self.all_lookups = { 
+            f for f in self.field_scope 
+              if field_map[f]['type'] == 'reference'
+                 and any([s in sobjects for s in field_map[f]['referenceTo']])
+        }
+
+        # Filter for lookup fields that are self-lookups
+        # At present, we are assuming that there are no polymorphic self-lookup fields
+        # in Salesforce. Should these exist, we'd have potential issues.
+        self.self_lookups = { 
+            f for f in self.all_lookups if self.sobjectname in field_map[f]['referenceTo']
+        }
+
+        # Filter for descendent lookups - fields that lookup to an object above this one
+        # in the extraction and can be used to identify descendent records of *this* object
+        self.descendent_lookups = {
+            f for f in self.all_lookups
+            if any([sobjects.index(refTo) < sobjects.index(self.sobjectname) 
+                    for refTo in field_map[f]['referenceTo']])
+        }
+
+        # Filter for dependent lookups - fields that look up to an object
+        # below this one in the extraction. These fields automatically have
+        # dependencies registered when they're extracted.
+
+        # A (polymorphic) field may be both a descendent lookup (up the hierarchy)
+        # and a dependent lookup (down the hierarchy), as well as a lookup
+        # to some arbitrary object outside the hierarchy.
         self.dependent_lookups = { 
             f for f in self.all_lookups
-            if f not in self.self_lookups and \
-                field_map[f]['referenceTo'][0] in self.context.get_sobject_list() and \
-                self.context.get_sobject_list().index(field_map[f]['referenceTo'][0]) \
-                > self.context.get_sobject_list().index(self.sobjectname) }
-        # FIXME: we may need to add some polymorphic lookup handling here.
+            if any([sobjects.index(refTo) > sobjects.index(self.sobjectname) 
+                    for refTo in field_map[f]['referenceTo']])
+        }
 
     def execute(self):
         self.scan_fields()
@@ -195,19 +243,17 @@ class SingleObjectExtraction(object):
 
             self.context.logger.debug('%s: extracting all records using Bulk API query %s', self.sobjectname, query)
             self.perform_bulk_api_pass(query)
+            return
         elif self.scope == ExtractionScope.QUERY:
             query = 'SELECT {} FROM {} WHERE {}'.format(self.get_field_list(), self.sobjectname, self.where_clause)
 
             self.context.logger.debug('%s: extracting filtered records using Bulk API query %s', self.sobjectname, query)
             self.perform_bulk_api_pass(query)
         elif self.scope == ExtractionScope.DESCENDENTS:
-            lookups = self.context.get_filtered_field_map(self.sobjectname, lambda f: f['type'] == 'reference')
+            self.context.logger.debug('%s: extracting descendent records based on lookups %s', self.sobjectname, ', '.join(self.descendent_lookups))
 
-            self.context.logger.debug('%s: extracting descendent records based on lookups %s', self.sobjectname, ', '.join(lookups))
-
-            for f in self.field_scope:
-                if f in lookups:
-                    self.perform_lookup_pass(f)
+            for f in self.descendent_lookups:
+                self.perform_lookup_pass(f)
 
         # Fall through to grab all dependencies registered with the context, or SELECTED_RECORDS
         # Note that if we're tracing self-lookups, the parent objects of all extracted records so far
@@ -244,26 +290,72 @@ class SingleObjectExtraction(object):
 
     def store_result(self, result):
         # Examine the received data to determine whether we have any cross-hierarchy lookups
-        
-        self.context.store_result(self.sobjectname, result)
+        # or down-hierarchy dependencies to register
 
-        if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL:
-            # Add a dependency for the reference in each self lookup of this record.
-            for l in self.self_lookups:
-                if result[l] is not None:
-                    self.context.add_dependency(self.sobjectname, SalesforceId(result[l]))
+        field_map = self.context.get_field_map(self.sobjectname)
+        sobject_list = self.context.get_sobject_list()
+
+        # Add a dependency for the reference in each self lookup of this record.
+        for l in self.self_lookups:
+            if self.get_self_lookup_behavior_for_field(l) != SelfLookupBehavior.TRACE_NONE and result[l] is not None:
+                self.context.add_dependency(self.sobjectname, SalesforceId(result[l]))
 
         # Register any dependencies from dependent lookups
-        if len(self.dependent_lookups) > 0:
-            field_map = self.context.get_field_map(self.sobjectname)
-            for f in self.dependent_lookups:
-                lookup_value = result[f]
-                if lookup_value is not None:
-                    self.context.add_dependency(
-                        field_map[f]['referenceTo'][0],
-                        SalesforceId(lookup_value)
-                    ) #FIXME: issue with polymorphic lookups here
+        # Note that a dependent lookup can *also* be a descendent lookup (e.g. Task.WhatId),
+        # so we handle polymorphic lookups carefully
+        for f in self.dependent_lookups:
+            lookup_value = result[f]
+            if lookup_value is not None:
+                # Determine what sObject this Id looks up to
+                # If this is a regular lookup, it's the target of the field, and is always dependent.
+                # If this lookup is polymorphic, we have to determine it based on the Id itself,
+                # and this value may actually be a cross-hierarchy reference or descendent reference.
+                if len(field_map[f]['referenceTo']) > 1:
+                    target_sobject = self.context.get_sobject_name_for_id(lookup_value)
 
+                    if target_sobject not in sobject_list:
+                        continue # Ignore references to objects not in our extraction.
+
+                    # Determine if this is really a dependent connection, or if it's a descendent
+                    # that should be handled below.
+                    # The descendent code looks for cross-hierarchy references
+                    if sobject_list.index(target_sobject) < sobject_list.index(self.sobjectname):
+                        continue
+
+                    # Otherwise, fall through to add a dependency
+                else:
+                    target_sobject = field_map[f]['referenceTo'][0]
+
+                self.context.add_dependency(target_sobject, SalesforceId(lookup_value)) 
+        
+        # Check for cross-hierarchy lookup values:
+        # references to records above us in the extraction hierarchy, but that weren't extracted already.
+        for f in self.descendent_lookups:
+            lookup_value = result[f]
+            if len(field_map[f]['referenceTo']) == 1:
+                target_sobject = field_map[f]['referenceTo']
+            else:
+                target_sobject = self.context.get_sobject_name_for_id(lookup_value)
+            
+            if lookup_value not in self.context.get_extracted_ids(target_sobject):
+                # This is a cross-hierarchy reference
+                behavior = self.get_outside_lookup_behavior_for_field(f)
+
+                if behavior == OutsideLookupBehavior.DROP_FIELD:
+                    del result[f]
+                elif behavior == OutsideLookupBehavior.INCLUDE:
+                    continue
+                elif behavior == OutsideLookupBehavior.ERROR:
+                    raise Exception(
+                        '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.',
+                        self.sobjectname, result['Id'], f, result[f]
+                    )
+                elif behavior == OutsideLookupBehavior.RECURSE:
+                    raise NotImplementedError
+
+
+        # Finally, call through to the context to store this result.
+        self.context.store_result(self.sobjectname, result)
 
     def resolve_registered_dependencies(self):
         pre_deps = self.context.get_dependencies(self.sobjectname).copy()

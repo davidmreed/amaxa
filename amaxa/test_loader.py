@@ -501,3 +501,79 @@ class test_load_extraction(unittest.TestCase):
             {'Account Name': 'university of caprica', 'Industry': 'Education'},
             mapper.transform_record({ 'Name': 'UNIversity of caprica  ', 'Industry': 'Education' })
         )
+
+    def test_load_extraction_populates_lookup_behaviors(self):
+        context = amaxa.OperationContext(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': {
+                    'Account': {
+                        'retrieveable': True
+                    },
+                    'Contact': {
+                        'retrieveable': True
+                    }
+                }
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string'
+                },
+                'Id': {
+                    'type': 'string'
+                },
+                'ParentId': {
+                    'type': 'reference',
+                    'referenceTo': ['Account']
+                },
+                'Primary_Contact__c': {
+                    'type': 'reference',
+                    'referenceTo': ['Contact']
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'extraction': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name',
+                        {
+                            'field': 'ParentId',
+                            'self-lookup-behavior': 'trace-none'
+                        },
+                        {
+                            'field': 'Primary_Contact__c',
+                            'outside-lookup-behavior': 'drop-field'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                },
+                {
+                    'sobject': 'Contact',
+                    'fields': [
+                        {
+                            'field': 'Name'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction(ex, context)
+
+        self.assertIsInstance(result, amaxa.OperationContext)
+        self.assertEqual([], errors)
+
+        self.assertEqual(amaxa.SelfLookupBehavior.TRACE_NONE, result.steps[0].get_self_lookup_behavior_for_field('ParentId'))
+        self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[0].get_outside_lookup_behavior_for_field('Primary_Contact__c'))
+
+    def test_load_extraction_validates_lookup_behaviors(self):
+        pass #FIXME: Implement. Currently, invalid values are just treated like the default.

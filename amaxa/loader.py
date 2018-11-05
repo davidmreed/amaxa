@@ -51,6 +51,8 @@ def load_extraction(incoming, context):
 
     errors = []
 
+    all_sobjects = [entry['sobject'] for entry in incoming['extraction']]
+
     for entry in incoming['extraction']:
         sobject = entry['sobject']
 
@@ -77,6 +79,7 @@ def load_extraction(incoming, context):
             scope = amaxa.ExtractionScope.DESCENDENTS
         
         # Determine the field scope
+        lookup_behaviors = {}
         if 'field-group' in entry:
             if entry['field-group'] == 'readable':
                 lam = lambda f: f['isAccessible']
@@ -99,6 +102,10 @@ def load_extraction(incoming, context):
                             mapper.field_name_mapping[f['field']] = f['target-column']
                         if 'transforms' in f:
                             mapper.field_transforms[f['field']] = [getattr(transforms,t) for t in f['transforms']]
+                        if 'self-lookup-behavior' in f:
+                            lookup_behaviors[f['field']] = f['self-lookup-behavior']
+                        if 'outside-lookup-behavior' in f:
+                            lookup_behaviors[f['field']] = f['outside-lookup-behavior']
                 
                 context.mappers[sobject] = mapper
             else:
@@ -107,10 +114,21 @@ def load_extraction(incoming, context):
         field_set.add('Id')
 
         # Validate that all fields are real and readable by this user.
+        field_map = context.get_field_map(sobject)
         for f in field_set:
-            if f not in context.get_field_map(sobject):
+            if f not in field_map:
                 errors.append('Field {}.{} does not exist or is not visible.'.format(sobject, f))
-        
+            elif field_map[f]['type'] == 'reference':
+                # Ensure that the target objects of this reference
+                # are included in the extraction. If not, show a warning.
+                if any([ref not in all_sobjects for ref in field_map[f]['referenceTo']]):
+                    logging.getLogger('amaxa').warn(
+                        'Field %s.%s is a reference whose targets (%s) are not all included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
+                        sobject,
+                        f,
+                        ', '.join(field_map[f]['referenceTo'])
+                    )
+
         # If we've located any errors, continue to validate the rest of the extraction,
         # but don't actually create any steps or files.
         if len(errors) > 0:
@@ -120,8 +138,15 @@ def load_extraction(incoming, context):
             sobject, 
             scope, 
             field_set, 
-            where_clause = query
+            query,
+            entry['self-lookup-behavior'],
+            entry['outside-lookup-behavior']
         )
+
+        # Populate expected lookup behaviors
+        for l in lookup_behaviors:
+            step.set_lookup_behavior_for_field(l, lookup_behaviors[l])
+            # FIXME: validate that the lookup options are applicable to this field
         
         context.add_step(step)
 
@@ -226,10 +251,15 @@ schema = {
                     'required': False,
                     'excludes': ['fields', 'field-group']
                 },
-                'outside-leaf-behavior': {
+                'outside-lookup-behavior': {
                     'type': 'string',
-                    'allowed': ['blank', 'include', 'recurse'],
+                    'allowed': ['drop-field', 'error', 'include', 'recurse'],
                     'default': 'include'
+                },
+                'self-lookup-behavior': {
+                    'type': 'string',
+                    'allowed': ['trace-all', 'trace-none'],
+                    'default': 'trace-all'
                 },
                 'extract': {
                     'type': 'dict',
@@ -285,10 +315,13 @@ schema = {
                                 },
                                 'required': False
                             },
-                            'outside-leaf-behavior': {
+                            'outside-lookup-behavior': {
                                 'type': 'string',
-                                'allowed': ['blank', 'include', 'recurse'],
-                                'default': 'include'
+                                'allowed': ['drop-field', 'error', 'include', 'recurse']
+                            },
+                            'self-lookup-behavior': {
+                                'type': 'string',
+                                'allowed': ['trace-all', 'trace-none']
                             }
                         }
                     }

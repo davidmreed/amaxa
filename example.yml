@@ -19,7 +19,7 @@ extraction:
         sobject: Contact
         target-file: 'Contact.csv'
         sdl: Contact.sdl
-        outside-leaf-behavior: blank 
+        outside-reference-behavior: drop-field 
         extract:
             query: "LastName = 'Test'"
     - 
