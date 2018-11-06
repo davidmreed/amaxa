@@ -11,6 +11,7 @@ def load_credentials(incoming):
         return (None, errors)
 
     connection = None
+    credentials = credentials['credentials']
 
     # Determine what type of credentials we have
     if 'username' in credentials and 'password' in credentials:

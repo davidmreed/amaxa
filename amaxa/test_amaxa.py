@@ -17,6 +17,7 @@ class test_SalesforceId(unittest.TestCase):
         for id_15 in known_good_ids:
             self.assertEqual(known_good_ids[id_15], str(amaxa.SalesforceId(id_15)))
             self.assertEqual(known_good_ids[id_15], amaxa.SalesforceId(id_15))
+            self.assertEqual(amaxa.SalesforceId(id_15), known_good_ids[id_15])
 
             self.assertEqual(id_15, amaxa.SalesforceId(id_15))
             self.assertNotEqual(id_15, str(amaxa.SalesforceId(id_15)))
@@ -38,6 +39,17 @@ class test_SalesforceId(unittest.TestCase):
         the_id = amaxa.SalesforceId('001000000000000')
 
         self.assertEqual(the_id, amaxa.SalesforceId(the_id))
+
+    def test_does_not_equal_other_value(self):
+        the_id = amaxa.SalesforceId('001000000000000')
+
+        self.assertNotEqual(the_id, 1)
+
+    def test_str_repr_equal_18_char_id(self):
+        the_id = amaxa.SalesforceId('001000000000000')
+
+        self.assertEqual(the_id.id, str(the_id))
+        self.assertEqual(the_id.id, repr(the_id))
 
     def test_hashing(self):
         id_set = set()
