@@ -572,6 +572,47 @@ class test_SingleObjectExtraction(unittest.TestCase):
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '006000000000001', 'Name': 'Picon Fleet Headquarters' })
         oc.add_dependency.assert_called_once_with('Opportunity', amaxa.SalesforceId('006000000000001'))
 
+    def test_store_result_handles_polymorphic_lookups(self):
+        connection = Mock()
+
+        oc = amaxa.OperationContext(connection)
+
+        oc.store_result = Mock()
+        oc.add_dependency = Mock()
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Opportunity', 'Account', 'Task']
+            }
+        })
+        oc.get_sobject_list = Mock(return_value=['Account', 'Contact', 'Opportunity'])
+        oc.get_extracted_ids = Mock(return_value=['001000000000001'])
+        oc.get_sobject_name_for_id = Mock(side_effect=lambda id: {'001': 'Account', '006': 'Opportunity', '00T': 'Task'}[id[:3]])
+
+        step = amaxa.SingleObjectExtraction('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        oc.add_step(step)
+        step.scan_fields()
+
+        # Validate that the polymorphic lookup is treated properly when the content is a dependent reference
+        step.store_result({ 'Id': '001000000000000', 'Lookup__c': '006000000000001', 'Name': 'Kara Thrace' })
+        oc.add_dependency.assert_called_once_with('Opportunity', amaxa.SalesforceId('006000000000001'))
+        oc.store_result.assert_called_once_with('Contact', { 'Id': '001000000000000', 'Lookup__c': '006000000000001', 'Name': 'Kara Thrace' })
+        oc.add_dependency.reset_mock()
+        oc.store_result.reset_mock()
+
+        # Validate that the polymorphic lookup is treated properly when the content is a descendent reference
+        step.store_result({ 'Id': '001000000000000', 'Lookup__c': '001000000000001', 'Name': 'Kara Thrace' })
+        oc.add_dependency.assert_not_called()
+        oc.store_result.assert_called_once_with('Contact', { 'Id': '001000000000000', 'Lookup__c': '001000000000001', 'Name': 'Kara Thrace' })
+        oc.add_dependency.reset_mock()
+        oc.store_result.reset_mock()
+
+        # Validate that the polymorphic lookup is treated properly when the content is a off-extraction reference
+        step.store_result({ 'Id': '001000000000000', 'Lookup__c': '00T000000000001', 'Name': 'Kara Thrace' })
+        oc.add_dependency.assert_not_called()
+        oc.store_result.assert_called_once_with('Contact', { 'Id': '001000000000000', 'Lookup__c': '00T000000000001', 'Name': 'Kara Thrace' })
+
     def test_store_result_respects_outside_lookup_behavior_drop_field(self):
         connection = Mock()
 

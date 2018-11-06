@@ -213,7 +213,7 @@ class SingleObjectExtraction(object):
         self.descendent_lookups = {
             f for f in self.all_lookups
             if any([sobjects.index(refTo) < sobjects.index(self.sobjectname) 
-                    for refTo in field_map[f]['referenceTo']])
+                    for refTo in field_map[f]['referenceTo'] if refTo in sobjects])
         }
 
         # Filter for dependent lookups - fields that look up to an object
@@ -226,7 +226,7 @@ class SingleObjectExtraction(object):
         self.dependent_lookups = { 
             f for f in self.all_lookups
             if any([sobjects.index(refTo) > sobjects.index(self.sobjectname) 
-                    for refTo in field_map[f]['referenceTo']])
+                    for refTo in field_map[f]['referenceTo'] if refTo in sobjects])
         }
 
     def execute(self):
