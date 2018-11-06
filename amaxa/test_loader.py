@@ -137,6 +137,19 @@ class test_load_credentials(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(['version: [\'required field\']'], errors)
 
+    @unittest.mock.patch('simple_salesforce.Salesforce')
+    def test_load_credentials_returns_error_without_credentials(self, sf_mock):
+        credentials = {
+            'version': 1,
+            'credentials': {
+            }
+        }
+
+        (result, errors) = loader.load_credentials(credentials)
+
+        self.assertIsNone(result)
+        self.assertEqual(['A set of valid credentials was not provided.'], errors)
+
 
 class test_load_extraction(unittest.TestCase):
     def test_validate_extraction_schema_returns_normalized_input(self):

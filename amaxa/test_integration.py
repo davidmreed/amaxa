@@ -50,6 +50,8 @@ class test_Extraction(unittest.TestCase):
         for c in output.call_args_list:
             self.assertIn(c['Name'], expected_names)
             expected_names.remove(c['Name'])
+        
+        self.assertEqual(0, len(expected_names))
     
     def test_descendents_extracts_object_network(self):
         expected_names = {'Elosha', 'Gaius'}
@@ -84,6 +86,8 @@ class test_Extraction(unittest.TestCase):
         for c in output_contacts.call_args_list:
             self.assertIn(c['FirstName'], expected_names)
             expected_names.remove(c['FirstName'])
+
+        self.assertEqual(0, len(expected_names))
 
 if __name__ == "__main__":
     unittest.main()
