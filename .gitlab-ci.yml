@@ -35,3 +35,6 @@ test:
   after_script:
     - node_modules/sfdx-cli/bin/run force:org:delete -u scratch -p
     - rm assets/server.key
+  artifacts:
+    reports:
+      junit: test-reports/junit.xml
