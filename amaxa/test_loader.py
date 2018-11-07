@@ -229,11 +229,12 @@ class test_load_extraction(unittest.TestCase):
         context = Mock()
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -286,12 +287,12 @@ class test_load_extraction(unittest.TestCase):
         context = Mock()
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
-            }
+                ]            }
         )
         context.get_field_map = Mock(
             return_value={ 
@@ -333,20 +334,24 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     },
-                    'Contact': {
+                    {
+                        'name': 'Contact',
                         'retrieveable': True
                     },
-                    'Opportunity': {
+                    {
+                        'name': 'Opportunity',
                         'retrieveable': True
                     },
-                    'Task': {
+                    {
+                        'name': 'Task',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -434,11 +439,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -484,11 +490,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -533,11 +540,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(connection)
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -583,11 +591,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -644,11 +653,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -704,14 +714,17 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     },
-                    'Contact': {
+                    {
+                        'name': 'Contact',
                         'retrieveable': True
                     }
-                }
+
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -783,17 +796,20 @@ class test_load_extraction(unittest.TestCase):
         logger.return_value=amaxa_logger
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     },
-                    'Contact': {
+                    {
+                        'name': 'Contact',
                         'retrieveable': True
                     },
-                    'Test__c': {
+                    {
+                        'name': 'Test__c',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(

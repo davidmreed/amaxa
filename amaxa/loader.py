@@ -45,7 +45,7 @@ def load_extraction(incoming, context):
         return (None, errors)
     
     try:
-        global_describe = context.connection.describe()["sobjects"]
+        global_describe = { entry['name']: entry for entry in context.connection.describe()["sobjects"] }
     except Exception as e:
         errors.append('Unable to authenticate to Salesforce: {}'.format(e))
         return (None, errors)
@@ -168,7 +168,7 @@ def load_extraction(incoming, context):
     # Create DictWriters and populate them in the context
     for (s, e) in zip(context.steps, incoming['extraction']):
         try:
-            output = csv.DictWriter(open(e['target-file'], 'w'), fieldnames = s.field_scope)
+            output = csv.DictWriter(open(e['target-file'], 'w'), fieldnames = s.field_scope, extrasaction='ignore')
             output.writeheader()
             context.set_output_file(s.sobjectname, output)
         except Exception as exp:

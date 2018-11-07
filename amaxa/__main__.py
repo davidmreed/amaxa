@@ -47,7 +47,7 @@ def main():
     if ex is not None:
         ex.execute()
     else:
-        print('Unable to execute operation due to the following errors: {}'.format('\n'.join(errors)))
+        print('Unable to execute operation due to the following errors:\n {}'.format('\n'.join(errors)))
         return -1
 
     return 0
