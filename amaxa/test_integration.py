@@ -47,7 +47,7 @@ class test_Extraction(unittest.TestCase):
         extraction.execute()
 
         self.assertEqual(3, len(oc.get_extracted_ids('Account')))
-        for c in output.call_args_list:
+        for c in output.writerow.call_args_list:
             self.assertIn(c['Name'], expected_names)
             expected_names.remove(c['Name'])
         
@@ -83,7 +83,7 @@ class test_Extraction(unittest.TestCase):
 
         self.assertEqual(3, len(oc.get_extracted_ids('Account')))
         self.assertEqual(2, len(oc.get_extracted_ids('Contact')))
-        for c in output_contacts.call_args_list:
+        for c in output_contacts.writerow.call_args_list:
             self.assertIn(c['FirstName'], expected_names)
             expected_names.remove(c['FirstName'])
 
