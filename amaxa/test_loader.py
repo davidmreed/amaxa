@@ -330,7 +330,6 @@ class test_load_extraction(unittest.TestCase):
         )
 
     def test_load_extraction_creates_valid_steps(self):
-        # FIXME: add a Query and a Descendents step to this unit test.
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
@@ -339,6 +338,12 @@ class test_load_extraction(unittest.TestCase):
                         'retrieveable': True
                     },
                     'Contact': {
+                        'retrieveable': True
+                    },
+                    'Opportunity': {
+                        'retrieveable': True
+                    },
+                    'Task': {
                         'retrieveable': True
                     }
                 }
@@ -373,6 +378,20 @@ class test_load_extraction(unittest.TestCase):
                             '003000000000001'
                         ]
                     }
+                },
+                {
+                    'sobject': 'Opportunity',
+                    'fields': [ 'Name' ],
+                    'extract': {
+                        'descendents': True
+                    }
+                },
+                {
+                    'sobject': 'Task',
+                    'fields': [ 'Name' ],
+                    'extract': {
+                        'query': 'AccountId != null'
+                    }
                 }
 
             ]
@@ -385,7 +404,9 @@ class test_load_extraction(unittest.TestCase):
         m.assert_has_calls(
             [
                 unittest.mock.call('Account.csv', 'w'),
-                unittest.mock.call('Contact.csv', 'w')
+                unittest.mock.call('Contact.csv', 'w'),
+                unittest.mock.call('Opportunity.csv', 'w'),
+                unittest.mock.call('Task.csv', 'w')
             ],
             any_order=True
         )
@@ -399,11 +420,15 @@ class test_load_extraction(unittest.TestCase):
 
         self.assertIsInstance(result, amaxa.OperationContext)
         self.assertEqual([], errors)
-        self.assertEqual(2, len(result.steps))
+        self.assertEqual(4, len(result.steps))
         self.assertEqual('Account', result.steps[0].sobjectname)
         self.assertEqual(amaxa.ExtractionScope.ALL_RECORDS, result.steps[0].scope)
         self.assertEqual('Contact', result.steps[1].sobjectname)
         self.assertEqual(amaxa.ExtractionScope.SELECTED_RECORDS, result.steps[1].scope)
+        self.assertEqual('Opportunity', result.steps[2].sobjectname)
+        self.assertEqual(amaxa.ExtractionScope.DESCENDENTS, result.steps[2].scope)
+        self.assertEqual('Task', result.steps[3].sobjectname)
+        self.assertEqual(amaxa.ExtractionScope.QUERY, result.steps[3].scope)
 
     def test_load_extraction_finds_readable_field_group(self):
         context = amaxa.OperationContext(Mock())
