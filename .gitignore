@@ -1,3 +1,6 @@
 venv
 *.pyc
 .vscode
+.coverage
+coverage.xml
+test-reports
