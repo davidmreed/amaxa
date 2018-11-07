@@ -196,11 +196,12 @@ class OperationContext(object):
             self.extracted_ids[sobjectname] = set()
 
         self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
-        self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
-        self.output_files[sobjectname].writerow(
-            self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
-            else record
-        )
+        if SalesforceId(record['Id']) not in self.extracted_ids[sobjectname]:
+            self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
+            self.output_files[sobjectname].writerow(
+                self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
+                else record
+            )
 
         if sobjectname in self.required_ids and SalesforceId(record['Id']) in self.required_ids[sobjectname]:
             self.required_ids[sobjectname].remove(SalesforceId(record['Id']))
@@ -259,7 +260,7 @@ class SingleObjectExtraction(object):
         self.descendent_lookups = {
             f for f in self.all_lookups
             if any([sobjects.index(refTo) < sobjects.index(self.sobjectname) 
-                    for refTo in field_map[f]['referenceTo']])
+                    for refTo in field_map[f]['referenceTo'] if refTo in sobjects])
         }
 
         # Filter for dependent lookups - fields that look up to an object
@@ -272,7 +273,7 @@ class SingleObjectExtraction(object):
         self.dependent_lookups = { 
             f for f in self.all_lookups
             if any([sobjects.index(refTo) > sobjects.index(self.sobjectname) 
-                    for refTo in field_map[f]['referenceTo']])
+                    for refTo in field_map[f]['referenceTo'] if refTo in sobjects])
         }
 
     def execute(self):
@@ -379,7 +380,7 @@ class SingleObjectExtraction(object):
         for f in self.descendent_lookups:
             lookup_value = result[f]
             if len(field_map[f]['referenceTo']) == 1:
-                target_sobject = field_map[f]['referenceTo']
+                target_sobject = field_map[f]['referenceTo'][0]
             else:
                 target_sobject = self.context.get_sobject_name_for_id(lookup_value)
             

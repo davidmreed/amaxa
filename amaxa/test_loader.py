@@ -1,4 +1,5 @@
 import unittest
+import simple_salesforce
 from unittest.mock import Mock
 from . import amaxa, loader
 
@@ -49,7 +50,108 @@ class test_load_credentials(unittest.TestCase):
 
         self.assertIsNone(result)
         self.assertGreater(len(errors), 0)
-    
+
+    def test_validate_credential_schema_returns_normalized_input(self):
+        credentials = {
+            'version': 1,
+            'credentials': {
+                'username': 'baltar@ucaprica.edu',
+                'password': '666666666'
+            }
+        }
+
+        (result, errors) = loader.validate_credential_schema(credentials)
+
+        self.assertEqual(False, result['credentials']['sandbox'])
+        self.assertEqual([], errors)
+
+    def test_validate_credential_schema_returns_errors(self):
+        credentials = {
+            'credentials': {
+                'username': 'baltar@ucaprica.edu',
+                'password': '666666666'
+            }
+        }
+
+        (result, errors) = loader.validate_credential_schema(credentials)
+
+        self.assertIsNone(result)
+        self.assertEqual(['version: [\'required field\']'], errors)
+
+    @unittest.mock.patch('simple_salesforce.Salesforce')
+    def test_load_credentials_uses_username_password(self, sf_mock):
+        (result, errors) = loader.load_credentials(
+            {
+                'version': 1,
+                'credentials': {
+                    'password': '123456',
+                    'username': 'baltar@ucaprica.cc',
+                    'security-token': '98765',
+                    'sandbox': True
+                }
+            }
+        )
+
+        self.assertEqual([], errors)
+        self.assertIsNotNone(result)
+        
+        sf_mock.assert_called_once_with(
+            username='baltar@ucaprica.cc',
+            password='123456',
+            security_token='98765',
+            organizationId='',
+            sandbox=True
+        )
+
+    @unittest.mock.patch('simple_salesforce.Salesforce')
+    def test_load_credentials_uses_access_token(self, sf_mock):
+        (result, errors) = loader.load_credentials(
+            {
+                'version': 1,
+                'credentials': {
+                    'access-token': 'ABCDEF123456',
+                    'instance-url': 'test.salesforce.com'
+                }
+            }
+        )
+
+        self.assertEqual([], errors)
+        self.assertIsNotNone(result)
+        
+        sf_mock.assert_called_once_with(
+            session_id='ABCDEF123456',
+            instance_url='test.salesforce.com'
+        )
+
+    @unittest.mock.patch('simple_salesforce.Salesforce')
+    def test_load_credentials_returns_validation_errors(self, sf_mock):
+        credentials = {
+            'credentials': {
+                'username': 'baltar@ucaprica.edu',
+                'password': '666666666'
+            }
+        }
+
+        (result, errors) = loader.load_credentials(credentials)
+
+        self.assertIsNone(result)
+        self.assertEqual(['version: [\'required field\']'], errors)
+
+    @unittest.mock.patch('simple_salesforce.Salesforce')
+    def test_load_credentials_returns_error_without_credentials(self, sf_mock):
+        credentials = {
+            'version': 1,
+            'credentials': {
+            }
+        }
+
+        (result, errors) = loader.load_credentials(credentials)
+
+        self.assertIsNone(result)
+        self.assertEqual(['A set of valid credentials was not provided.'], errors)
+
+
+class test_load_extraction(unittest.TestCase):
     def test_validate_extraction_schema_returns_normalized_input(self):
         (result, errors) = loader.validate_extraction_schema(
             {
@@ -83,45 +185,56 @@ class test_load_credentials(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(['version: [\'required field\']'], errors)
 
-
-    def test_validate_credential_schema_returns_normalized_input(self):
-        credentials = {
-            'version': 1,
-            'credentials': {
-                'username': 'baltar@ucaprica.edu',
-                'password': '666666666'
-            }
-        }
-
-        (result, errors) = loader.validate_credential_schema(credentials)
-
-        self.assertEqual(False, result['credentials']['sandbox'])
-        self.assertEqual([], errors)
-
-    def test_validate_credential_schema_returns_errors(self):
-        credentials = {
-            'credentials': {
-                'username': 'baltar@ucaprica.edu',
-                'password': '666666666'
-            }
-        }
-
-        (result, errors) = loader.validate_credential_schema(credentials)
+    def test_load_extraction_returns_validation_errors(self):
+        context = Mock()
+        (result, errors) = loader.load_extraction(
+            {
+                'extraction': [
+                    { 
+                        'sobject': 'Account',
+                        'fields': [ 'Name', 'ParentId' ],
+                        'extract': { 'all': True }
+                    }
+                ]
+            },
+            context
+        )
 
         self.assertIsNone(result)
         self.assertEqual(['version: [\'required field\']'], errors)
+        context.assert_not_called()
 
+    @unittest.mock.patch('simple_salesforce.Salesforce')
+    def test_load_extraction_traps_login_exceptions(self, sf_mock):
+        return_exception = simple_salesforce.SalesforceAuthenticationFailed(500, 'Internal Server Error')
+        sf_mock.describe = Mock(side_effect=return_exception)
+        context = amaxa.OperationContext(sf_mock)
+        ex = {
+            'version': 1,
+            'extraction': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'readable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
 
-class test_load_extraction(unittest.TestCase):
+        (result, errors) = loader.load_extraction(ex, context)
+
+        self.assertIsNone(result)
+        self.assertEqual(['Unable to authenticate to Salesforce: {}'.format(return_exception)], errors)
+
     def test_load_extraction_flags_missing_sobjects(self):
         context = Mock()
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -174,12 +287,12 @@ class test_load_extraction(unittest.TestCase):
         context = Mock()
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
-            }
+                ]            }
         )
         context.get_field_map = Mock(
             return_value={ 
@@ -221,14 +334,24 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     },
-                    'Contact': {
+                    {
+                        'name': 'Contact',
+                        'retrieveable': True
+                    },
+                    {
+                        'name': 'Opportunity',
+                        'retrieveable': True
+                    },
+                    {
+                        'name': 'Task',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -260,6 +383,20 @@ class test_load_extraction(unittest.TestCase):
                             '003000000000001'
                         ]
                     }
+                },
+                {
+                    'sobject': 'Opportunity',
+                    'fields': [ 'Name' ],
+                    'extract': {
+                        'descendents': True
+                    }
+                },
+                {
+                    'sobject': 'Task',
+                    'fields': [ 'Name' ],
+                    'extract': {
+                        'query': 'AccountId != null'
+                    }
                 }
 
             ]
@@ -272,7 +409,9 @@ class test_load_extraction(unittest.TestCase):
         m.assert_has_calls(
             [
                 unittest.mock.call('Account.csv', 'w'),
-                unittest.mock.call('Contact.csv', 'w')
+                unittest.mock.call('Contact.csv', 'w'),
+                unittest.mock.call('Opportunity.csv', 'w'),
+                unittest.mock.call('Task.csv', 'w')
             ],
             any_order=True
         )
@@ -286,21 +425,26 @@ class test_load_extraction(unittest.TestCase):
 
         self.assertIsInstance(result, amaxa.OperationContext)
         self.assertEqual([], errors)
-        self.assertEqual(2, len(result.steps))
+        self.assertEqual(4, len(result.steps))
         self.assertEqual('Account', result.steps[0].sobjectname)
         self.assertEqual(amaxa.ExtractionScope.ALL_RECORDS, result.steps[0].scope)
         self.assertEqual('Contact', result.steps[1].sobjectname)
         self.assertEqual(amaxa.ExtractionScope.SELECTED_RECORDS, result.steps[1].scope)
+        self.assertEqual('Opportunity', result.steps[2].sobjectname)
+        self.assertEqual(amaxa.ExtractionScope.DESCENDENTS, result.steps[2].scope)
+        self.assertEqual('Task', result.steps[3].sobjectname)
+        self.assertEqual(amaxa.ExtractionScope.QUERY, result.steps[3].scope)
 
     def test_load_extraction_finds_readable_field_group(self):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -346,11 +490,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -395,11 +540,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(connection)
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -445,11 +591,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -506,11 +653,12 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     }
-                }
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -566,14 +714,17 @@ class test_load_extraction(unittest.TestCase):
         context = amaxa.OperationContext(Mock())
         context.connection.describe = Mock(
             return_value={
-                'sobjects': {
-                    'Account': {
+                'sobjects': [
+                    {
+                        'name': 'Account',
                         'retrieveable': True
                     },
-                    'Contact': {
+                    {
+                        'name': 'Contact',
                         'retrieveable': True
                     }
-                }
+
+                ]
             }
         )
         context.get_field_map = Mock(
@@ -637,3 +788,63 @@ class test_load_extraction(unittest.TestCase):
 
     def test_load_extraction_validates_lookup_behaviors(self):
         pass #FIXME: Implement. Currently, invalid values are just treated like the default.
+
+    @unittest.mock.patch('logging.getLogger')
+    def test_load_extraction_warns_lookups_other_objects(self, logger):
+        context = amaxa.OperationContext(Mock())
+        amaxa_logger = Mock()
+        logger.return_value=amaxa_logger
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True
+                    },
+                    {
+                        'name': 'Contact',
+                        'retrieveable': True
+                    },
+                    {
+                        'name': 'Test__c',
+                        'retrieveable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Id': {
+                    'type': 'string'
+                },
+                'Parent__c': {
+                    'type': 'reference',
+                    'referenceTo': ['Parent__c']
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'extraction': [
+                { 
+                    'sobject': 'Test__c',
+                    'fields': [ 'Parent__c' ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction(ex, context)
+
+        self.assertIsInstance(result, amaxa.OperationContext)
+        self.assertEqual([], errors)
+        amaxa_logger.warn.assert_called_once_with(
+            'Field %s.%s is a reference whose targets (%s) are not all included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
+            'Test__c',
+            'Parent__c',
+            ', '.join(['Parent__c'])
+        )
+
