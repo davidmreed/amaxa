@@ -150,11 +150,12 @@ class OperationContext(object):
             self.extracted_ids[sobjectname] = set()
 
         self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
-        self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
-        self.output_files[sobjectname].writerow(
-            self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
-            else record
-        )
+        if SalesforceId(record['Id']) not in self.extracted_ids[sobjectname]:
+            self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
+            self.output_files[sobjectname].writerow(
+                self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
+                else record
+            )
 
         if sobjectname in self.required_ids and SalesforceId(record['Id']) in self.required_ids[sobjectname]:
             self.required_ids[sobjectname].remove(SalesforceId(record['Id']))

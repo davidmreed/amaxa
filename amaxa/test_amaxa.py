@@ -259,6 +259,20 @@ class test_OperationContext(unittest.TestCase):
         oc.store_result('Account', { 'Id': '001000000000000', 'Name': 'Caprica Steel' })
         self.assertEqual(set(), oc.get_dependencies('Account'))
 
+    def test_store_result_does_not_write_duplicate_records(self):
+        connection = Mock()
+
+        oc = amaxa.OperationContext(connection)
+
+        account_mock = Mock()
+        oc.output_files['Account'] = account_mock
+
+        oc.store_result('Account', { 'Id': '001000000000000', 'Name': 'Caprica Steel' })
+        account_mock.writerow.assert_called_once_with({ 'Id': '001000000000000', 'Name': 'Caprica Steel' })
+        account_mock.writerow.reset_mock()
+        oc.store_result('Account', { 'Id': '001000000000000', 'Name': 'Caprica Steel' })
+        account_mock.writerow.assert_not_called()
+
     def test_get_extracted_ids_returns_results(self):
         connection = Mock()
 
