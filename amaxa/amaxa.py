@@ -79,6 +79,7 @@ class OperationContext(object):
         for s in self.steps:
             self.logger.info('Extracting %s', s.sobjectname)
             s.execute()
+            self.logger.info('Extracted %d records from %s', len(self.get_extracted_ids(s.sobjectname)), s.sobjectname)
 
     def set_output_file(self, sobjectname, f):
         self.output_files[sobjectname] = f
