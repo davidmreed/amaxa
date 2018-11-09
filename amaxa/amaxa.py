@@ -55,7 +55,7 @@ class SalesforceId(object):
     def __repr__(self):
         return self.id
 
-class LoadOperation(object):
+class Operation(object):
     def __init__(self, connection):
         self.steps = []
         self.connection = connection
@@ -63,81 +63,18 @@ class LoadOperation(object):
         self.field_maps = {}
         self.proxy_objects = {}
         self.bulk_proxy_objects = {}
-        self.required_ids = {}
-        self.extracted_ids = {}
-        self.output_files = {}
-        self.mappers = {}
         self.key_prefix_map = None
         self.logger = logging.getLogger('amaxa')
 
     def execute(self):
-        self.logger.info('Starting load with sObjects %s', self.get_sobject_list())
-        for s in self.steps:
-            self.logger.info('Loading %s', s.sobjectname)
-            s.execute()
-        
-        for s in self.steps:
-            self.logger.info('Populating dependent and self-lookups for %s', s.sobjectname)
-            s.execute_dependent_updates()
+        pass
 
-    def get_sobject_list(self):
-        return [step.sobjectname for step in self.steps]
-
-class SingleObjectLoad(object):
-    def __init__(self, sobjectname, dict_reader, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
-        self.sobjectname = sobjectname
-        self.reader = dict_reader
-        self.outside_lookup_behavior = outside_lookup_behavior
-        self.lookup_behaviors = {}
-
-        self.operation = None
-
-    def execute(self):
-        # Read our incoming file.
-        # Apply transformations specified in our configuration file (column name -> field name, for example)
-        # Then, populate all direct lookups. Dependent lookups and self-lookups will be populated in a later pass.
-        for record in self.reader:
-            self.populate_lookups(self.transform_record(record))
-        
-        
-
-class OperationContext(object):
-    def __init__(self, connection):
-        self.steps = []
-        self.connection = connection
-        self.describe_info = {}
-        self.field_maps = {}
-        self.proxy_objects = {}
-        self.bulk_proxy_objects = {}
-        self.required_ids = {}
-        self.extracted_ids = {}
-        self.output_files = {}
-        self.mappers = {}
-        self.key_prefix_map = None
-        self.logger = logging.getLogger('amaxa')
-    
     def add_step(self, step):
         step.context = self
         self.steps.append(step)
 
-    def execute(self):
-        self.logger.info('Starting extraction with sObjects %s', self.get_sobject_list())
-        for s in self.steps:
-            self.logger.info('Extracting %s', s.sobjectname)
-            s.execute()
-            self.logger.info('Extracted %d records from %s', len(self.get_extracted_ids(s.sobjectname)), s.sobjectname)
-
-    def set_output_file(self, sobjectname, f):
-        self.output_files[sobjectname] = f
-
-    def add_dependency(self, sobjectname, id):
-        if sobjectname not in self.required_ids:
-            self.required_ids[sobjectname] = set()
-        if id not in self.get_extracted_ids(sobjectname):
-            self.required_ids[sobjectname].add(id)
-
-    def get_dependencies(self, sobjectname):
-        return self.required_ids[sobjectname] if sobjectname in self.required_ids else set()
+    def get_sobject_list(self):
+        return [step.sobjectname for step in self.steps]
 
     def get_sobject_name_for_id(self, id):
         if self.key_prefix_map is None:
@@ -178,62 +115,15 @@ class OperationContext(object):
 
         return { k: field_map[k] for k in field_map if lam(field_map[k]) }
 
-    def get_sobject_ids_for_reference(self, sobjectname, field):
-        ids = set()
-        for name in self.get_field_map(sobjectname)[field]['referenceTo']:
-            # For each sObject that we've extracted data for,
-            # if that object is a potential reference target for this field,
-            # accumulate those Ids in a Set.
-            if name in self.extracted_ids:
-                ids |= self.extracted_ids[name]
 
-        return ids
-
-    def get_extracted_ids(self, sobjectname):
-        return self.extracted_ids[sobjectname] if sobjectname in self.extracted_ids else set()
-
-    def store_result(self, sobjectname, record):
-        if sobjectname not in self.extracted_ids:
-            self.extracted_ids[sobjectname] = set()
-
-        self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
-        if SalesforceId(record['Id']) not in self.extracted_ids[sobjectname]:
-            self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
-            self.output_files[sobjectname].writerow(
-                self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
-                else record
-            )
-
-        if sobjectname in self.required_ids and SalesforceId(record['Id']) in self.required_ids[sobjectname]:
-            self.required_ids[sobjectname].remove(SalesforceId(record['Id']))
-    
-    def get_sobject_list(self):
-        return [step.sobjectname for step in self.steps]
-
-
-class SingleObjectExtraction(object):
-    def __init__(self, sobjectname, scope, field_scope, where_clause=None, self_lookup_behavior=SelfLookupBehavior.TRACE_ALL, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
+class Step(object):
+    def __init__(self, sobjectname, field_scope):
         self.sobjectname = sobjectname
-        self.scope = scope
         self.field_scope = field_scope
-        self.where_clause = where_clause
-        self.self_lookup_behavior = self_lookup_behavior
-        self.outside_lookup_behavior = outside_lookup_behavior
-        self.lookup_behaviors = {}
-
         self.context = None
 
     def get_field_list(self):
         return ', '.join(self.field_scope)
-    
-    def set_lookup_behavior_for_field(self, f, behavior):
-        self.lookup_behaviors[f] = behavior
-
-    def get_self_lookup_behavior_for_field(self, f):
-        return self.lookup_behaviors.get(f, self.self_lookup_behavior)
-    
-    def get_outside_lookup_behavior_for_field(self, f):
-        return self.lookup_behaviors.get(f, self.outside_lookup_behavior)
 
     def scan_fields(self):
         # Determine whether we have any self-lookups or dependent lookups
@@ -276,6 +166,196 @@ class SingleObjectExtraction(object):
             if any([sobjects.index(refTo) > sobjects.index(self.sobjectname) 
                     for refTo in field_map[f]['referenceTo'] if refTo in sobjects])
         }
+
+    def execute(self):
+        pass
+
+
+class LoadOperation(Operation):
+    def __init__(self, connection):
+        self.input_files = {}
+        self.mappers = {}
+        self.global_id_map = {}
+
+    def set_output_file(self, sobjectname, f):
+        self.input_files[sobjectname] = f
+
+    def get_output_file(self, sobjectname):
+        return self.input_files[sobjectname]
+    
+    def map_loaded_record(self, old_id, new_id):
+        self.global_id_map[old_id] = new_id
+
+    def execute(self):
+        self.logger.info('Starting load with sObjects %s', self.get_sobject_list())
+        for s in self.steps:
+            self.logger.info('Loading %s', s.sobjectname)
+            s.execute()
+        
+        for s in self.steps:
+            self.logger.info('Populating dependent and self-lookups for %s', s.sobjectname)
+            s.execute_dependent_updates()
+
+class LoadStep(Step):
+    def __init__(self, sobjectname, field_scope, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
+        self.sobjectname = sobjectname
+        self.field_scope = field_scope
+        self.outside_lookup_behavior = outside_lookup_behavior
+        self.lookup_behaviors = {}
+
+        self.context = None
+
+    def set_lookup_behavior_for_field(self, field, behavior):
+        self.lookup_behaviors[field] = behavior
+
+    def get_lookup_behavior_for_field(self, field):
+        return self.lookup_behaviors.get(field, self.outside_lookup_behavior)
+    
+    def populate_lookups(self, record, lookups):
+        return { k: record[k] if k not in lookups 
+                              else self.context.get_mapped_id(record[k]) 
+                 for k in record }
+        # FIXME: handle lookup behavior
+
+    def primitivize(self, record):
+        def convert_value(field_type, value):
+            if value is None or len(value) == 0:
+                return None
+            elif field_type == 'tns:ID':
+                return str(value)
+            elif field_type in ['xsd:string', 'xsd:date', 'xsd:dateTime']:
+                return value
+            elif field_type == 'xsd:int':
+                return int(value)
+            elif field_type == 'xsd:double':
+                return float(value)
+            elif field_type == 'xsd:boolean':
+                if value.lower() in ['yes', 'true', 'y', 't', '1']:
+                    return True
+                elif value.lower() in ['no', 'false', 'n', 'f', '0']:
+                    return False
+                raise ValueError('Invalid Boolean value {}', value)
+            elif field_type in ['base64', 'xsd:anyType']:
+                raise NotImplementedError
+            
+            return None
+
+        field_map = self.context.get_field_map(self.sobjectname)
+        return { k: convert_value(record[k], field_map[k]['soapType'] ) for k in record }
+
+    def transform_record(self, record):
+        pass
+
+    def execute(self):
+        # Read our incoming file.
+        # Apply transformations specified in our configuration file (column name -> field name, for example)
+        # Then, populate all direct lookups. Dependent lookups and self-lookups will be populated in a later pass.
+        records_to_load = []
+        reader = self.context.get_input_file(self.sobjectname)
+        for record in reader:
+            record = self.populate_lookups(self.transform_record(record), self.descendent_lookups)
+            record = self.primitivize(record)
+
+            records_to_load.append(record)
+        
+        results = self.context.get_bulk_proxy_object(self.sobjectname).insert(records_to_load)
+        for i, r in enumerate(results):
+            if r['success']:
+                self.context.map_loaded_record(SalesforceId(records_to_load[i]['Id']), SalesforceId(r['id'])) # note lowercase in result
+            else:
+                raise Exception('Failed to load {} {}', self.sobjectname, records_to_load[i]['Id'])
+    
+    def execute_dependent_updates(self):
+        # Populate dependent and self-lookups in a single pass
+        records_to_load = []
+        reader = self.context.get_input_file(self.sobjectname)
+
+        for record in reader:
+            record = self.populate_lookups(record, self.dependent_lookups + self.self_lookups)
+            records_to_load.append(record)
+        
+        results = self.context.get_bulk_proxy_object(self.sobjectname).insert(records_to_load)
+        for i, r in enumerate(results):
+            if r['success']:
+                self.context.map_loaded_record(SalesforceId(records_to_load[i]['Id']), SalesforceId(r['id'])) # note lowercase in result
+            else:
+                raise Exception('Failed to execute dependent updates for {} {}', self.sobjectname, records_to_load[i]['Id'])
+
+
+class ExtractOperation(Operation):
+    def __init__(self, connection):
+        super().__init__(connection)
+        self.required_ids = {}
+        self.extracted_ids = {}
+        self.output_files = {}
+        self.mappers = {}
+
+    def execute(self):
+        self.logger.info('Starting extraction with sObjects %s', self.get_sobject_list())
+        for s in self.steps:
+            self.logger.info('Extracting %s', s.sobjectname)
+            s.execute()
+            self.logger.info('Extracted %d records from %s', len(self.get_extracted_ids(s.sobjectname)), s.sobjectname)
+
+    def set_output_file(self, sobjectname, f):
+        self.output_files[sobjectname] = f
+
+    def add_dependency(self, sobjectname, id):
+        if sobjectname not in self.required_ids:
+            self.required_ids[sobjectname] = set()
+        if id not in self.get_extracted_ids(sobjectname):
+            self.required_ids[sobjectname].add(id)
+
+    def get_dependencies(self, sobjectname):
+        return self.required_ids[sobjectname] if sobjectname in self.required_ids else set()
+
+    def get_sobject_ids_for_reference(self, sobjectname, field):
+        ids = set()
+        for name in self.get_field_map(sobjectname)[field]['referenceTo']:
+            # For each sObject that we've extracted data for,
+            # if that object is a potential reference target for this field,
+            # accumulate those Ids in a Set.
+            if name in self.extracted_ids:
+                ids |= self.extracted_ids[name]
+
+        return ids
+
+    def get_extracted_ids(self, sobjectname):
+        return self.extracted_ids[sobjectname] if sobjectname in self.extracted_ids else set()
+
+    def store_result(self, sobjectname, record):
+        if sobjectname not in self.extracted_ids:
+            self.extracted_ids[sobjectname] = set()
+
+        self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
+        if SalesforceId(record['Id']) not in self.extracted_ids[sobjectname]:
+            self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
+            self.output_files[sobjectname].writerow(
+                self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
+                else record
+            )
+
+        if sobjectname in self.required_ids and SalesforceId(record['Id']) in self.required_ids[sobjectname]:
+            self.required_ids[sobjectname].remove(SalesforceId(record['Id']))
+
+
+class ExtractionStep(Step):
+    def __init__(self, sobjectname, scope, field_scope, where_clause=None, self_lookup_behavior=SelfLookupBehavior.TRACE_ALL, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
+        super().__init__(sobjectname, field_scope)
+        self.scope = scope
+        self.where_clause = where_clause
+        self.self_lookup_behavior = self_lookup_behavior
+        self.outside_lookup_behavior = outside_lookup_behavior
+        self.lookup_behaviors = {}
+
+    def set_lookup_behavior_for_field(self, f, behavior):
+        self.lookup_behaviors[f] = behavior
+
+    def get_self_lookup_behavior_for_field(self, f):
+        return self.lookup_behaviors.get(f, self.self_lookup_behavior)
+    
+    def get_outside_lookup_behavior_for_field(self, f):
+        return self.lookup_behaviors.get(f, self.outside_lookup_behavior)
 
     def execute(self):
         self.scan_fields()

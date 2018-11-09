@@ -42,7 +42,7 @@ def main():
     else:
         config = yaml.safe_load(args.config)
 
-    (ex, errors) = loader.load_extraction(config, context)
+    (ex, errors) = loader.load_extraction_operation(config, context)
 
     if ex is not None:
         ex.execute()

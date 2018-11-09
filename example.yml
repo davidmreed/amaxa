@@ -1,8 +1,9 @@
 version: 1
-extraction:
+operation:
     - 
         sobject: Account
-        target-file: 'Account.csv'
+        file: 'Account.csv'
+        primary-key: Id
         fields: 
             - Name
             - Id
@@ -17,7 +18,7 @@ extraction:
             all: True
     - 
         sobject: Contact
-        target-file: 'Contact.csv'
+        file: 'Contact.csv'
         sdl: Contact.sdl
         outside-reference-behavior: drop-field 
         extract:

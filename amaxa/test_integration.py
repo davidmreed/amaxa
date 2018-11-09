@@ -18,10 +18,10 @@ class test_Extraction(unittest.TestCase):
         )
 
     def test_all_records_extracts_accounts(self):
-        oc = amaxa.OperationContext(self.connection)
+        oc = amaxa.ExtractOperation(self.connection)
         oc.set_output_file('Account', Mock())
 
-        extraction = amaxa.SingleObjectExtraction(
+        extraction = amaxa.ExtractionStep(
             'Account',
             amaxa.ExtractionScope.ALL_RECORDS,
             ['Id', 'Name']
@@ -34,14 +34,14 @@ class test_Extraction(unittest.TestCase):
     
     def test_query_extracts_self_lookup_hierarchy(self):
         expected_names = {'Caprica Cosmetics', 'Gemenon Gastronomy', 'Aerilon Agrinomics'}
-        oc = amaxa.OperationContext(self.connection)
+        oc = amaxa.ExtractOperation(self.connection)
         output = Mock()
         oc.set_output_file('Account', output)
 
         rec = self.connection.query('SELECT Id FROM Account WHERE Name = \'Caprica Cosmetics\'')
         oc.add_dependency('Account', rec.get('records')[0]['Id'])
 
-        extraction = amaxa.SingleObjectExtraction(
+        extraction = amaxa.ExtractionStep(
             'Account',
             amaxa.ExtractionScope.SELECTED_RECORDS,
             ['Id', 'Name', 'ParentId']
@@ -59,7 +59,7 @@ class test_Extraction(unittest.TestCase):
     
     def test_descendents_extracts_object_network(self):
         expected_names = {'Elosha', 'Gaius'}
-        oc = amaxa.OperationContext(self.connection)
+        oc = amaxa.ExtractOperation(self.connection)
         output_accounts = Mock()
         output_contacts = Mock()
         oc.set_output_file('Account', output_accounts)
@@ -69,14 +69,14 @@ class test_Extraction(unittest.TestCase):
         oc.add_dependency('Account', rec.get('records')[0]['Id'])
 
         oc.add_step(
-            amaxa.SingleObjectExtraction(
+            amaxa.ExtractionStep(
                 'Account',
                 amaxa.ExtractionScope.SELECTED_RECORDS,
                 ['Id', 'Name', 'ParentId']
             )
         )
         oc.add_step(
-            amaxa.SingleObjectExtraction(
+            amaxa.ExtractionStep(
                 'Contact',
                 amaxa.ExtractionScope.DESCENDENTS,
                 ['Id', 'FirstName', 'LastName', 'AccountId']
@@ -97,7 +97,7 @@ class test_Extraction(unittest.TestCase):
         expected_account_names = {'Caprica Cosmetics', 'Gemenon Gastronomy', 'Aerilon Agrinomics'}
         expected_contact_names = {'Gaius'}
 
-        oc = amaxa.OperationContext(self.connection)
+        oc = amaxa.ExtractOperation(self.connection)
         output_accounts = Mock()
         output_contacts = Mock()
         oc.set_output_file('Account', output_accounts)
@@ -107,14 +107,14 @@ class test_Extraction(unittest.TestCase):
         oc.add_dependency('Contact', rec.get('records')[0]['Id'])
 
         oc.add_step(
-            amaxa.SingleObjectExtraction(
+            amaxa.ExtractionStep(
                 'Contact',
                 amaxa.ExtractionScope.SELECTED_RECORDS,
                 ['Id', 'FirstName', 'LastName', 'AccountId']
             )
         )
         oc.add_step(
-            amaxa.SingleObjectExtraction(
+            amaxa.ExtractionStep(
                 'Account',
                 amaxa.ExtractionScope.DESCENDENTS,
                 ['Id', 'Name', 'ParentId']
@@ -140,7 +140,7 @@ class test_Extraction(unittest.TestCase):
         self.assertEqual(0, len(expected_account_names))
 
     def test_extracts_polymorphic_lookups(self):
-        oc = amaxa.OperationContext(self.connection)
+        oc = amaxa.ExtractOperation(self.connection)
         output_accounts = Mock()
         output_users = Mock()
         oc.set_output_file('Account', output_accounts)
@@ -150,14 +150,14 @@ class test_Extraction(unittest.TestCase):
         oc.add_dependency('Account', rec.get('records')[0]['Id'])
 
         oc.add_step(
-            amaxa.SingleObjectExtraction(
+            amaxa.ExtractionStep(
                 'Account',
                 amaxa.ExtractionScope.SELECTED_RECORDS,
                 ['Id', 'Name', 'OwnerId']
             )
         )
         oc.add_step(
-            amaxa.SingleObjectExtraction(
+            amaxa.ExtractionStep(
                 'User',
                 amaxa.ExtractionScope.DESCENDENTS,
                 ['Id', 'Username']
@@ -186,7 +186,7 @@ class test_Extraction(unittest.TestCase):
 
             extraction = '''
                 version: 1
-                extraction:
+                operation:
                     - 
                         sobject: Account
                         fields: 

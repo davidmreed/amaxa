@@ -59,10 +59,10 @@ class test_SalesforceId(unittest.TestCase):
             id_set.add(new_id)
             self.assertIn(new_id, id_set)
 
-class test_OperationContext(unittest.TestCase):
+class test_ExtractOperation(unittest.TestCase):
     def test_runs_all_steps(self):
         connection = Mock()
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         for i in range(3):
             oc.add_step(Mock())
@@ -76,7 +76,7 @@ class test_OperationContext(unittest.TestCase):
     def test_tracks_dependencies(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         self.assertEqual(set(), oc.get_dependencies('Account'))
         oc.add_dependency('Account', amaxa.SalesforceId('001000000000000'))
@@ -85,7 +85,7 @@ class test_OperationContext(unittest.TestCase):
     def test_doesnt_add_dependency_for_extracted_record(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.output_files['Account'] = Mock()
 
         oc.store_result('Account', { 'Id': '001000000000000', 'Name': 'Caprica Steel' })
@@ -98,7 +98,7 @@ class test_OperationContext(unittest.TestCase):
         p = PropertyMock(return_value='Account')
         type(connection).Account = p
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         proxy = oc.get_proxy_object('Account')
 
@@ -117,7 +117,7 @@ class test_OperationContext(unittest.TestCase):
         p = PropertyMock(return_value='Account')
         type(connection.bulk).Account = p
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         proxy = oc.get_bulk_proxy_object('Account')
 
@@ -131,7 +131,7 @@ class test_OperationContext(unittest.TestCase):
         self.assertEqual('Account', proxy)
         p.assert_not_called()
 
-    @patch('amaxa.OperationContext.get_proxy_object')
+    @patch('amaxa.ExtractOperation.get_proxy_object')
     def test_caches_describe_results(self, proxy_mock):
         connection = Mock()
         account_mock = Mock()
@@ -142,7 +142,7 @@ class test_OperationContext(unittest.TestCase):
         account_mock.describe = Mock(return_value=describe_info)
         proxy_mock.return_value = account_mock
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         retval = oc.get_describe('Account')
         self.assertEqual(describe_info, retval)
@@ -153,7 +153,7 @@ class test_OperationContext(unittest.TestCase):
         self.assertEqual(describe_info, retval)
         account_mock.describe.assert_not_called()
 
-    @patch('amaxa.OperationContext.get_proxy_object')
+    @patch('amaxa.ExtractOperation.get_proxy_object')
     def test_caches_field_maps(self, proxy_mock):
         connection = Mock()
         account_mock = Mock()
@@ -164,7 +164,7 @@ class test_OperationContext(unittest.TestCase):
         account_mock.describe = Mock(return_value=describe_info)
         proxy_mock.return_value = account_mock
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         retval = oc.get_field_map('Account')
         self.assertEqual({ 'Name': { 'name': 'Name' }, 'Id': { 'name': 'Id' } }, retval)
@@ -175,7 +175,7 @@ class test_OperationContext(unittest.TestCase):
         self.assertEqual({ 'Name': { 'name': 'Name' }, 'Id': { 'name': 'Id' } }, retval)
         account_mock.describe.assert_not_called()
 
-    @patch('amaxa.OperationContext.get_proxy_object')
+    @patch('amaxa.ExtractOperation.get_proxy_object')
     def test_filters_field_maps(self, proxy_mock):
         connection = Mock()
         account_mock = Mock()
@@ -186,7 +186,7 @@ class test_OperationContext(unittest.TestCase):
         account_mock.describe = Mock(return_value=describe_info)
         proxy_mock.return_value = account_mock
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         retval = oc.get_filtered_field_map('Account', lambda f: f['name'] == 'Id')
         self.assertEqual({ 'Id': { 'name': 'Id' } }, retval)
@@ -204,7 +204,7 @@ class test_OperationContext(unittest.TestCase):
             }
         })
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         self.assertEqual('Account', oc.get_sobject_name_for_id('001000000000000'))
         self.assertEqual('Contact', oc.get_sobject_name_for_id('003000000000000'))
@@ -214,7 +214,7 @@ class test_OperationContext(unittest.TestCase):
     def test_store_result_retains_ids(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
 
@@ -224,7 +224,7 @@ class test_OperationContext(unittest.TestCase):
     def test_store_result_writes_records(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         account_mock = Mock()
         oc.output_files['Account'] = account_mock
@@ -235,7 +235,7 @@ class test_OperationContext(unittest.TestCase):
     def test_store_result_transforms_output(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         account_mock = Mock()
         oc.output_files['Account'] = account_mock
@@ -251,7 +251,7 @@ class test_OperationContext(unittest.TestCase):
     def test_store_result_clears_dependencies(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
         oc.add_dependency('Account', amaxa.SalesforceId('001000000000000'))
@@ -262,7 +262,7 @@ class test_OperationContext(unittest.TestCase):
     def test_store_result_does_not_write_duplicate_records(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         account_mock = Mock()
         oc.output_files['Account'] = account_mock
@@ -276,7 +276,7 @@ class test_OperationContext(unittest.TestCase):
     def test_get_extracted_ids_returns_results(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
 
@@ -286,7 +286,7 @@ class test_OperationContext(unittest.TestCase):
     def test_get_sobject_ids_for_reference_returns_correct_ids(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
         oc.output_files['Contact'] = Mock()
@@ -326,11 +326,11 @@ class test_ExtractMapper(unittest.TestCase):
             )
         )
 
-class test_SingleObjectExtraction(unittest.TestCase):
+class test_ExtractionStep(unittest.TestCase):
     def test_scan_fields_identifies_self_lookups(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
         oc.get_field_map = Mock(return_value={
@@ -346,7 +346,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             }
         })
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -356,7 +356,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_scan_fields_identifies_dependent_lookups(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
         oc.output_files['Contact'] = Mock()
@@ -374,7 +374,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -384,7 +384,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_scan_fields_identifies_all_lookups_within_extraction(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
         oc.output_files['Contact'] = Mock()
@@ -407,7 +407,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c', 'Outside__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c', 'Outside__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -417,7 +417,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_scan_fields_identifies_descendent_lookups(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
         oc.output_files['Contact'] = Mock()
@@ -435,7 +435,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
 
-        step = amaxa.SingleObjectExtraction('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
+        step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -445,7 +445,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_scan_fields_handles_mixed_polymorphic_lookups(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.output_files['Account'] = Mock()
         oc.output_files['Contact'] = Mock()
@@ -464,7 +464,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact', 'Opportunity'])
 
-        step = amaxa.SingleObjectExtraction('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Poly_Lookup__c', 'Other__c'])
+        step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Poly_Lookup__c', 'Other__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -473,7 +473,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         self.assertEqual(set(['Poly_Lookup__c']), step.descendent_lookups)
 
     def retains_lookup_behavior_for_fields(self):
-        step = amaxa.SingleObjectExtraction(
+        step = amaxa.ExtractionStep(
             'Account',
             amaxa.ExtractionScope.ALL_RECORDS,
             ['Self_Lookup__c', 'Other__c'],
@@ -489,14 +489,14 @@ class test_SingleObjectExtraction(unittest.TestCase):
         self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, step.get_outside_lookup_behavior_for_field('Other__c'))
 
     def test_generates_field_list(self):
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
 
         self.assertEqual('Lookup__c, Other__c', step.get_field_list())
     
     def test_store_result_calls_context(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -509,7 +509,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account'])
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, [])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, [])
         oc.add_step(step)
         step.scan_fields()
 
@@ -520,7 +520,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_store_result_registers_self_lookup_dependencies(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -533,7 +533,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account'])
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
         step.scan_fields()
 
@@ -543,7 +543,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_store_result_respects_self_lookup_options(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -556,7 +556,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account'])
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], None, amaxa.SelfLookupBehavior.TRACE_NONE)
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], None, amaxa.SelfLookupBehavior.TRACE_NONE)
         oc.add_step(step)
         step.scan_fields()
 
@@ -566,7 +566,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_store_result_registers_dependent_lookup_dependencies(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -579,7 +579,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Opportunity'])
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
         step.scan_fields()
 
@@ -589,7 +589,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_store_result_handles_polymorphic_lookups(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -604,7 +604,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.get_extracted_ids = Mock(return_value=['001000000000001'])
         oc.get_sobject_name_for_id = Mock(side_effect=lambda id: {'001': 'Account', '006': 'Opportunity', '00T': 'Task'}[id[:3]])
 
-        step = amaxa.SingleObjectExtraction('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
         step.scan_fields()
 
@@ -630,7 +630,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_store_result_respects_outside_lookup_behavior_drop_field(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -648,7 +648,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
         oc.get_extracted_ids = Mock(return_value=set())
 
-        step = amaxa.SingleObjectExtraction(
+        step = amaxa.ExtractionStep(
             'Contact',
             amaxa.ExtractionScope.DESCENDENTS,
             ['AccountId'],
@@ -664,7 +664,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_store_result_respects_outside_lookup_behavior_error(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -682,7 +682,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
         oc.get_extracted_ids = Mock(return_value=set())
 
-        step = amaxa.SingleObjectExtraction(
+        step = amaxa.ExtractionStep(
             'Contact',
             amaxa.ExtractionScope.DESCENDENTS,
             ['AccountId'],
@@ -698,7 +698,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_store_result_respects_outside_lookup_behavior_include(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -716,7 +716,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
         oc.get_extracted_ids = Mock(return_value=set())
 
-        step = amaxa.SingleObjectExtraction(
+        step = amaxa.ExtractionStep(
             'Contact',
             amaxa.ExtractionScope.DESCENDENTS,
             ['AccountId'],
@@ -732,7 +732,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_store_result_discriminates_polymorphic_lookup_type(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.store_result = Mock()
         oc.add_dependency = Mock()
@@ -750,7 +750,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact', 'Task'])
         oc.get_extracted_ids = Mock(return_value=set())
 
-        step = amaxa.SingleObjectExtraction(
+        step = amaxa.ExtractionStep(
             'Contact',
             amaxa.ExtractionScope.DESCENDENTS,
             ['AccountId'],
@@ -766,7 +766,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_perform_lookup_pass_executes_correct_query(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
 
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
@@ -777,7 +777,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_ids_for_reference = Mock(return_value=set([amaxa.SalesforceId('001000000000000')]))
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
         step.scan_fields()
 
@@ -791,7 +791,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         connection = Mock()
         connection.query_all = Mock(side_effect=lambda x: { 'records': [{ 'Id': '001000000000001'}] })
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -800,7 +800,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             }
         })
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
         step.scan_fields()
@@ -826,7 +826,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         connection = Mock()
         connection.query_all = Mock(side_effect=lambda x: { 'records': [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}] })
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -835,7 +835,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             }
         })
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
         step.scan_fields()
@@ -847,7 +847,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_perform_id_field_pass_ignores_empty_set(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -856,7 +856,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             }
         })
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
         step.scan_fields()
 
@@ -867,7 +867,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_perform_bulk_api_pass_performs_query(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -879,7 +879,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         bulk_proxy.query = Mock(side_effect=lambda x: { 'records': [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}] })
         oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.QUERY, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.QUERY, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
         step.scan_fields()
@@ -891,7 +891,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_perform_bulk_api_pass_stores_results(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -903,7 +903,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         bulk_proxy.query = Mock(return_value=[{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}])
         oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
         step.scan_fields()
@@ -915,7 +915,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_resolve_registered_dependencies_loads_records(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -933,7 +933,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             ]
         )
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.perform_id_field_pass = Mock()
         oc.add_step(step)
         step.scan_fields()
@@ -947,7 +947,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_resolve_registered_dependencies_throws_exception_for_missing_ids(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -967,7 +967,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             ]
         )
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.perform_id_field_pass = Mock()
         oc.add_step(step)
         step.scan_fields()
@@ -978,7 +978,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_execute_with_all_records_performs_bulk_api_pass(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Name': {
                 'name': 'Name',
@@ -986,7 +986,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             }
         })
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Name'])
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Name'])
         step.perform_bulk_api_pass = Mock()
         oc.add_step(step)
 
@@ -997,7 +997,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_execute_with_query_performs_bulk_api_pass(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Name': {
                 'name': 'Name',
@@ -1005,7 +1005,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             }
         })
 
-        step = amaxa.SingleObjectExtraction('Account', amaxa.ExtractionScope.QUERY, ['Name'], 'Name != null')
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.QUERY, ['Name'], 'Name != null')
         step.perform_bulk_api_pass = Mock()
         oc.add_step(step)
 
@@ -1016,7 +1016,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_execute_loads_all_descendents(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Name': {
                 'name': 'Name',
@@ -1040,7 +1040,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
 
-        step = amaxa.SingleObjectExtraction('Contact', amaxa.ExtractionScope.DESCENDENTS, ['Name', 'AccountId', 'Household__c'])
+        step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.DESCENDENTS, ['Name', 'AccountId', 'Household__c'])
         step.perform_lookup_pass = Mock()
         oc.add_step(step)
 
@@ -1057,7 +1057,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_execute_resolves_self_lookups(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Name': {
                 'name': 'Name',
@@ -1080,7 +1080,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
             ]
         )
 
-        step = amaxa.SingleObjectExtraction(
+        step = amaxa.ExtractionStep(
             'Account',
             amaxa.ExtractionScope.QUERY,
             ['Name', 'ParentId'],
@@ -1121,7 +1121,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
     def test_execute_does_not_trace_self_lookups_without_trace_all(self):
         connection = Mock()
 
-        oc = amaxa.OperationContext(connection)
+        oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Name': {
                 'name': 'Name',
@@ -1137,7 +1137,7 @@ class test_SingleObjectExtraction(unittest.TestCase):
         })
         oc.get_extracted_ids = Mock()
 
-        step = amaxa.SingleObjectExtraction(
+        step = amaxa.ExtractionStep(
             'Account',
             amaxa.ExtractionScope.QUERY,
             ['Name', 'ParentId'],

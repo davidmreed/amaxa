@@ -37,7 +37,7 @@ credentials:
 
 extraction_good_yaml = '''
 version: 1
-extraction:
+operation:
     - 
         sobject: Account
         fields: 
@@ -66,7 +66,7 @@ extraction_good_json = '''
 }
 '''
 extraction_bad = '''
-extraction:
+operation:
     - 
         sobject: Account
         fields: 
@@ -94,7 +94,7 @@ def select_file(f, *args, **kwargs):
 
 class test_CLI(unittest.TestCase):
     @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction')
+    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
     def test_main_calls_execute_with_json_input(self, extraction_mock, credential_mock):
         context = Mock()
         credential_mock.return_value = (context, [])
@@ -116,7 +116,7 @@ class test_CLI(unittest.TestCase):
         self.assertEqual(0, return_value)
     
     @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction')
+    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
     def test_main_calls_execute_with_yaml_input(self, extraction_mock, credential_mock):
         context = Mock()
         credential_mock.return_value = (context, [])
@@ -138,7 +138,7 @@ class test_CLI(unittest.TestCase):
         self.assertEqual(0, return_value)
 
     @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction')
+    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
     def test_main_returns_error_with_bad_credentials(self, extraction_mock, credential_mock):
         credential_mock.return_value = (None, ['Test error occured.'])
         extraction_mock.return_value = (Mock(), [])
@@ -158,7 +158,7 @@ class test_CLI(unittest.TestCase):
         self.assertEqual(-1, return_value)
 
     @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction')
+    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
     def test_main_returns_error_with_bad_extraction(self, extraction_mock, credential_mock):
         context = Mock()
         credential_mock.return_value = (context, [])
