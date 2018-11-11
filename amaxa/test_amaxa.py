@@ -59,11 +59,141 @@ class test_SalesforceId(unittest.TestCase):
             id_set.add(new_id)
             self.assertIn(new_id, id_set)
 
+class test_Operation(unittest.TestCase):
+    def test_stores_steps(self):
+        connection = Mock()
+        oc = amaxa.Operation(connection)
+
+        step = Mock()
+        oc.add_step(step)
+
+        self.assertEqual([step], oc.steps)
+        self.assertEqual(oc, step.context)
+    
+    def test_creates_and_caches_proxy_objects(self):
+        connection = Mock()
+        p = PropertyMock(return_value='Account')
+        type(connection).Account = p
+
+        oc = amaxa.Operation(connection)
+
+        proxy = oc.get_proxy_object('Account')
+
+        self.assertEqual('Account', proxy)
+        p.assert_called_once_with()
+
+        p.reset_mock()
+        proxy = oc.get_proxy_object('Account')
+
+        # Proxy should be cached
+        self.assertEqual('Account', proxy)
+        p.assert_not_called()
+
+    def test_creates_and_caches_bulk_proxy_objects(self):
+        connection = Mock()
+        p = PropertyMock(return_value='Account')
+        type(connection.bulk).Account = p
+
+        oc = amaxa.Operation(connection)
+
+        proxy = oc.get_bulk_proxy_object('Account')
+
+        self.assertEqual('Account', proxy)
+        p.assert_called_once_with()
+
+        p.reset_mock()
+        proxy = oc.get_bulk_proxy_object('Account')
+
+        # Proxy should be cached
+        self.assertEqual('Account', proxy)
+        p.assert_not_called()
+
+    @patch('amaxa.Operation.get_proxy_object')
+    def test_caches_describe_results(self, proxy_mock):
+        connection = Mock()
+        account_mock = Mock()
+
+        fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
+        describe_info = { 'fields' : fields }
+
+        account_mock.describe = Mock(return_value=describe_info)
+        proxy_mock.return_value = account_mock
+
+        oc = amaxa.Operation(connection)
+
+        retval = oc.get_describe('Account')
+        self.assertEqual(describe_info, retval)
+        account_mock.describe.assert_called_once_with()
+        account_mock.describe.reset_mock()
+
+        retval = oc.get_describe('Account')
+        self.assertEqual(describe_info, retval)
+        account_mock.describe.assert_not_called()
+
+    @patch('amaxa.Operation.get_proxy_object')
+    def test_caches_field_maps(self, proxy_mock):
+        connection = Mock()
+        account_mock = Mock()
+
+        fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
+        describe_info = { 'fields' : fields }
+
+        account_mock.describe = Mock(return_value=describe_info)
+        proxy_mock.return_value = account_mock
+
+        oc = amaxa.Operation(connection)
+
+        retval = oc.get_field_map('Account')
+        self.assertEqual({ 'Name': { 'name': 'Name' }, 'Id': { 'name': 'Id' } }, retval)
+        account_mock.describe.assert_called_once_with()
+        account_mock.describe.reset_mock()
+
+        retval = oc.get_field_map('Account')
+        self.assertEqual({ 'Name': { 'name': 'Name' }, 'Id': { 'name': 'Id' } }, retval)
+        account_mock.describe.assert_not_called()
+
+    @patch('amaxa.Operation.get_proxy_object')
+    def test_filters_field_maps(self, proxy_mock):
+        connection = Mock()
+        account_mock = Mock()
+
+        fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
+        describe_info = { 'fields' : fields }
+
+        account_mock.describe = Mock(return_value=describe_info)
+        proxy_mock.return_value = account_mock
+
+        oc = amaxa.Operation(connection)
+
+        retval = oc.get_filtered_field_map('Account', lambda f: f['name'] == 'Id')
+        self.assertEqual({ 'Id': { 'name': 'Id' } }, retval)
+
+    def test_maps_ids_to_sobject_types(self):
+        connection = Mock()
+        connection.describe = Mock(return_value={
+            'sobjects': {
+                'Account': {
+                    'keyPrefix': '001'
+                },
+                'Contact': {
+                    'keyPrefix': '003'
+                }
+            }
+        })
+
+        oc = amaxa.Operation(connection)
+
+        self.assertEqual('Account', oc.get_sobject_name_for_id('001000000000000'))
+        self.assertEqual('Contact', oc.get_sobject_name_for_id('003000000000000'))
+
+        connection.describe.assert_called_once_with()
+
 class test_ExtractOperation(unittest.TestCase):
     def test_runs_all_steps(self):
         connection = Mock()
         oc = amaxa.ExtractOperation(connection)
 
+        # pylint: disable=W0612
         for i in range(3):
             oc.add_step(Mock())
         
@@ -92,124 +222,6 @@ class test_ExtractOperation(unittest.TestCase):
         self.assertEqual(set(), oc.get_dependencies('Account'))
         oc.add_dependency('Account', amaxa.SalesforceId('001000000000000'))
         self.assertEqual(set(), oc.get_dependencies('Account'))
-
-    def test_creates_and_caches_proxy_objects(self):
-        connection = Mock()
-        p = PropertyMock(return_value='Account')
-        type(connection).Account = p
-
-        oc = amaxa.ExtractOperation(connection)
-
-        proxy = oc.get_proxy_object('Account')
-
-        self.assertEqual('Account', proxy)
-        p.assert_called_once_with()
-
-        p.reset_mock()
-        proxy = oc.get_proxy_object('Account')
-
-        # Proxy should be cached
-        self.assertEqual('Account', proxy)
-        p.assert_not_called()
-
-    def test_creates_and_caches_bulk_proxy_objects(self):
-        connection = Mock()
-        p = PropertyMock(return_value='Account')
-        type(connection.bulk).Account = p
-
-        oc = amaxa.ExtractOperation(connection)
-
-        proxy = oc.get_bulk_proxy_object('Account')
-
-        self.assertEqual('Account', proxy)
-        p.assert_called_once_with()
-
-        p.reset_mock()
-        proxy = oc.get_bulk_proxy_object('Account')
-
-        # Proxy should be cached
-        self.assertEqual('Account', proxy)
-        p.assert_not_called()
-
-    @patch('amaxa.ExtractOperation.get_proxy_object')
-    def test_caches_describe_results(self, proxy_mock):
-        connection = Mock()
-        account_mock = Mock()
-
-        fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
-        describe_info = { 'fields' : fields }
-
-        account_mock.describe = Mock(return_value=describe_info)
-        proxy_mock.return_value = account_mock
-
-        oc = amaxa.ExtractOperation(connection)
-
-        retval = oc.get_describe('Account')
-        self.assertEqual(describe_info, retval)
-        account_mock.describe.assert_called_once_with()
-        account_mock.describe.reset_mock()
-
-        retval = oc.get_describe('Account')
-        self.assertEqual(describe_info, retval)
-        account_mock.describe.assert_not_called()
-
-    @patch('amaxa.ExtractOperation.get_proxy_object')
-    def test_caches_field_maps(self, proxy_mock):
-        connection = Mock()
-        account_mock = Mock()
-
-        fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
-        describe_info = { 'fields' : fields }
-
-        account_mock.describe = Mock(return_value=describe_info)
-        proxy_mock.return_value = account_mock
-
-        oc = amaxa.ExtractOperation(connection)
-
-        retval = oc.get_field_map('Account')
-        self.assertEqual({ 'Name': { 'name': 'Name' }, 'Id': { 'name': 'Id' } }, retval)
-        account_mock.describe.assert_called_once_with()
-        account_mock.describe.reset_mock()
-
-        retval = oc.get_field_map('Account')
-        self.assertEqual({ 'Name': { 'name': 'Name' }, 'Id': { 'name': 'Id' } }, retval)
-        account_mock.describe.assert_not_called()
-
-    @patch('amaxa.ExtractOperation.get_proxy_object')
-    def test_filters_field_maps(self, proxy_mock):
-        connection = Mock()
-        account_mock = Mock()
-
-        fields = [{ 'name': 'Name' }, { 'name': 'Id' }]
-        describe_info = { 'fields' : fields }
-
-        account_mock.describe = Mock(return_value=describe_info)
-        proxy_mock.return_value = account_mock
-
-        oc = amaxa.ExtractOperation(connection)
-
-        retval = oc.get_filtered_field_map('Account', lambda f: f['name'] == 'Id')
-        self.assertEqual({ 'Id': { 'name': 'Id' } }, retval)
-
-    def test_maps_ids_to_sobject_types(self):
-        connection = Mock()
-        connection.describe = Mock(return_value={
-            'sobjects': {
-                'Account': {
-                    'keyPrefix': '001'
-                },
-                'Contact': {
-                    'keyPrefix': '003'
-                }
-            }
-        })
-
-        oc = amaxa.ExtractOperation(connection)
-
-        self.assertEqual('Account', oc.get_sobject_name_for_id('001000000000000'))
-        self.assertEqual('Contact', oc.get_sobject_name_for_id('003000000000000'))
-
-        connection.describe.assert_called_once_with()
 
     def test_store_result_retains_ids(self):
         connection = Mock()
@@ -326,7 +338,7 @@ class test_ExtractMapper(unittest.TestCase):
             )
         )
 
-class test_ExtractionStep(unittest.TestCase):
+class test_Step(unittest.TestCase):
     def test_scan_fields_identifies_self_lookups(self):
         connection = Mock()
 
@@ -346,7 +358,7 @@ class test_ExtractionStep(unittest.TestCase):
             }
         })
 
-        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
+        step = amaxa.Step('Account', ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -374,7 +386,7 @@ class test_ExtractionStep(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
 
-        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
+        step = amaxa.Step('Account', ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -407,7 +419,7 @@ class test_ExtractionStep(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
 
-        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c', 'Outside__c'])
+        step = amaxa.Step('Account', ['Lookup__c', 'Other__c', 'Outside__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -435,7 +447,7 @@ class test_ExtractionStep(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact'])
 
-        step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
+        step = amaxa.Step('Contact', ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -464,7 +476,7 @@ class test_ExtractionStep(unittest.TestCase):
         })
         oc.get_sobject_list = Mock(return_value=['Account', 'Contact', 'Opportunity'])
 
-        step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Poly_Lookup__c', 'Other__c'])
+        step = amaxa.Step('Contact', ['Poly_Lookup__c', 'Other__c'])
         oc.add_step(step)
 
         step.scan_fields()
@@ -472,6 +484,13 @@ class test_ExtractionStep(unittest.TestCase):
         self.assertEqual(set(['Poly_Lookup__c']), step.dependent_lookups)
         self.assertEqual(set(['Poly_Lookup__c']), step.descendent_lookups)
 
+    def test_generates_field_list(self):
+        step = amaxa.Step('Account', ['Lookup__c', 'Other__c'])
+
+        self.assertEqual('Lookup__c, Other__c', step.get_field_list())
+
+
+class test_ExtractionStep(unittest.TestCase):
     def retains_lookup_behavior_for_fields(self):
         step = amaxa.ExtractionStep(
             'Account',
@@ -487,11 +506,6 @@ class test_ExtractionStep(unittest.TestCase):
         self.assertEqual(amaxa.OutsideLookupBehavior.INCLUDE, step.get_outside_lookup_behavior_for_field('Other__c'))
         step.set_lookup_behavior_for_field('Other__c', amaxa.OutsideLookupBehavior.DROP_FIELD)
         self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, step.get_outside_lookup_behavior_for_field('Other__c'))
-
-    def test_generates_field_list(self):
-        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c', 'Other__c'])
-
-        self.assertEqual('Lookup__c, Other__c', step.get_field_list())
     
     def test_store_result_calls_context(self):
         connection = Mock()
