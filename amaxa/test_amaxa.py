@@ -1171,6 +1171,28 @@ class test_ExtractionStep(unittest.TestCase):
         step.resolve_registered_dependencies.assert_called_once_with()
         oc.get_extracted_ids.assert_not_called()
 
+class test_LoadOperation(unittest.TestCase):
+    def test_stores_output_files(self):
+        pass
+    
+    def test_maps_record_ids(self):
+        pass
+    
+    def test_execute_runs_all_passes(self):
+        pass
+
+class test_LoadStep(unittest.TestCase):
+    def test_stores_lookup_behaviors(self):
+        pass
+    
+    def test_populates_lookups(self):
+        pass
+    
+    def test_converts_values_to_primitives(self):
+        pass
+    
+    def
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -217,9 +217,15 @@ class LoadStep(Step):
                  for k in record }
         # FIXME: handle lookup behavior
 
-    def primitivize(self, record):
+    def primitivize(self, record): # FIXME: is this needed when using the Bulk API?
         def convert_value(field_type, value):
-            if value is None or len(value) == 0:
+            if field_type == 'xsd:boolean':
+                if value is None or value.lower() in ['no', 'false', 'n', 'f', '0', '']:
+                    return False
+                elif value.lower() in ['yes', 'true', 'y', 't', '1']:
+                    return True
+                raise ValueError('Invalid Boolean value {}', value)
+            elif value is None or len(value) == 0:
                 return None
             elif field_type == 'tns:ID':
                 return str(value)
@@ -229,12 +235,6 @@ class LoadStep(Step):
                 return int(value)
             elif field_type == 'xsd:double':
                 return float(value)
-            elif field_type == 'xsd:boolean':
-                if value.lower() in ['yes', 'true', 'y', 't', '1']:
-                    return True
-                elif value.lower() in ['no', 'false', 'n', 'f', '0']:
-                    return False
-                raise ValueError('Invalid Boolean value {}', value)
             elif field_type in ['base64', 'xsd:anyType']:
                 raise NotImplementedError
             
@@ -244,7 +244,7 @@ class LoadStep(Step):
         return { k: convert_value(record[k], field_map[k]['soapType'] ) for k in record }
 
     def transform_record(self, record):
-        pass
+        pass # FIXME: implement
 
     def execute(self):
         # Read our incoming file.
