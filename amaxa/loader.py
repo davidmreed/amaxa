@@ -76,7 +76,7 @@ def load_load_operation(incoming, context):
 
             # Determine whether we are doing any mapping
             if any([isinstance(f, dict) for f in fields]):
-                mapper = amaxa.ExtractMapper()
+                mapper = amaxa.DataMapper()
                 field_set = set()
                 for f in fields:
                     if isinstance(f, str):
@@ -84,17 +84,18 @@ def load_load_operation(incoming, context):
                         if f not in mapped_columns:
                             mapped_columns.add(f)
                         else:
-                            errors.append('Field {}.{} is mapped to column {}, but this column is already mapped.'.format(sobject, f, f))
+                            errors.append('Column {} is mapped to field {}.{}, but this column is already mapped.'.format(f, sobject, f))
                     else:
                         field_set.add(f['field'])
                         if 'column' in f:
-                            mapper.field_name_mapping[f['field']] = f['column']
+                            # Note we reverse the mapper's dict for loads
+                            mapper.field_name_mapping[f['column']] = f['field']
                             if f['column'] not in mapped_columns:
                                 mapped_columns.add(f['column'])
                             else:
-                                errors.append('Field {}.{} is mapped to column {}, but this column is already mapped.'.format(sobject, f['field'], f['column']))
+                                errors.append('Column {} is mapped to field {}.{}, but this column is already mapped.'.format(f['column'], sobject, f['field']))
                         if 'transforms' in f:
-                            mapper.field_transforms[f['field']] = [getattr(transforms,t) for t in f['transforms']]
+                            mapper.field_transforms[f['column']] = [getattr(transforms,t) for t in f['transforms']]
                         if 'self-lookup-behavior' in f:
                             lookup_behaviors[f['field']] = f['self-lookup-behavior']
                         if 'outside-lookup-behavior' in f:
@@ -212,7 +213,7 @@ def load_extraction_operation(incoming, context):
 
             # Determine whether we are doing any mapping
             if any([isinstance(f, dict) for f in fields]):
-                mapper = amaxa.ExtractMapper()
+                mapper = amaxa.DataMapper()
                 field_set = set()
                 for f in fields:
                     if isinstance(f, str):

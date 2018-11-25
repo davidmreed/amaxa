@@ -313,20 +313,20 @@ class test_ExtractOperation(unittest.TestCase):
                          oc.get_sobject_ids_for_reference('Account', 'Lookup__c'))
 
 
-class test_ExtractMapper(unittest.TestCase):
+class test_DataMapper(unittest.TestCase):
     def test_transform_key_applies_mapping(self):
-        mapper = amaxa.ExtractMapper({ 'Test': 'Value' })
+        mapper = amaxa.DataMapper({ 'Test': 'Value' })
 
         self.assertEqual('Value', mapper.transform_key('Test'))
         self.assertEqual('Foo', mapper.transform_key('Foo'))
 
     def test_transform_value_applies_transformations(self):
-        mapper = amaxa.ExtractMapper({}, { 'Test__c': [transforms.strip, transforms.lowercase] })
+        mapper = amaxa.DataMapper({}, { 'Test__c': [transforms.strip, transforms.lowercase] })
 
         self.assertEqual('value', mapper.transform_value('Test__c', ' VALUE  '))
 
     def test_transform_record_does(self):
-        mapper = amaxa.ExtractMapper(
+        mapper = amaxa.DataMapper(
             { 'Test__c': 'Value' },
             { 'Test__c': [transforms.strip, transforms.lowercase] }
         )
@@ -1173,13 +1173,38 @@ class test_ExtractionStep(unittest.TestCase):
 
 class test_LoadOperation(unittest.TestCase):
     def test_stores_output_files(self):
-        pass
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+
+        op.set_input_file('Account', 'a')
+        self.assertEqual('a', op.get_input_file('Account'))
     
     def test_maps_record_ids(self):
-        pass
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+
+        op.register_new_id(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
+
+        self.assertEqual(amaxa.SalesforceId('001000000000001'), op.get_new_id(amaxa.SalesforceId('001000000000000')))
     
     def test_execute_runs_all_passes(self):
-        pass
+        connection = Mock()
+        first_step = Mock()
+        second_step = Mock()
+
+        op = amaxa.LoadOperation(connection)
+
+        op.add_step(first_step)
+        op.add_step(second_step)
+
+        op.execute()
+
+        first_step.execute.assert_called_once_with()
+        first_step.execute_dependent_updates.assert_called_once_with()
+
+        second_step.execute.assert_called_once_with()
+        second_step.execute_dependent_updates.assert_called_once_with()
+
 
 class test_LoadStep(unittest.TestCase):
     def test_stores_lookup_behaviors(self):
@@ -1188,10 +1213,12 @@ class test_LoadStep(unittest.TestCase):
     def test_populates_lookups(self):
         pass
     
+    def test_transforms_records(self):
+        pass
+    
     def test_converts_values_to_primitives(self):
         pass
     
-    def
 
 
 if __name__ == "__main__":

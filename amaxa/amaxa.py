@@ -173,18 +173,22 @@ class Step(object):
 
 class LoadOperation(Operation):
     def __init__(self, connection):
+        super().__init__(connection)
         self.input_files = {}
         self.mappers = {}
         self.global_id_map = {}
 
-    def set_output_file(self, sobjectname, f):
+    def set_input_file(self, sobjectname, f):
         self.input_files[sobjectname] = f
 
-    def get_output_file(self, sobjectname):
+    def get_input_file(self, sobjectname):
         return self.input_files[sobjectname]
     
-    def map_loaded_record(self, old_id, new_id):
+    def register_new_id(self, old_id, new_id):
         self.global_id_map[old_id] = new_id
+    
+    def get_new_id(self, old_id):
+        return self.global_id_map[old_id]
 
     def execute(self):
         self.logger.info('Starting load with sObjects %s', self.get_sobject_list())
@@ -244,7 +248,10 @@ class LoadStep(Step):
         return { k: convert_value(record[k], field_map[k]['soapType'] ) for k in record }
 
     def transform_record(self, record):
-        pass # FIXME: implement
+        if self.sobjectname in self.context.mappers:
+            return self.context.mappers[self.sobjectname].transform_record(record)
+
+        return record
 
     def execute(self):
         # Read our incoming file.
@@ -536,7 +543,7 @@ class ExtractionStep(Step):
         )
 
 
-class ExtractMapper(object):
+class DataMapper(object):
     def __init__(self, field_name_mapping={}, field_transforms={}):
         self.field_name_mapping = field_name_mapping
         self.field_transforms = field_transforms

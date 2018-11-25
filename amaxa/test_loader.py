@@ -848,3 +848,6 @@ class test_load_extraction_operation(unittest.TestCase):
             ', '.join(['Parent__c'])
         )
 
+
+class test_load_load_operation(unittest.TestCase):
+    pass
