@@ -40,7 +40,7 @@ def load_load_operation(incoming, context):
     # Inbound is raw, deserialized structures from JSON or YAML input files.
     # First, validate them against our schema and normalize them.
 
-    (incoming, errors) = validate_extraction_schema(incoming)
+    (incoming, errors) = validate_load_schema(incoming)
     if incoming is None:
         return (None, errors)
     
@@ -57,17 +57,18 @@ def load_load_operation(incoming, context):
     for entry in incoming['operation']:
         sobject = entry['sobject']
 
-        if sobject not in global_describe or not global_describe[sobject]['retrieveable']:
-            errors.append('sObject {} does not exist or is not visible.'.format(sobject))
+        if sobject not in global_describe or not global_describe[sobject]['createable']:
+            errors.append('sObject {} does not exist, is not visible, or is not createable.'.format(sobject))
             continue
 
         # Determine the field scope
         lookup_behaviors = {}
         if 'field-group' in entry:
             if entry['field-group'] == 'readable':
-                lam = lambda f: f['isAccessible']
+                errors.append('The operation specifies field group \'readable\' for {}, which is not usable for load operations.'.format(sobject))
+                continue
             else:
-                lam = lambda f: f['isUpdateable']
+                lam = lambda f: f['updateable']
 
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
         else:
@@ -107,11 +108,11 @@ def load_load_operation(incoming, context):
 
         field_set.add('Id')
 
-        # Validate that all fields are real and writable by this user.
+        # Validate that all fields are real and writeable by this user.
         field_map = context.get_field_map(sobject)
         for f in field_set:
-            if f not in field_map or not field_map[f]['isUpdateable']:
-                errors.append('Field {}.{} does not exist or is not writable.'.format(sobject, f))
+            if f not in field_map or not field_map[f]['updateable']:
+                errors.append('Field {}.{} does not exist, is not writeable, is not visible.'.format(sobject, f))
             elif field_map[f]['type'] == 'reference':
                 # Ensure that the target objects of this reference
                 # are included in the extraction. If not, show a warning.
@@ -201,10 +202,10 @@ def load_extraction_operation(incoming, context):
         # Determine the field scope
         lookup_behaviors = {}
         if 'field-group' in entry:
-            if entry['field-group'] == 'readable':
-                lam = lambda f: f['isAccessible']
+            if entry['field-group'] in ['readable', 'smart']:
+                lam = lambda f: True
             else:
-                lam = lambda f: f['isUpdateable']
+                lam = lambda f: f['updateable']
 
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
         else:
@@ -296,7 +297,14 @@ def load_extraction_operation(incoming, context):
     return (context, [])
 
 def validate_extraction_schema(input):
-    v = cerberus.Validator(schema)
+    v = cerberus.Validator(get_operation_schema(True))
+    return (
+        v.validated(input),
+        ['{}: {}'.format(k, v.errors[k]) for k in v.errors]
+    )
+
+def validate_load_schema(input):
+    v = cerberus.Validator(get_operation_schema(False))
     return (
         v.validated(input),
         ['{}: {}'.format(k, v.errors[k]) for k in v.errors]
@@ -357,101 +365,103 @@ credential_schema = {
     }
 }
 
-schema = {
-    'version': {
-        'type': 'integer',
-        'required': True,
-        'allowed': [1]
-    },
-    'operation': {
-        'type': 'list',
-        'schema': {
-            'type': 'dict',
+def get_operation_schema(is_extract = True):
+    return {
+        'version': {
+            'type': 'integer',
+            'required': True,
+            'allowed': [1]
+        },
+        'operation': {
+            'type': 'list',
             'schema': {
-                'sobject': {
-                    'type': 'string',
-                    'required': True
-                },
-                'file': {
-                    'type': 'string',
-                    'default_setter': lambda doc: doc['sobject'] + '.csv'
-                },
-                'sdl': {
-                    'type': 'string',
-                    'required': False,
-                    'excludes': ['fields', 'field-group']
-                },
-                'outside-lookup-behavior': {
-                    'type': 'string',
-                    'allowed': ['drop-field', 'error', 'include', 'recurse'],
-                    'default': 'include'
-                },
-                'self-lookup-behavior': {
-                    'type': 'string',
-                    'allowed': ['trace-all', 'trace-none'],
-                    'default': 'trace-all'
-                },
-                'extract': {
-                    'type': 'dict',
-                    'required': True,
-                    'schema': {
-                        'all': {
-                            'type': 'boolean',
-                            'allowed': [True],
-                            'excludes': ['descendents', 'query', 'ids']
-                        },
-                        'descendents': {
-                            'type': 'boolean',
-                            'allowed': [True],
-                            'excludes': ['all', 'query', 'ids']
-                        },
-                        'query': {
-                            'type': 'string',
-                            'excludes': ['all', 'descendents', 'ids']
-                        },
-                        'ids': {
-                            'type': 'list',
-                            'excludes': ['all', 'descendents', 'query'],
-                            'schema': {
-                                'type': 'string'
+                'type': 'dict',
+                'schema': {
+                    'sobject': {
+                        'type': 'string',
+                        'required': True
+                    },
+                    'file': {
+                        'type': 'string',
+                        'default_setter': lambda doc: doc['sobject'] + '.csv'
+                    },
+                    'sdl': {
+                        'type': 'string',
+                        'required': False,
+                        'excludes': ['fields', 'field-group']
+                    },
+                    'outside-lookup-behavior': {
+                        'type': 'string',
+                        'allowed': ['drop-field', 'error', 'include', 'recurse'],
+                        'default': 'include'
+                    },
+                    'self-lookup-behavior': {
+                        'type': 'string',
+                        'allowed': ['trace-all', 'trace-none'],
+                        'default': 'trace-all'
+                    },
+                    'extract': {
+                        'type': 'dict',
+                        'required': is_extract,
+                        'schema': {
+                            'all': {
+                                'type': 'boolean',
+                                'allowed': [True],
+                                'excludes': ['descendents', 'query', 'ids']
+                            },
+                            'descendents': {
+                                'type': 'boolean',
+                                'allowed': [True],
+                                'excludes': ['all', 'query', 'ids']
+                            },
+                            'query': {
+                                'type': 'string',
+                                'excludes': ['all', 'descendents', 'ids']
+                            },
+                            'ids': {
+                                'type': 'list',
+                                'excludes': ['all', 'descendents', 'query'],
+                                'schema': {
+                                    'type': 'string'
+                                }
                             }
                         }
-                    }
-                },
-                'field-group': {
-                    'type': 'string',
-                    'allowed': ['readable', 'writable'],
-                    'excludes': ['sdl', 'fields']
-                },
-                'fields': {
-                    'type': 'list',
-                    'excludes': ['sdl' 'field-group'],
-                    'schema': {
-                        'type': ['string', 'dict'],
+                    },
+                    'field-group': {
+                        'type': 'string',
+                        'allowed': ['readable', 'writeable', 'smart'] if is_extract else ['writeable', 'smart'],
+                        'excludes': ['sdl', 'fields']
+                    },
+                    'fields': {
+                        'type': 'list',
+                        'excludes': ['sdl' 'field-group'],
                         'schema': {
-                            'field': {
-                                'type': 'string',
-                                'required': True
-                            },
-                            'column': {
-                                'type': 'string',
-                                'required': False
-                            },
-                            'transforms': {
-                                'type': 'list',
-                                'schema': {
+                            'type': ['string', 'dict'],
+                            'schema': {
+                                'field': {
                                     'type': 'string',
-                                    'allowed': transforms.__all__
+                                    'required': True
                                 },
-                                'required': False
-                            },
-                            'outside-lookup-behavior': {
-                                'type': 'string',
-                                'allowed': ['drop-field', 'error', 'include', 'recurse']
-                            },
-                            'self-lookup-behavior': {
-                                'type': 'string',
-                                'allowed': ['trace-all', 'trace-none']
+                                'column': {
+                                    'type': 'string',
+                                    'required': False
+                                },
+                                'transforms': {
+                                    'type': 'list',
+                                    'schema': {
+                                        'type': 'string',
+                                        'allowed': transforms.__all__
+                                    },
+                                    'required': False
+                                },
+                                'outside-lookup-behavior': {
+                                    'type': 'string',
+                                    'allowed': ['drop-field', 'error', 'include', 'recurse']
+                                },
+                                'self-lookup-behavior': {
+                                    'type': 'string',
+                                    'allowed': ['trace-all', 'trace-none']
+                                }
                             }
                         }
                     }
@@ -459,4 +469,3 @@ schema = {
             }
         }
     }
-}

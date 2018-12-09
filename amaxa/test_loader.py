@@ -450,16 +450,13 @@ class test_load_extraction_operation(unittest.TestCase):
         context.get_field_map = Mock(
             return_value={ 
                 'Name': {
-                    'type': 'string',
-                    'isAccessible': True
+                    'type': 'string'
                 },
                 'Id': {
-                    'type': 'string',
-                    'isAccessible': True
+                    'type': 'string'
                 },
                 'Industry': {
-                    'type': 'string',
-                    'isAccessible': False
+                    'type': 'string'
                 }
             }
         )
@@ -484,7 +481,7 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual([], errors)
 
-        self.assertEqual({'Name', 'Id'}, result.steps[0].field_scope)
+        self.assertEqual({'Name', 'Id', 'Industry'}, result.steps[0].field_scope)
 
     def test_load_extraction_operation_finds_writeable_field_group(self):
         context = amaxa.ExtractOperation(Mock())
@@ -502,15 +499,15 @@ class test_load_extraction_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'isUpdateable': True
+                    'updateable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'isUpdateable': True
+                    'updateable': True
                 },
                 'Industry': {
                     'type': 'string',
-                    'isUpdateable': False
+                    'updateable': False
                 }
             }
         )
@@ -520,7 +517,7 @@ class test_load_extraction_operation(unittest.TestCase):
             'operation': [
                 { 
                     'sobject': 'Account',
-                    'field-group': 'writable',
+                    'field-group': 'writeable',
                     'extract': { 'all': True }
                 }
             ]
@@ -850,4 +847,160 @@ class test_load_extraction_operation(unittest.TestCase):
 
 
 class test_load_load_operation(unittest.TestCase):
-    pass
+    def test_load_load_operation_returns_validation_errors(self):
+        pass
+
+    @unittest.mock.patch('simple_salesforce.Salesforce')
+    def test_load_load_operation_traps_login_exceptions(self, sf_mock):
+        return_exception = simple_salesforce.SalesforceAuthenticationFailed(500, 'Internal Server Error')
+        sf_mock.describe = Mock(side_effect=return_exception)
+        context = amaxa.LoadOperation(sf_mock)
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'writeable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertIsNone(result)
+        self.assertEqual(['Unable to authenticate to Salesforce: {}'.format(return_exception)], errors)
+
+    def test_load_load_operation_flags_missing_sobjects(self):
+        context = Mock()
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'createable': False
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string'
+                },
+                'Id': {
+                    'type': 'string'
+                }
+            }
+        )
+
+        ex = { 
+            'version': 1, 
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [ 'Name' ],
+                    'extract': { 'all': True }
+                },
+                {
+                    'sobject': 'Contact',
+                    'fields': [ 'Name' ],
+                    'extract': { 'all': True }
+                },
+                {
+                    'sobject': 'Opportunity',
+                    'fields': [ 'Name' ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+        
+        m.assert_not_called()
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            [
+                'sObject Account does not exist, is not visible, or is not createable.',
+                'sObject Contact does not exist, is not visible, or is not createable.',
+                'sObject Opportunity does not exist, is not visible, or is not createable.'
+            ],
+            errors
+        )
+    def test_validate_load_flags_missing_fields(self):
+        context = Mock()
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = { 
+            'version': 1, 
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [ 'Name', 'ParentId' ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        m.assert_not_called()
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            [
+                'Field Account.ParentId does not exist, is not writeable, is not visible.'
+            ],
+            errors
+        )
+    def test_load_load_operation_creates_valid_steps(self):
+        pass
+
+    def test_load_load_operation_catches_readable_field_group(self):
+        pass
+
+    def test_load_load_operation_finds_writeable_field_group(self):
+        pass
+
+    def test_load_load_operation_generates_field_list(self):
+        pass
+
+    def test_load_load_operation_creates_import_mapper(self):
+        pass
+
+    def test_load_load_operation_catches_duplicate_columns(self):
+        pass
+
+    def test_load_load_operation_populates_lookup_behaviors(self):
+        pass
+
+    def test_load_load_operation_validates_lookup_behaviors(self):
+        pass
+
+    def test_load_load_operation_warns_lookups_other_objects(self):
+        pass
