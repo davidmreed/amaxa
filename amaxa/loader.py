@@ -106,8 +106,6 @@ def load_load_operation(incoming, context):
             else:
                 field_set = set(fields)
 
-        field_set.add('Id')
-
         # Validate that all fields are real and writeable by this user.
         field_map = context.get_field_map(sobject)
         for f in field_set:
@@ -145,11 +143,11 @@ def load_load_operation(incoming, context):
     if len(errors) > 0:
         return (None, errors)
     
-    # Open all of the output files
+    # Open all of the input files
     # Create DictReaders and populate them in the context
     for (s, e) in zip(context.steps, incoming['operation']):
         try:
-            input = csv.DictReader(open(e['file'], 'w'), field_names=s.field_scope, extrasaction='ignore')
+            input = csv.DictReader(open(e['file'], 'r'))
             context.set_input_file(s.sobjectname, input)
         except Exception as exp:
             return (None, ['Unable to open file {} for reading ({}).'.format(e['file'], exp)])

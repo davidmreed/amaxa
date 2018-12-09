@@ -423,8 +423,8 @@ class test_load_extraction_operation(unittest.TestCase):
             ]
         )
 
-        self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual(4, len(result.steps))
         self.assertEqual('Account', result.steps[0].sobjectname)
         self.assertEqual(amaxa.ExtractionScope.ALL_RECORDS, result.steps[0].scope)
@@ -475,11 +475,10 @@ class test_load_extraction_operation(unittest.TestCase):
         m = unittest.mock.mock_open()
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_extraction_operation(ex, context)
-            
-        m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
+        m.assert_called_once_with('Account.csv', 'w')
 
         self.assertEqual({'Name', 'Id', 'Industry'}, result.steps[0].field_scope)
 
@@ -526,11 +525,14 @@ class test_load_extraction_operation(unittest.TestCase):
         m = unittest.mock.mock_open()
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_extraction_operation(ex, context)
-            
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
         m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertIsInstance(result, amaxa.ExtractOperation)
-        self.assertEqual([], errors)
+        self.assertEqual(1, len(result.steps))
+        self.assertEqual({'Name', 'Id'}, result.steps[0].field_scope)
+
 
     def test_load_extraction_operation_generates_field_list(self):
         connection = Mock()
@@ -576,11 +578,10 @@ class test_load_extraction_operation(unittest.TestCase):
         m = unittest.mock.mock_open()
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_extraction_operation(ex, context)
-            
-        m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
+        m.assert_called_once_with('Account.csv', 'w')
 
         self.assertEqual({'Name', 'Industry', 'Id'}, result.steps[0].field_scope)
 
@@ -631,11 +632,10 @@ class test_load_extraction_operation(unittest.TestCase):
         m = unittest.mock.mock_open()
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_extraction_operation(ex, context)
-            
-        m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
+        m.assert_called_once_with('Account.csv', 'w')
 
         self.assertEqual({'Name', 'Industry', 'Id'}, result.steps[0].field_scope)
         self.assertIn('Account', context.mappers)
@@ -777,8 +777,8 @@ class test_load_extraction_operation(unittest.TestCase):
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_extraction_operation(ex, context)
 
-        self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
 
         self.assertEqual(amaxa.SelfLookupBehavior.TRACE_NONE, result.steps[0].get_self_lookup_behavior_for_field('ParentId'))
         self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[0].get_outside_lookup_behavior_for_field('Primary_Contact__c'))
@@ -836,8 +836,8 @@ class test_load_extraction_operation(unittest.TestCase):
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_extraction_operation(ex, context)
 
-        self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
         amaxa_logger.warn.assert_called_once_with(
             'Field %s.%s is a reference whose targets (%s) are not all included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
             'Test__c',
@@ -985,10 +985,112 @@ class test_load_load_operation(unittest.TestCase):
         pass
 
     def test_load_load_operation_finds_writeable_field_group(self):
-        pass
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'writeable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+        m.assert_called_once_with('Account.csv', 'r')
+
+        self.assertEqual(1, len(result.steps))
+        self.assertEqual({'Industry'}, result.steps[0].field_scope)
 
     def test_load_load_operation_generates_field_list(self):
-        pass
+        connection = Mock()
+        context = amaxa.LoadOperation(connection)
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name', 
+                        'Industry'
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+            
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+        m.assert_called_once_with('Account.csv', 'r')
+
+        self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
 
     def test_load_load_operation_creates_import_mapper(self):
         pass
@@ -1003,4 +1105,7 @@ class test_load_load_operation(unittest.TestCase):
         pass
 
     def test_load_load_operation_warns_lookups_other_objects(self):
+        pass
+
+    def test_load_load_operation_uses_smart_field_group(self):
         pass
