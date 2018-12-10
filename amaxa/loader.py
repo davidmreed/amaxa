@@ -67,7 +67,7 @@ def load_load_operation(incoming, context):
             if entry['field-group'] == 'readable':
                 errors.append('The operation specifies field group \'readable\' for {}, which is not usable for load operations.'.format(sobject))
                 continue
-            else:
+            else: # 'writeable' or 'smart'
                 lam = lambda f: f['updateable']
 
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
@@ -81,20 +81,26 @@ def load_load_operation(incoming, context):
                 field_set = set()
                 for f in fields:
                     if isinstance(f, str):
-                        field_set.add(f)
-                        if f not in mapped_columns:
-                            mapped_columns.add(f)
-                        else:
+                        if f in field_set:
+                            errors.append('Field {}.{} is present more than once in the specification.'.format(sobject, f))
+                        if f in mapped_columns:
                             errors.append('Column {} is mapped to field {}.{}, but this column is already mapped.'.format(f, sobject, f))
+
+                        field_set.add(f)
+                        mapped_columns.add(f)
                     else:
+                        if f['field'] in field_set:
+                            errors.append('Field {}.{} is present more than once in the specification.'.format(sobject, f['field']))
+
                         field_set.add(f['field'])
+
                         if 'column' in f:
+                            if f['column'] in mapped_columns:
+                                errors.append('Column {} is mapped to field {}.{}, but this column is already mapped.'.format(f['column'], sobject, f['field']))
+
                             # Note we reverse the mapper's dict for loads
                             mapper.field_name_mapping[f['column']] = f['field']
-                            if f['column'] not in mapped_columns:
-                                mapped_columns.add(f['column'])
-                            else:
-                                errors.append('Column {} is mapped to field {}.{}, but this column is already mapped.'.format(f['column'], sobject, f['field']))
+                            mapped_columns.add(f['column'])
                         if 'transforms' in f:
                             mapper.field_transforms[f['column']] = [getattr(transforms,t) for t in f['transforms']]
                         if 'self-lookup-behavior' in f:
@@ -216,12 +222,18 @@ def load_extraction_operation(incoming, context):
                 field_set = set()
                 for f in fields:
                     if isinstance(f, str):
+                        if f in field_set:
+                            errors.append('Field {}.{} is present more than once in the specification.'.format(sobject, f))
+
                         field_set.add(f)
                         if f not in mapped_columns:
                             mapped_columns.add(f)
                         else:
                             errors.append('Field {}.{} is mapped to column {}, but this column is already mapped.'.format(sobject, f, f))
                     else:
+                        if f['field'] in field_set:
+                            errors.append('Field {}.{} is present more than once in the specification.'.format(sobject, f['field']))
+
                         field_set.add(f['field'])
                         if 'column' in f:
                             mapper.field_name_mapping[f['field']] = f['column']

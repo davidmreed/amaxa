@@ -544,9 +544,9 @@ class ExtractionStep(Step):
 
 
 class DataMapper(object):
-    def __init__(self, field_name_mapping={}, field_transforms={}):
-        self.field_name_mapping = field_name_mapping
-        self.field_transforms = field_transforms
+    def __init__(self, field_name_mapping=None, field_transforms=None):
+        self.field_name_mapping = field_name_mapping or {}
+        self.field_transforms = field_transforms or {}
 
     def transform_record(self, record):
         return { self.transform_key(k): self.transform_value(k, record[k]) for k in record }

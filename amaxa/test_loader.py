@@ -707,6 +707,66 @@ class test_load_extraction_operation(unittest.TestCase):
             errors
         )
 
+    def test_load_extraction_operation_catches_duplicate_fields(self):
+        context = amaxa.ExtractOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        {
+                            'field': 'Name',
+                            'column': 'Industry',
+                        },
+                        {
+                            'field': 'Name',
+                            'column': 'Name'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction_operation(ex, context)
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            ['Field Account.Name is present more than once in the specification.'],
+            errors
+        )
+
     def test_load_extraction_operation_populates_lookup_behaviors(self):
         context = amaxa.ExtractOperation(Mock())
         context.connection.describe = Mock(
@@ -1093,10 +1153,196 @@ class test_load_load_operation(unittest.TestCase):
         self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
 
     def test_load_load_operation_creates_import_mapper(self):
-        pass
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        {
+                            'field': 'Name',
+                            'column': 'Account Name',
+                            'transforms': ['strip', 'lowercase']
+                        },
+                        'Industry'
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+        m.assert_called_once_with('Account.csv', 'r')
+
+        self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
+        self.assertIn('Account', context.mappers)
+
+        mapper = context.mappers['Account']
+        self.assertEqual({'Account Name': 'Name'}, mapper.field_name_mapping)
+        self.assertEqual(
+            {'Name': 'university of caprica', 'Industry': 'Education'},
+            mapper.transform_record({ 'Account Name': 'UNIversity of caprica  ', 'Industry': 'Education' })
+        )
 
     def test_load_load_operation_catches_duplicate_columns(self):
-        pass
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'AccountSite': {
+                    'type': 'string',
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        {
+                            'field': 'Name',
+                            'column': 'Industry',
+                        },
+                        'Industry',
+                        {
+                            'field': 'AccountSite',
+                            'column': 'Industry'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            ['Column Industry is mapped to field Account.Industry, but this column is already mapped.',
+            'Column Industry is mapped to field Account.AccountSite, but this column is already mapped.'],
+            errors
+        )
+
+    def test_load_load_operation_catches_duplicate_fields(self):
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        {
+                            'field': 'Name',
+                            'column': 'Industry',
+                        },
+                        {
+                            'field': 'Name',
+                            'column': 'Name'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            ['Field Account.Name is present more than once in the specification.'],
+            errors
+        )
 
     def test_load_load_operation_populates_lookup_behaviors(self):
         pass
