@@ -908,7 +908,23 @@ class test_load_extraction_operation(unittest.TestCase):
 
 class test_load_load_operation(unittest.TestCase):
     def test_load_load_operation_returns_validation_errors(self):
-        pass
+        context = Mock()
+        (result, errors) = loader.load_load_operation(
+            {
+                'operation': [
+                    { 
+                        'sobject': 'Account',
+                        'fields': [ 'Name', 'ParentId' ],
+                        'extract': { 'all': True }
+                    }
+                ]
+            },
+            context
+        )
+
+        self.assertIsNone(result)
+        self.assertEqual(['version: [\'required field\']'], errors)
+        context.assert_not_called()
 
     @unittest.mock.patch('simple_salesforce.Salesforce')
     def test_load_load_operation_traps_login_exceptions(self, sf_mock):
@@ -1444,10 +1460,150 @@ class test_load_load_operation(unittest.TestCase):
         )
 
     def test_load_load_operation_populates_lookup_behaviors(self):
-        pass
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    },
+                    {
+                        'name': 'Contact',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'ParentId': {
+                    'type': 'reference',
+                    'referenceTo': ['Account'],
+                    'updateable': True
+                },
+                'Primary_Contact__c': {
+                    'type': 'reference',
+                    'referenceTo': ['Contact'],
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name',
+                        {
+                            'field': 'ParentId',
+                            'self-lookup-behavior': 'trace-none'
+                        },
+                        {
+                            'field': 'Primary_Contact__c',
+                            'outside-lookup-behavior': 'drop-field'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                },
+                {
+                    'sobject': 'Contact',
+                    'fields': [
+                        {
+                            'field': 'Name'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+
+        self.assertEqual(amaxa.SelfLookupBehavior.TRACE_NONE, result.steps[0].get_lookup_behavior_for_field('ParentId'))
+        self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[0].get_lookup_behavior_for_field('Primary_Contact__c'))
 
     def test_load_load_operation_validates_lookup_behaviors(self):
-        pass
+        pass #FIXME: implement, see above under load_extraction
 
-    def test_load_load_operation_warns_lookups_other_objects(self):
-        pass
+    @unittest.mock.patch('logging.getLogger')
+    def test_load_load_operation_warns_lookups_other_objects(self, logger):
+        context = amaxa.LoadOperation(Mock())
+        amaxa_logger = Mock()
+        logger.return_value=amaxa_logger
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    },
+                    {
+                        'name': 'Contact',
+                        'retrieveable': True,
+                        'createable': True
+                    },
+                    {
+                        'name': 'Test__c',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                },
+                'Parent__c': {
+                    'type': 'reference',
+                    'referenceTo': ['Parent__c'],
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Test__c',
+                    'fields': [ 'Parent__c' ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+        amaxa_logger.warn.assert_called_once_with(
+            'Field %s.%s is a reference whose targets (%s) are not all included in the load. Reference handlers will be inactive for references to non-included sObjects.',
+            'Test__c',
+            'Parent__c',
+            ', '.join(['Parent__c'])
+        )
