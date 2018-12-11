@@ -64,11 +64,8 @@ def load_load_operation(incoming, context):
         # Determine the field scope
         lookup_behaviors = {}
         if 'field-group' in entry:
-            if entry['field-group'] == 'readable':
-                errors.append('The operation specifies field group \'readable\' for {}, which is not usable for load operations.'.format(sobject))
-                continue
-            else: # 'writeable' or 'smart'
-                lam = lambda f: f['updateable']
+            # Validation clamps acceptable values to 'writeable' or 'smart' by this point.
+            lam = lambda f: f['updateable']
 
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
         else:

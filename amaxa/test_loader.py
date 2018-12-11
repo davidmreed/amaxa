@@ -1038,11 +1038,110 @@ class test_load_load_operation(unittest.TestCase):
             ],
             errors
         )
-    def test_load_load_operation_creates_valid_steps(self):
-        pass
 
-    def test_load_load_operation_catches_readable_field_group(self):
-        pass
+    def test_load_load_operation_creates_valid_steps(self):
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    },
+                    {
+                        'name': 'Contact',
+                        'retrieveable': True,
+                        'createable': True
+                    },
+                    {
+                        'name': 'Opportunity',
+                        'retrieveable': True,
+                        'createable': True
+                    },
+                    {
+                        'name': 'Task',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'LastName': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'StageName': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Subject': {
+                    'type': 'string',
+                    'updateable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'updateable': False
+                }
+            }
+        )
+        context.add_dependency = Mock()
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [ 'Name' ],
+                    'extract': { 'all': True }
+                },
+                { 
+                    'sobject': 'Contact',
+                    'fields': [ 'LastName' ],
+                    'extract': { 'all': True }
+                },
+                {
+                    'sobject': 'Opportunity',
+                    'fields': [ 'StageName' ],
+                    'extract': { 'all': True }
+                },
+                {
+                    'sobject': 'Task',
+                    'fields': [ 'Subject' ],
+                    'extract': { 'all': True }
+                }
+
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+
+        m.assert_has_calls(
+            [
+                unittest.mock.call('Account.csv', 'r'),
+                unittest.mock.call('Contact.csv', 'r'),
+                unittest.mock.call('Opportunity.csv', 'r'),
+                unittest.mock.call('Task.csv', 'r')
+            ],
+            any_order=True
+        )
+
+        self.assertEqual(4, len(result.steps))
+        self.assertEqual('Account', result.steps[0].sobjectname)
+        self.assertEqual('Contact', result.steps[1].sobjectname)
+        self.assertEqual('Opportunity', result.steps[2].sobjectname)
+        self.assertEqual('Task', result.steps[3].sobjectname)
 
     def test_load_load_operation_finds_writeable_field_group(self):
         context = amaxa.LoadOperation(Mock())
@@ -1351,7 +1450,4 @@ class test_load_load_operation(unittest.TestCase):
         pass
 
     def test_load_load_operation_warns_lookups_other_objects(self):
-        pass
-
-    def test_load_load_operation_uses_smart_field_group(self):
         pass
