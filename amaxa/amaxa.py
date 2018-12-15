@@ -298,12 +298,11 @@ class LoadStep(Step):
         records_to_load = []
         original_ids = []
         reader = self.context.get_input_file(self.sobjectname)
-        all_lookups = self.dependent_lookups + self.self_lookups
+        all_lookups = self.dependent_lookups | self.self_lookups
 
         for record in reader:
-            original_ids.append(record['Id'])
-            record = self.populate_lookups(record, all_lookups, original_ids[-1])
-            records_to_load.append({ k: record[k] for k in record if k in all_lookups })
+            record = self.populate_lookups(record, all_lookups, record['Id'])
+            records_to_load.append({ k: record[k] for k in record if k in all_lookups or k == 'Id' })
         
         results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
         for i, r in enumerate(results):

@@ -1368,7 +1368,25 @@ class test_LoadStep(unittest.TestCase):
         )
 
     def test_transform_records_cleans_excess_fields(self):
-        pass
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+
+        self.assertEqual(
+            {
+                'Name': 'Test2',
+                'ParentId': '001000000000001'
+            },
+            l.transform_record(
+                {
+                    'Name': 'Test2',
+                    'ParentId': '001000000000001',
+                    'Excess__c': True
+                }
+            )
+        )
 
     def test_execute_transforms_and_loads_records_without_lookups(self):
         record_list = [
@@ -1486,17 +1504,124 @@ class test_LoadStep(unittest.TestCase):
         )
 
     def test_execute_handles_errors(self):
-        pass
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000' },
+            { 'Name': 'Test 2', 'Id': '001000000000001' }
+        ]
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' }
+        })
+        op.register_new_id = Mock()
+        op.get_input_file = Mock(
+            return_value=record_list
+        )
+        account_proxy = Mock()
+        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        account_proxy.insert = Mock(
+            return_value=[
+                { 'success': False, 'id': '001000000000002' },
+                { 'success': False, 'id': '001000000000003' }
+            ]
+        )
 
-    def test_execute_dependent_updates_handles_self_lookups(self):
-        pass
-    
-    def test_execute_dependent_updates_handles_dependent_lookups(self):
-        pass
+        l = amaxa.LoadStep('Account', ['Name'])
+        l.context = op
+
+        l.scan_fields()
+        with self.assertRaises(Exception, msg='Failed to load {} {}'.format(
+            'Account',
+            record_list[0]['Id']
+        )):
+            l.execute()
+
+    def test_execute_dependent_updates_handles_lookups(self):
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '001000000000001' },
+            { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '001000000000000'}
+        ]
+        transformed_record_list = [
+            { 'Id': '001000000000000', 'Lookup__c': str(amaxa.SalesforceId('001000000000003')) },
+            { 'Id': '001000000000001', 'Lookup__c': str(amaxa.SalesforceId('001000000000002')) }
+        ]
+
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' },
+            'Lookup__c': { 'type': 'string' }
+        })
+
+        op.register_new_id(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002'))
+        op.register_new_id(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
+
+        op.register_new_id = Mock()
+        op.get_input_file = Mock(
+            return_value=record_list
+        )
+        account_proxy = Mock()
+        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        account_proxy.update = Mock(
+            return_value=[
+                { 'success': True },
+                { 'success': True }
+            ]
+        )
+
+        l = amaxa.LoadStep('Account', ['Name', 'Lookup__c'])
+        l.context = op
+
+        l.scan_fields()
+        l.self_lookups = set(['Lookup__c'])
+
+        l.execute_dependent_updates()
+
+        op.get_bulk_proxy_object.assert_called_once_with('Account')
+        account_proxy.update.assert_called_once_with(transformed_record_list)
 
     def test_execute_dependent_updates_handles_errors(self):
-        pass
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '001000000000001' },
+            { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '001000000000000'}
+        ]
 
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' },
+            'Lookup__c': { 'type': 'string' }
+        })
+
+        op.register_new_id(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002'))
+        op.register_new_id(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
+
+        op.register_new_id = Mock()
+        op.get_input_file = Mock(
+            return_value=record_list
+        )
+        account_proxy = Mock()
+        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        account_proxy.update = Mock(
+            return_value=[
+                { 'success': False },
+                { 'success': False }
+            ]
+        )
+
+        l = amaxa.LoadStep('Account', ['Name', 'Lookup__c'])
+        l.context = op
+
+        l.scan_fields()
+        l.self_lookups = set(['Lookup__c'])
+        with self.assertRaises(Exception, msg='Failed to execute dependent updates for {} {}'.format(
+            'Account',
+            '001000000000000'
+        )):
+            l.execute_dependent_updates()
 
 if __name__ == "__main__":
     unittest.main()
