@@ -193,6 +193,7 @@ class LoadOperation(Operation):
     def execute(self):
         self.logger.info('Starting load with sObjects %s', self.get_sobject_list())
         for s in self.steps:
+            s.scan_fields()
             self.logger.info('Loading %s', s.sobjectname)
             s.execute()
         

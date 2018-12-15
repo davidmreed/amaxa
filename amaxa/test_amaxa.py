@@ -1367,13 +1367,66 @@ class test_LoadStep(unittest.TestCase):
             }
         )
     
-    def test_execute_transforms_and_loads_records(self):
+    def test_execute_transforms_and_loads_records_without_lookups(self):
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000' },
+            { 'Name': 'Test 2', 'Id': '001000000000001' }
+        ]
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' }
+        })
+        op.register_new_id = Mock()
+        op.get_input_file = Mock(
+            return_value=record_list
+        )
+        account_proxy = Mock()
+        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        account_proxy.insert = Mock(
+            return_value=[
+                { 'success': True, 'id': '001000000000002' },
+                { 'success': True, 'id': '001000000000003' }
+            ]
+        )
+        op.mappers['Account'] = Mock()
+        op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
+
+        l = amaxa.LoadStep('Account', ['Name'])
+        l.context = op
+        l.primitivize = Mock(side_effect=lambda x: x)
+        l.populate_lookups = Mock(side_effect=lambda x, y: x)
+
+        l.scan_fields()
+        l.execute()
+
+        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in record_list])
+        l.primitivize.assert_has_calls([unittest.mock.call(x) for x in record_list])
+        l.populate_lookups.assert_has_calls([unittest.mock.call(x, set()) for x in record_list])
+
+        op.get_bulk_proxy_object.assert_called_once_with('Account')
+        account_proxy.insert.assert_called_once_with(record_list)
+        op.register_new_id.assert_has_calls(
+            [
+                unittest.mock.call(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
+                unittest.mock.call(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
+            ]
+        )
+
+    def test_execute_transforms_and_loads_records_with_lookups(self):
+        pass
+
+    def test_execute_handles_errors(self):
         pass
 
     def test_execute_dependent_updates_handles_self_lookups(self):
         pass
     
     def test_execute_dependent_updates_handles_dependent_lookups(self):
+        pass
+
+    def test_execute_dependent_updates_handles_errors(self):
         pass
 
 
