@@ -1289,7 +1289,7 @@ class test_LoadStep(unittest.TestCase):
                 'Name': 'Test',
                 'ParentId': '001000000000002'
             },
-            l.populate_lookups(record, ['ParentId'])
+            l.populate_lookups(record, ['ParentId'], '001000000000000')
         )
 
     def test_converts_data_for_bulk_api(self):
@@ -1334,7 +1334,7 @@ class test_LoadStep(unittest.TestCase):
             l.primitivize(record)
         )
 
-    def test_transforms_records(self):
+    def test_transform_records_calls_context_mapper(self):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
         op.mappers['Account'] = Mock()
@@ -1366,11 +1366,18 @@ class test_LoadStep(unittest.TestCase):
                 'ParentId': '001000000000000'
             }
         )
-    
+
+    def test_transform_records_cleans_excess_fields(self):
+        pass
+
     def test_execute_transforms_and_loads_records_without_lookups(self):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000' },
             { 'Name': 'Test 2', 'Id': '001000000000001' }
+        ]
+        clean_record_list = [
+            { 'Name': 'Test' },
+            { 'Name': 'Test 2' }
         ]
         connection = Mock()
         op = amaxa.LoadOperation(connection)
@@ -1396,17 +1403,19 @@ class test_LoadStep(unittest.TestCase):
         l = amaxa.LoadStep('Account', ['Name'])
         l.context = op
         l.primitivize = Mock(side_effect=lambda x: x)
-        l.populate_lookups = Mock(side_effect=lambda x, y: x)
+        l.populate_lookups = Mock(side_effect=lambda x, y, z: x)
 
         l.scan_fields()
         l.execute()
 
-        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in record_list])
-        l.primitivize.assert_has_calls([unittest.mock.call(x) for x in record_list])
-        l.populate_lookups.assert_has_calls([unittest.mock.call(x, set()) for x in record_list])
+        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in clean_record_list])
+        l.primitivize.assert_has_calls([unittest.mock.call(x) for x in clean_record_list])
+        l.populate_lookups.assert_has_calls(
+            [unittest.mock.call(x, set(), y['Id']) for (x, y) in zip(clean_record_list, record_list)]
+        )
 
         op.get_bulk_proxy_object.assert_called_once_with('Account')
-        account_proxy.insert.assert_called_once_with(record_list)
+        account_proxy.insert.assert_called_once_with(clean_record_list)
         op.register_new_id.assert_has_calls(
             [
                 unittest.mock.call(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
@@ -1415,7 +1424,66 @@ class test_LoadStep(unittest.TestCase):
         )
 
     def test_execute_transforms_and_loads_records_with_lookups(self):
-        pass
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '003000000000000' },
+            { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '003000000000001'}
+        ]
+        clean_record_list = [
+            { 'Name': 'Test', 'Lookup__c': '003000000000000' },
+            { 'Name': 'Test 2', 'Lookup__c': '003000000000001'}
+        ]
+        transformed_record_list = [
+            { 'Name': 'Test', 'Lookup__c': str(amaxa.SalesforceId('003000000000002')) },
+            { 'Name': 'Test 2', 'Lookup__c': str(amaxa.SalesforceId('003000000000003')) }
+        ]
+
+
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' },
+            'Lookup__c': { 'type': 'string' }
+        })
+
+        op.register_new_id(amaxa.SalesforceId('003000000000000'), amaxa.SalesforceId('003000000000002'))
+        op.register_new_id(amaxa.SalesforceId('003000000000001'), amaxa.SalesforceId('003000000000003'))
+
+        op.register_new_id = Mock()
+        op.get_input_file = Mock(
+            return_value=record_list
+        )
+        account_proxy = Mock()
+        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        account_proxy.insert = Mock(
+            return_value=[
+                { 'success': True, 'id': '001000000000002' },
+                { 'success': True, 'id': '001000000000003' }
+            ]
+        )
+        op.mappers['Account'] = Mock()
+        op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
+
+        l = amaxa.LoadStep('Account', ['Name', 'Lookup__c'])
+        l.context = op
+        l.primitivize = Mock(side_effect=lambda x: x)
+
+        l.scan_fields()
+        l.descendent_lookups = set(['Lookup__c'])
+
+        l.execute()
+
+        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in clean_record_list])
+        l.primitivize.assert_has_calls([unittest.mock.call(x) for x in transformed_record_list])
+
+        op.get_bulk_proxy_object.assert_called_once_with('Account')
+        account_proxy.insert.assert_called_once_with(transformed_record_list)
+        op.register_new_id.assert_has_calls(
+            [
+                unittest.mock.call(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
+                unittest.mock.call(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
+            ]
+        )
 
     def test_execute_handles_errors(self):
         pass
