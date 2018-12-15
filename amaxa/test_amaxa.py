@@ -1208,17 +1208,173 @@ class test_LoadOperation(unittest.TestCase):
 
 class test_LoadStep(unittest.TestCase):
     def test_stores_lookup_behaviors(self):
-        pass
-    
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+
+        self.assertEqual(amaxa.OutsideLookupBehavior.INCLUDE, l.get_lookup_behavior_for_field('ParentId'))
+
+        l.set_lookup_behavior_for_field('ParentId', amaxa.OutsideLookupBehavior.ERROR)
+        self.assertEqual(amaxa.OutsideLookupBehavior.ERROR, l.get_lookup_behavior_for_field('ParentId'))
+
+    def test_get_value_for_lookup_with_parent_available(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.register_new_id(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+
+        self.assertEqual(
+            l.get_value_for_lookup('ParentId', '001000000000000', '001000000000002'),
+            str(amaxa.SalesforceId('001000000000001'))
+        )
+
+    def test_get_value_for_lookup_with_include_behavior(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+
+        self.assertEqual(
+            l.get_value_for_lookup('ParentId', '001000000000000', '001000000000002'),
+            '001000000000000'
+        )
+
+    def test_get_value_for_lookup_with_drop_behavior(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+
+        l.set_lookup_behavior_for_field('ParentId', amaxa.OutsideLookupBehavior.DROP_FIELD)
+
+        self.assertEqual(
+            l.get_value_for_lookup('ParentId', '001000000000000', '001000000000002'),
+            ''
+        )
+
+    def test_get_value_for_lookup_with_error_behavior(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+
+        l.set_lookup_behavior_for_field('ParentId', amaxa.OutsideLookupBehavior.ERROR)
+
+
+        with self.assertRaises(Exception, msg='{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.'.format(
+                    'Account',
+                    '001000000000002',
+                    'ParentId',
+                    '001000000000000'
+                )
+            ):
+            l.get_value_for_lookup('ParentId', '001000000000000', '001000000000002')
+
     def test_populates_lookups(self):
-        pass
-    
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.get_value_for_lookup = Mock(return_value='001000000000002')
+
+        record = {
+            'Id': '001000000000000',
+            'Name': 'Test',
+            'ParentId': '001000000000001'
+        }
+
+        self.assertEqual(
+            {
+                'Id': '001000000000000',
+                'Name': 'Test',
+                'ParentId': '001000000000002'
+            },
+            l.populate_lookups(record, ['ParentId'])
+        )
+
+    def test_converts_data_for_bulk_api(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(return_value={
+            'Name': { 'soapType': 'xsd:string' },
+            'Boolean__c': { 'soapType': 'xsd:boolean' },
+            'Id': { 'soapType': 'tns:ID' },
+            'Date__c': { 'soapType': 'xsd:date' },
+            'DateTime__c': { 'soapType': 'xsd:dateTime' },
+            'Int__c': { 'soapType': 'xsd:int' },
+            'Double__c': { 'soapType': 'xsd:double' },
+            'Random__c': { 'soapType': 'xsd:string' }
+        })
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+
+        record = {
+            'Name': 'Test',
+            'Boolean__c': 'yes',
+            'Id': '001000000000001',
+            'Date__c': '2018-12-31',
+            'DateTime__c': '2018-12-31T00:00:00.000Z',
+            'Int__c': '100',
+            'Double__c': '10.1',
+            'Random__c': ''
+        }
+
+        self.assertEqual(
+            {
+                'Name': 'Test',
+                'Boolean__c': 'true',
+                'Id': '001000000000001',
+                'Date__c': '2018-12-31',
+                'DateTime__c': '2018-12-31T00:00:00.000Z',
+                'Int__c': '100',
+                'Double__c': '10.1',
+                'Random__c': None
+            },
+            l.primitivize(record)
+        )
+
     def test_transforms_records(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.mappers['Account'] = Mock()
+        op.mappers['Account'].transform_record = Mock(
+            return_value={
+                'Name': 'Test2',
+                'ParentId': '001000000000001'
+            }
+        )
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+
+        self.assertEqual(
+            {
+                'Name': 'Test2',
+                'ParentId': '001000000000001'
+            },
+            l.transform_record(
+                {
+                    'Name': 'Test1',
+                    'ParentId': '001000000000000'
+                }
+            )
+        )
+        op.mappers['Account'].transform_record.assert_called_once_with(
+            {
+                'Name': 'Test1',
+                'ParentId': '001000000000000'
+            }
+        )
+    
+    def test_execute_transforms_and_loads_records(self):
+        pass
+
+    def test_execute_dependent_updates_handles_self_lookups(self):
         pass
     
-    def test_converts_values_to_primitives(self):
+    def test_execute_dependent_updates_handles_dependent_lookups(self):
         pass
-    
 
 
 if __name__ == "__main__":

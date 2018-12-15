@@ -188,7 +188,7 @@ class LoadOperation(Operation):
         self.global_id_map[old_id] = new_id
     
     def get_new_id(self, old_id):
-        return self.global_id_map[old_id]
+        return self.global_id_map.get(old_id, None)
 
     def execute(self):
         self.logger.info('Starting load with sObjects %s', self.get_sobject_list())
@@ -214,31 +214,45 @@ class LoadStep(Step):
 
     def get_lookup_behavior_for_field(self, field):
         return self.lookup_behaviors.get(field, self.outside_lookup_behavior)
-    
+
+    def get_value_for_lookup(self, lookup, value, record_id):
+        b = self.get_lookup_behavior_for_field(lookup)
+
+        mapped_id = self.context.get_new_id(SalesforceId(value))
+
+        if mapped_id is not None:
+            return str(mapped_id)
+        elif b == OutsideLookupBehavior.INCLUDE:
+            return value
+        elif b == OutsideLookupBehavior.ERROR:
+            raise Exception(
+                '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.',
+                self.sobjectname, record_id, lookup, value
+            )
+        elif b == OutsideLookupBehavior.DROP_FIELD:
+            return ''
+
     def populate_lookups(self, record, lookups):
         return { k: record[k] if k not in lookups 
-                              else self.context.get_mapped_id(record[k]) 
+                              else self.get_value_for_lookup(k, record[k], record['Id'])
                  for k in record }
-        # FIXME: handle lookup behavior
 
-    def primitivize(self, record): # FIXME: is this needed when using the Bulk API?
-        def convert_value(field_type, value):
+    def primitivize(self, record):
+        # We're using the Bulk API over JSON, so values can be specified as strings (not converted to JSON primitives)
+        # We will apply a light transformation to ensure we format correctly and respect a few Boolean equivalents
+        def convert_value(value, field_type):
             if field_type == 'xsd:boolean':
                 if value is None or value.lower() in ['no', 'false', 'n', 'f', '0', '']:
-                    return False
+                    return 'false'
                 elif value.lower() in ['yes', 'true', 'y', 't', '1']:
-                    return True
+                    return 'true'
                 raise ValueError('Invalid Boolean value {}', value)
             elif value is None or len(value) == 0:
                 return None
             elif field_type == 'tns:ID':
                 return str(value)
-            elif field_type in ['xsd:string', 'xsd:date', 'xsd:dateTime']:
+            elif field_type in ['xsd:string', 'xsd:date', 'xsd:dateTime', 'xsd:int', 'xsd:double']:
                 return value
-            elif field_type == 'xsd:int':
-                return int(value)
-            elif field_type == 'xsd:double':
-                return float(value)
             elif field_type in ['base64', 'xsd:anyType']:
                 raise NotImplementedError
             
@@ -260,15 +274,17 @@ class LoadStep(Step):
         records_to_load = []
         reader = self.context.get_input_file(self.sobjectname)
         for record in reader:
-            record = self.populate_lookups(self.transform_record(record), self.descendent_lookups)
-            record = self.primitivize(record)
+            record = self.primitivize(self.populate_lookups(self.transform_record(record), self.descendent_lookups))
 
             records_to_load.append(record)
         
         results = self.context.get_bulk_proxy_object(self.sobjectname).insert(records_to_load)
         for i, r in enumerate(results):
             if r['success']:
-                self.context.map_loaded_record(SalesforceId(records_to_load[i]['Id']), SalesforceId(r['id'])) # note lowercase in result
+                self.context.register_new_id(
+                    SalesforceId(records_to_load[i]['Id']),
+                    SalesforceId(r['id']) # note lowercase in result
+                )
             else:
                 raise Exception('Failed to load {} {}', self.sobjectname, records_to_load[i]['Id'])
     
@@ -276,16 +292,15 @@ class LoadStep(Step):
         # Populate dependent and self-lookups in a single pass
         records_to_load = []
         reader = self.context.get_input_file(self.sobjectname)
+        all_lookups = self.dependent_lookups + self.self_lookups
 
         for record in reader:
-            record = self.populate_lookups(record, self.dependent_lookups + self.self_lookups)
-            records_to_load.append(record)
+            record = self.populate_lookups(record, all_lookups)
+            records_to_load.append({ k: record[k] for k in record if k in all_lookups })
         
-        results = self.context.get_bulk_proxy_object(self.sobjectname).insert(records_to_load)
+        results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
         for i, r in enumerate(results):
-            if r['success']:
-                self.context.map_loaded_record(SalesforceId(records_to_load[i]['Id']), SalesforceId(r['id'])) # note lowercase in result
-            else:
+            if not r['success']:
                 raise Exception('Failed to execute dependent updates for {} {}', self.sobjectname, records_to_load[i]['Id'])
 
 
