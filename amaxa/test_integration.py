@@ -260,10 +260,10 @@ class test_Integration_Load(unittest.TestCase):
         01t000000000001,Tauron Taffy,true,TAFFY_TAUR
         01t0000000000002,Gemenese Goulash,true,GLSH
         01t0000000000003AAA,CapricaCorn,false,CPRCC
-        '''
+        '''.strip()
 
         op = amaxa.LoadOperation(self.connection)
-        op.set_input_file('Product2', csv.DictReader(records))
+        op.set_input_file('Product2', csv.DictReader(io.StringIO(records)))
         op.add_step(amaxa.LoadStep('Product2', set(['Name', 'IsActive', 'ProductCode', 'Description'])))
 
         op.execute()
@@ -280,8 +280,68 @@ class test_Integration_Load(unittest.TestCase):
     def test_loads_complex_hierarchy(self):
         # To avoid conflict with other load tests and with extract tests,
         # we load Campaigns, Campaign Members, and Leads.
-        pass
-    
+        # Campaign has a self-lookup, ParentId
+        campaigns = '''
+        Id,Name,IsActive,ParentId
+        701000000000001,Tauron Tourist Outreach,true,
+        701000000000002,Aerilon Outreach,true,701000000000001
+        701000000000003AAA,Caprica City Direct Mailer,false,701000000000001
+        '''.strip()
+        leads = '''
+        Id,Company,LastName
+        00Q000000000001,Picon Fleet Headquarters,Nagata
+        00Q000000000002,Picon Fleet Headquarters,Adama
+        00Q000000000003,Ha-La-Tha,Guatrau
+        00Q000000000004,[not provided],Thrace
+        '''.strip()
+        campaign_members='''
+        Id,CampaignId,LeadId,Status
+        00v000000000001,701000000000001,00Q000000000001,Sent
+        00v000000000002,701000000000002,00Q000000000002,Sent
+        00v000000000003,701000000000003,00Q000000000004,Sent
+        00v000000000004,701000000000001,00Q000000000004,Sent
+        '''.strip()
+
+        op = amaxa.LoadOperation(self.connection)
+        op.set_input_file('Campaign', csv.DictReader(io.StringIO(campaigns)))
+        op.set_input_file('Lead', csv.DictReader(io.StringIO(leads)))
+        op.set_input_file('CampaignMember', csv.DictReader(io.StringIO(campaign_members)))
+
+        op.add_step(amaxa.LoadStep('Campaign', set(['Name', 'IsActive', 'ParentId'])))
+        op.add_step(amaxa.LoadStep('Lead', set(['Company', 'LastName'])))
+        op.add_step(amaxa.LoadStep('CampaignMember', set(['CampaignId', 'LeadId', 'Status'])))
+
+        op.execute()
+
+        loaded_campaigns = self.connection.query_all('SELECT Name, IsActive, (SELECT Name FROM ChildCampaigns) FROM Campaign').get('records')
+        self.assertEqual(3, len(loaded_campaigns))
+        required_names = { 'Tauron Tourist Outreach', 'Aerilon Outreach', 'Caprica City Direct Mailer' }
+        for r in loaded_campaigns:
+            self.assertIn(r['Name'], required_names)
+            required_names.remove(r['Name'])
+            if r['Name'] == 'Tauron Tourist Outreach':
+                self.assertEqual(3, len(r['ChildCampaigns']))
+
+        self.assertEqual(0, len(required_names))
+
+        loaded_leads = self.connection.query_all('SELECT LastName, Company, (SELECT Name FROM CampaignMembers) FROM Lead').get('records')
+        self.assertEqual(4, len(loaded_leads))
+        required_names = { 'Nagata', 'Adama', 'Guatrau', 'Thrace' }
+        for r in loaded_leads:
+            self.assertIn(r['LastName'], required_names)
+            required_names.remove(r['LastName'])
+            if r['LastName'] == 'Nagata':
+                self.assertEqual(1, len(r['CampaignMembers']))
+            elif r['LastName'] == 'Thrace':
+                self.assertEqual(2, len(r['CampaignMembers']))
+            if r['LastName'] == 'Adama':
+                self.assertEqual(1, len(r['CampaignMembers']))
+
+        self.assertEqual(0, len(required_names))
+
+        loaded_campaign_members = self.connection.query_all('SELECT Id FROM CampaignMember').get('records')
+        self.assertEqual(4, len(loaded_campaign_members))
+
     def test_loads_from_command_line(self):
         pass
 
