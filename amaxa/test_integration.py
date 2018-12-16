@@ -320,7 +320,7 @@ Id,CampaignId,LeadId,Status
             self.assertIn(r['Name'], required_names)
             required_names.remove(r['Name'])
             if r['Name'] == 'Tauron Tourist Outreach':
-                self.assertEqual(3, len(r['ChildCampaigns']))
+                self.assertEqual(2, len(r['ChildCampaigns']['records']))
 
         self.assertEqual(0, len(required_names))
 

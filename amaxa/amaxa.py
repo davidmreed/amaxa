@@ -315,7 +315,6 @@ class LoadStep(Step):
                 cleaned_record = self.populate_lookups(record, all_lookups, record['Id'])
                 records_to_load.append(cleaned_record)
             
-            print('Trying to load ' + str(records_to_load))
             results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
             for i, r in enumerate(results):
                 if not r['success']:
