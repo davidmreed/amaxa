@@ -258,8 +258,8 @@ class test_Integration_Load(unittest.TestCase):
         records = '''
 Id,Name,IsActive,ProductCode
 01t000000000001,Tauron Taffy,true,TAFFY_TAUR
-01t0000000000002,Gemenese Goulash,true,GLSH
-01t0000000000003AAA,CapricaCorn,false,CPRCC
+01t000000000002,Gemenese Goulash,true,GLSH
+01t000000000003AAA,CapricaCorn,false,CPRCC
         '''.strip()
 
         op = amaxa.LoadOperation(self.connection)
@@ -331,11 +331,11 @@ Id,CampaignId,LeadId,Status
             self.assertIn(r['LastName'], required_names)
             required_names.remove(r['LastName'])
             if r['LastName'] == 'Nagata':
-                self.assertEqual(1, len(r['CampaignMembers']))
+                self.assertEqual(1, len(r['CampaignMembers']['records']))
             elif r['LastName'] == 'Thrace':
-                self.assertEqual(2, len(r['CampaignMembers']))
+                self.assertEqual(2, len(r['CampaignMembers']['records']))
             if r['LastName'] == 'Adama':
-                self.assertEqual(1, len(r['CampaignMembers']))
+                self.assertEqual(1, len(r['CampaignMembers']['records']))
 
         self.assertEqual(0, len(required_names))
 

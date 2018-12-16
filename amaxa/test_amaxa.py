@@ -1347,6 +1347,8 @@ class test_LoadStep(unittest.TestCase):
 
         l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
         l.context = op
+        l.dependent_lookups = set()
+        l.self_lookups = set()
 
         self.assertEqual(
             {
@@ -1367,12 +1369,17 @@ class test_LoadStep(unittest.TestCase):
             }
         )
 
+    def test_transform_records_removes_dependent_lookups(self):
+        pass
+
     def test_transform_records_cleans_excess_fields(self):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
 
         l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
         l.context = op
+        l.dependent_lookups = set()
+        l.self_lookups = set()
 
         self.assertEqual(
             {
@@ -1542,9 +1549,13 @@ class test_LoadStep(unittest.TestCase):
             { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '001000000000001' },
             { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '001000000000000'}
         ]
+        cleaned_record_list = [
+            { 'Id': '001000000000000', 'Lookup__c': '001000000000001' },
+            { 'Id': '001000000000001', 'Lookup__c': '001000000000000'}
+        ]
         transformed_record_list = [
-            { 'Id': '001000000000000', 'Lookup__c': str(amaxa.SalesforceId('001000000000003')) },
-            { 'Id': '001000000000001', 'Lookup__c': str(amaxa.SalesforceId('001000000000002')) }
+            { 'Id': str(amaxa.SalesforceId('001000000000002')), 'Lookup__c': str(amaxa.SalesforceId('001000000000003')) },
+            { 'Id': str(amaxa.SalesforceId('001000000000003')), 'Lookup__c': str(amaxa.SalesforceId('001000000000002')) }
         ]
 
         connection = Mock()
@@ -1576,6 +1587,7 @@ class test_LoadStep(unittest.TestCase):
 
         l.scan_fields()
         l.self_lookups = set(['Lookup__c'])
+        l.dependent_lookup_records = cleaned_record_list
 
         l.execute_dependent_updates()
 
