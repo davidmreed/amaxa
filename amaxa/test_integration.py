@@ -10,7 +10,7 @@ from .__main__ import main as main
 
 @unittest.skipIf(any(['INSTANCE_URL' not in os.environ, 'ACCESS_TOKEN' not in os.environ]),
                  'environment not configured for integration test')
-class test_Extraction(unittest.TestCase):
+class test_Integration_Extraction(unittest.TestCase):
     def setUp(self):
         self.connection = Salesforce(
             instance_url=os.environ['INSTANCE_URL'],
@@ -244,6 +244,46 @@ class test_Extraction(unittest.TestCase):
         self.assertEqual(0, len(expected_contact_names))
         self.assertEqual(set(['FirstName', 'LastName', 'AccountId', 'Id']), set(contact_reader.fieldnames))
 
+@unittest.skipIf(any(['INSTANCE_URL' not in os.environ, 'ACCESS_TOKEN' not in os.environ]),
+                 'environment not configured for integration test')
+class test_Integration_Load(unittest.TestCase):
+    def setUp(self):
+        self.connection = Salesforce(
+            instance_url=os.environ['INSTANCE_URL'],
+            session_id=os.environ['ACCESS_TOKEN']
+        )
+
+    def test_loads_single_object(self):
+        # To avoid conflict, we load an object (Product2) not used in other load or extract tests.
+        records = '''
+        Id,Name,IsActive,ProductCode
+        01t000000000001,Tauron Taffy,true,TAFFY_TAUR
+        01t0000000000002,Gemenese Goulash,true,GLSH
+        01t0000000000003AAA,CapricaCorn,false,CPRCC
+        '''
+
+        op = amaxa.LoadOperation(self.connection)
+        op.set_input_file('Product2', csv.DictReader(records))
+        op.add_step(amaxa.LoadStep('Product2', set(['Name', 'IsActive', 'ProductCode', 'Description'])))
+
+        op.execute()
+
+        loaded_products = self.connection.query_all('SELECT Name, IsActive, ProductCode FROM Product2').get('records')
+        self.assertEqual(3, len(loaded_products))
+        required_names = { 'Tauron Taffy', 'Gemenese Goulash', 'CapricaCorn' }
+        for r in loaded_products:
+            self.assertIn(r['Name'], required_names)
+            required_names.remove(r['Name'])
+        
+        self.assertEqual(0, len(required_names))
+
+    def test_loads_complex_hierarchy(self):
+        # To avoid conflict with other load tests and with extract tests,
+        # we load Campaigns, Campaign Members, and Leads.
+        pass
+    
+    def test_loads_from_command_line(self):
+        pass
 
 if __name__ == "__main__":
     unittest.main()
