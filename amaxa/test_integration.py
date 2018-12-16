@@ -256,10 +256,10 @@ class test_Integration_Load(unittest.TestCase):
     def test_loads_single_object(self):
         # To avoid conflict, we load an object (Product2) not used in other load or extract tests.
         records = '''
-        Id,Name,IsActive,ProductCode
-        01t000000000001,Tauron Taffy,true,TAFFY_TAUR
-        01t0000000000002,Gemenese Goulash,true,GLSH
-        01t0000000000003AAA,CapricaCorn,false,CPRCC
+Id,Name,IsActive,ProductCode
+01t000000000001,Tauron Taffy,true,TAFFY_TAUR
+01t0000000000002,Gemenese Goulash,true,GLSH
+01t0000000000003AAA,CapricaCorn,false,CPRCC
         '''.strip()
 
         op = amaxa.LoadOperation(self.connection)
@@ -282,24 +282,24 @@ class test_Integration_Load(unittest.TestCase):
         # we load Campaigns, Campaign Members, and Leads.
         # Campaign has a self-lookup, ParentId
         campaigns = '''
-        Id,Name,IsActive,ParentId
-        701000000000001,Tauron Tourist Outreach,true,
-        701000000000002,Aerilon Outreach,true,701000000000001
-        701000000000003AAA,Caprica City Direct Mailer,false,701000000000001
+Id,Name,IsActive,ParentId
+701000000000001,Tauron Tourist Outreach,true,
+701000000000002,Aerilon Outreach,true,701000000000001
+701000000000003AAA,Caprica City Direct Mailer,false,701000000000001
         '''.strip()
         leads = '''
-        Id,Company,LastName
-        00Q000000000001,Picon Fleet Headquarters,Nagata
-        00Q000000000002,Picon Fleet Headquarters,Adama
-        00Q000000000003,Ha-La-Tha,Guatrau
-        00Q000000000004,[not provided],Thrace
+Id,Company,LastName
+00Q000000000001,Picon Fleet Headquarters,Nagata
+00Q000000000002,Picon Fleet Headquarters,Adama
+00Q000000000003,Ha-La-Tha,Guatrau
+00Q000000000004,[not provided],Thrace
         '''.strip()
         campaign_members='''
-        Id,CampaignId,LeadId,Status
-        00v000000000001,701000000000001,00Q000000000001,Sent
-        00v000000000002,701000000000002,00Q000000000002,Sent
-        00v000000000003,701000000000003,00Q000000000004,Sent
-        00v000000000004,701000000000001,00Q000000000004,Sent
+Id,CampaignId,LeadId,Status
+00v000000000001,701000000000001,00Q000000000001,Sent
+00v000000000002,701000000000002,00Q000000000002,Sent
+00v000000000003,701000000000003,00Q000000000004,Sent
+00v000000000004,701000000000001,00Q000000000004,Sent
         '''.strip()
 
         op = amaxa.LoadOperation(self.connection)
