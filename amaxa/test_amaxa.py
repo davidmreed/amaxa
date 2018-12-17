@@ -1369,9 +1369,6 @@ class test_LoadStep(unittest.TestCase):
             }
         )
 
-    def test_transform_records_removes_dependent_lookups(self):
-        pass
-
     def test_transform_records_cleans_excess_fields(self):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
@@ -1391,6 +1388,47 @@ class test_LoadStep(unittest.TestCase):
                     'Name': 'Test2',
                     'ParentId': '001000000000001',
                     'Excess__c': True
+                }
+            )
+        )
+
+    def test_transform_records_runs_transform_before_cleaning(self):
+        pass
+
+    def test_extract_dependent_lookups_returns_dependent_fields(self):
+        l = amaxa.LoadStep('Account', ['Id', 'Name', 'ParentId'])
+        l.self_lookups = set(['ParentId'])
+        l.dependent_lookups = set()
+
+        self.assertEqual(
+            {
+                'Id': '001000000000001',
+                'ParentId': '001000000000002',
+            },
+            l.extract_dependent_lookups(
+                {
+                    'Name': 'Gemenon Gastronomics',
+                    'Id': '001000000000001',
+                    'ParentId': '001000000000002',
+                }
+            )
+        )
+
+    def test_clean_dependent_lookups_returns_clean_record(self):
+        l = amaxa.LoadStep('Account', ['Id', 'Name', 'ParentId'])
+        l.self_lookups = set(['ParentId'])
+        l.dependent_lookups = set()
+
+        self.assertEqual(
+            {
+                'Name': 'Gemenon Gastronomics',
+                'Id': '001000000000001'
+            },
+            l.clean_dependent_lookups(
+                {
+                    'Name': 'Gemenon Gastronomics',
+                    'Id': '001000000000001',
+                    'ParentId': '001000000000002'
                 }
             )
         )
@@ -1453,15 +1491,10 @@ class test_LoadStep(unittest.TestCase):
             { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '003000000000000' },
             { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '003000000000001'}
         ]
-        clean_record_list = [
-            { 'Name': 'Test', 'Lookup__c': '003000000000000' },
-            { 'Name': 'Test 2', 'Lookup__c': '003000000000001'}
-        ]
         transformed_record_list = [
             { 'Name': 'Test', 'Lookup__c': str(amaxa.SalesforceId('003000000000002')) },
             { 'Name': 'Test 2', 'Lookup__c': str(amaxa.SalesforceId('003000000000003')) }
         ]
-
 
         connection = Mock()
         op = amaxa.LoadOperation(connection)
@@ -1509,6 +1542,95 @@ class test_LoadStep(unittest.TestCase):
                 unittest.mock.call(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
             ]
         )
+
+    def test_execute_loads_cleaned_records(self):
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000', 'ParentId': '001000000000001' },
+            { 'Name': 'Test 2', 'Id': '001000000000001', 'ParentId': ''}
+        ]
+        cleaned_record_list = [
+            { 'Name': 'Test' },
+            { 'Name': 'Test 2' }
+        ]
+
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' },
+            'ParentId': { 'type': 'string' }
+        })
+
+        op.get_input_file = Mock(
+            return_value=record_list
+        )
+        account_proxy = Mock()
+        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        account_proxy.insert = Mock(
+            return_value=[
+                { 'success': True, 'id': '001000000000002' },
+                { 'success': True, 'id': '001000000000003' }
+            ]
+        )
+        op.mappers['Account'] = Mock()
+        op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+        l.primitivize = Mock(side_effect=lambda x: x)
+
+        l.scan_fields()
+        l.self_lookups = set(['ParentId'])
+
+        l.execute()
+
+        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in record_list])
+        l.primitivize.assert_has_calls([unittest.mock.call(x) for x in cleaned_record_list])
+
+        op.get_bulk_proxy_object.assert_called_once_with('Account')
+        account_proxy.insert.assert_called_once_with(cleaned_record_list)
+
+    def test_execute_accumulates_cleaned_dependent_records(self):
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000', 'ParentId': '001000000000001' },
+            { 'Name': 'Test 2', 'Id': '001000000000001', 'ParentId': ''}
+        ]
+        cleaned_record_list = [
+            { 'Id': '001000000000000', 'ParentId': '001000000000001' }
+        ]
+
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' },
+            'ParentId': { 'type': 'string' }
+        })
+
+        op.get_input_file = Mock(
+            return_value=record_list
+        )
+        account_proxy = Mock()
+        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        account_proxy.insert = Mock(
+            return_value=[
+                { 'success': True, 'id': '001000000000002' },
+                { 'success': True, 'id': '001000000000003' }
+            ]
+        )
+        op.mappers['Account'] = Mock()
+        op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+        l.primitivize = Mock(side_effect=lambda x: x)
+
+        l.scan_fields()
+        l.self_lookups = set(['ParentId'])
+
+        l.execute()
+
+        self.assertEqual(cleaned_record_list, l.dependent_lookup_records)
 
     def test_execute_handles_errors(self):
         record_list = [
