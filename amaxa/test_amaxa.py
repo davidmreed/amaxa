@@ -1228,6 +1228,18 @@ class test_LoadStep(unittest.TestCase):
             str(amaxa.SalesforceId('001000000000001'))
         )
 
+    def test_get_value_for_lookup_with_blank_input(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+
+        self.assertEqual(
+            l.get_value_for_lookup('ParentId', '', '001000000000002'),
+            ''
+        )
+
     def test_get_value_for_lookup_with_include_behavior(self):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
@@ -1393,8 +1405,35 @@ class test_LoadStep(unittest.TestCase):
         )
 
     def test_transform_records_runs_transform_before_cleaning(self):
-        pass
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.mappers['Account'] = Mock()
+        op.mappers['Account'].transform_record = Mock(
+            return_value={
+                'Name': 'Test2',
+                'ParentId': '001000000000001',
+                'Excess__c': True
+            }
+        )
 
+        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
+        l.context = op
+        l.dependent_lookups = set()
+        l.self_lookups = set()
+
+        self.assertEqual(
+            {
+                'Name': 'Test2',
+                'ParentId': '001000000000001'
+            },
+            l.transform_record(
+                {
+                    'Account Name': 'Test2',
+                    'ParentId': '001000000000001',
+                    'Excess__c': True
+                }
+            )
+        )
     def test_extract_dependent_lookups_returns_dependent_fields(self):
         l = amaxa.LoadStep('Account', ['Id', 'Name', 'ParentId'])
         l.self_lookups = set(['ParentId'])
