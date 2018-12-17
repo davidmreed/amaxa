@@ -268,13 +268,20 @@ class LoadStep(Step):
         return { k: convert_value(record[k], field_map[k]['soapType'] ) for k in record }
 
     def transform_record(self, record):
-        all_lookups = self.dependent_lookups | self.self_lookups
-        cleaned_record = { k: record[k] for k in record if k in self.field_scope and k not in all_lookups }
-
         if self.sobjectname in self.context.mappers:
-            return self.context.mappers[self.sobjectname].transform_record(cleaned_record)
+            record = self.context.mappers[self.sobjectname].transform_record(record)
 
-        return cleaned_record
+        return { k: record[k] for k in record if k in self.field_scope }
+
+    def clean_dependent_lookups(self, record):
+        all_lookups = self.dependent_lookups | self.self_lookups
+
+        return { k: record[k] for k in record if k not in all_lookups }
+    
+    def extract_dependent_lookups(self, record):
+        all_lookups = self.dependent_lookups | self.self_lookups
+
+        return { k: record[k] for k in record if k in all_lookups or k == 'Id' }
 
     def execute(self):
         # Read our incoming file.
@@ -283,14 +290,30 @@ class LoadStep(Step):
         records_to_load = []
         original_ids = []
         self.dependent_lookup_records = []
-        all_lookups = self.dependent_lookups | self.self_lookups
 
         reader = self.context.get_input_file(self.sobjectname)
         for record in reader:
+            # We need to save off the original record Id because it'll be cleaned from the record before insert.
+            # We use the original Id for error reporting.
             original_ids.append(record['Id'])
-            self.dependent_lookup_records.append({ k: record[k] for k in record if k in all_lookups or k == 'Id' })
+            # We also need (before we clean the record) to save off a copy for population of its dependent lookups in a later pass.
+            # Confirm first that we have a nonzero count of populated dependent lookups (we'll recheck in execute_dependent_updates)
+            dependent_record = self.extract_dependent_lookups(record)
+            if len([r for r in dependent_record.values() if r is not None and r != '']) > 1: # 1 for the Id
+                self.dependent_lookup_records.append(dependent_record)
 
-            record = self.primitivize(self.populate_lookups(self.transform_record(record), self.descendent_lookups, original_ids[-1]))
+            # Finally, prep this record for the Bulk API, populate its lookups, apply transforms, and clean dependent lookups
+            record = self.primitivize(
+                self.populate_lookups(
+                    self.clean_dependent_lookups(
+                        self.transform_record(
+                            record
+                        )
+                    ),
+                    self.descendent_lookups,
+                    original_ids[-1]
+                )
+            )
             records_to_load.append(record)
 
         results = self.context.get_bulk_proxy_object(self.sobjectname).insert(records_to_load)
@@ -308,17 +331,23 @@ class LoadStep(Step):
         records_to_load = []
         original_ids = []
         all_lookups = self.dependent_lookups | self.self_lookups
-        all_lookups.add('Id')
 
         if len(all_lookups) > 0:
+            # Re-check, for each record, whether we have any loading to do.
+            # If all of the dependent lookups prove to be dropped outside references, we have no work to do.
             for record in self.dependent_lookup_records:
                 cleaned_record = self.populate_lookups(record, all_lookups, record['Id'])
-                records_to_load.append(cleaned_record)
+                if len([r for r in cleaned_record.values() if r is not None and r != '']) > 1: # 1 for the Id
+                    # Populate the new Id for this record
+                    original_ids.append(cleaned_record['Id'])
+                    cleaned_record['Id'] = str(self.context.get_new_id(SalesforceId(cleaned_record['Id'])))
+                    records_to_load.append(cleaned_record)
             
-            results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
-            for i, r in enumerate(results):
-                if not r['success']:
-                    raise Exception('Failed to execute dependent updates for {} {}', self.sobjectname, original_ids[i])
+            if len(records_to_load) > 0:
+                results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
+                for i, r in enumerate(results):
+                    if not r['success']:
+                        raise Exception('Failed to execute dependent updates for {} {}', self.sobjectname, original_ids[i])
 
 
 class ExtractOperation(Operation):

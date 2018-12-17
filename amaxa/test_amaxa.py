@@ -1433,7 +1433,7 @@ class test_LoadStep(unittest.TestCase):
         l.scan_fields()
         l.execute()
 
-        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in clean_record_list])
+        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in record_list])
         l.primitivize.assert_has_calls([unittest.mock.call(x) for x in clean_record_list])
         l.populate_lookups.assert_has_calls(
             [unittest.mock.call(x, set(), y['Id']) for (x, y) in zip(clean_record_list, record_list)]
@@ -1498,7 +1498,7 @@ class test_LoadStep(unittest.TestCase):
 
         l.execute()
 
-        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in clean_record_list])
+        op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in record_list])
         l.primitivize.assert_has_calls([unittest.mock.call(x) for x in transformed_record_list])
 
         op.get_bulk_proxy_object.assert_called_once_with('Account')
@@ -1597,7 +1597,11 @@ class test_LoadStep(unittest.TestCase):
     def test_execute_dependent_updates_handles_errors(self):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '001000000000001' },
-            { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '001000000000000'}
+            { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '001000000000000' }
+        ]
+        dependent_record_list = [
+            { 'Id': '001000000000000', 'Lookup__c': '001000000000001' },
+            { 'Id': '001000000000001', 'Lookup__c': '001000000000000' }
         ]
 
         connection = Mock()
@@ -1629,6 +1633,7 @@ class test_LoadStep(unittest.TestCase):
 
         l.scan_fields()
         l.self_lookups = set(['Lookup__c'])
+        l.dependent_lookup_records = dependent_record_list
         with self.assertRaises(Exception, msg='Failed to execute dependent updates for {} {}'.format(
             'Account',
             '001000000000000'
