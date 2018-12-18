@@ -169,80 +169,6 @@ class test_Integration_Extraction(unittest.TestCase):
         self.assertEqual(1, len(oc.get_extracted_ids('Account')))
         self.assertEqual(1, len(oc.get_extracted_ids('User')))
 
-    def test_extracts_from_command_line(self):
-        contact_mock = io.StringIO()
-        account_mock = io.StringIO()
-
-        expected_account_names = {'Picon Fleet Headquarters'}
-        expected_contact_names = {'Admiral'}
-
-        def select_file(f, *args, **kwargs):
-            credentials = '''
-                version: 1
-                credentials:
-                    access-token: '{}'
-                    instance-url: '{}'
-                '''.format(os.environ['ACCESS_TOKEN'], os.environ['INSTANCE_URL'])
-
-            extraction = '''
-                version: 1
-                operation:
-                    - 
-                        sobject: Account
-                        fields: 
-                            - Name
-                            - Id
-                            - ParentId
-                        extract: 
-                            query: "Name = 'Picon Fleet Headquarters'"
-                    -
-                        sobject: Contact
-                        fields:
-                            - FirstName
-                            - LastName
-                            - AccountId
-                        extract:
-                            descendents: True
-                '''
-            m = None
-            if f == 'credentials.yaml':
-                m = unittest.mock.mock_open(read_data=credentials)(f, *args, **kwargs)
-                m.name = f
-            elif f == 'extraction.yaml':
-                m = unittest.mock.mock_open(read_data=extraction)(f, *args, **kwargs)
-                m.name = f
-            elif f == 'Account.csv':
-                m = account_mock
-            elif f == 'Contact.csv':
-                m = contact_mock
-            
-            return m
-
-        m = Mock(side_effect=select_file)
-        with unittest.mock.patch('builtins.open', m):
-            with unittest.mock.patch(
-                'sys.argv',
-                ['amaxa', '-c', 'credentials.yaml', 'extraction.yaml']
-            ):
-                return_value = main()
-
-                self.assertEqual(0, return_value)
-
-        account_mock.seek(0)
-        account_reader = csv.DictReader(account_mock)
-        for row in account_reader:
-            self.assertIn(row['Name'], expected_account_names)
-            expected_account_names.remove(row['Name'])
-        self.assertEqual(0, len(expected_account_names))
-        self.assertEqual(set(['Id', 'Name', 'ParentId']), set(account_reader.fieldnames))
-
-        contact_mock.seek(0)
-        contact_reader = csv.DictReader(contact_mock)
-        for row in contact_reader:
-            self.assertIn(row['FirstName'], expected_contact_names)
-            expected_contact_names.remove(row['FirstName'])
-        self.assertEqual(0, len(expected_contact_names))
-        self.assertEqual(set(['FirstName', 'LastName', 'AccountId', 'Id']), set(contact_reader.fieldnames))
 
 @unittest.skipIf(any(['INSTANCE_URL' not in os.environ, 'ACCESS_TOKEN' not in os.environ]),
                  'environment not configured for integration test')
@@ -283,16 +209,16 @@ Id,Name,IsActive,ProductCode
         # Campaign has a self-lookup, ParentId
         campaigns = '''
 Id,Name,IsActive,ParentId
-701000000000001,Tauron Tourist Outreach,true,
-701000000000002,Aerilon Outreach,true,701000000000001
-701000000000003AAA,Caprica City Direct Mailer,false,701000000000001
+701000000000001,TC01-Tauron Tourist Outreach,true,
+701000000000002,TC01-Aerilon Outreach,true,701000000000001
+701000000000003AAA,TC01-Caprica City Direct Mailer,false,701000000000001
         '''.strip()
         leads = '''
 Id,Company,LastName
-00Q000000000001,Picon Fleet Headquarters,Nagata
-00Q000000000002,Picon Fleet Headquarters,Adama
-00Q000000000003,Ha-La-Tha,Guatrau
-00Q000000000004,[not provided],Thrace
+00Q000000000001,TC01-Picon Fleet Headquarters,Nagata
+00Q000000000002,TC01-Picon Fleet Headquarters,Adama
+00Q000000000003,TC01-Ha-La-Tha,Guatrau
+00Q000000000004,TC01-[not provided],Thrace
         '''.strip()
         campaign_members='''
 Id,CampaignId,LeadId,Status
@@ -313,18 +239,18 @@ Id,CampaignId,LeadId,Status
 
         op.execute()
 
-        loaded_campaigns = self.connection.query_all('SELECT Name, IsActive, (SELECT Name FROM ChildCampaigns) FROM Campaign').get('records')
+        loaded_campaigns = self.connection.query_all('SELECT Name, IsActive, (SELECT Name FROM ChildCampaigns) FROM Campaign WHERE Name LIKE \'TC01%\'').get('records')
         self.assertEqual(3, len(loaded_campaigns))
-        required_names = { 'Tauron Tourist Outreach', 'Aerilon Outreach', 'Caprica City Direct Mailer' }
+        required_names = { 'TC01-Tauron Tourist Outreach', 'TC01-Aerilon Outreach', 'TC01-Caprica City Direct Mailer' }
         for r in loaded_campaigns:
             self.assertIn(r['Name'], required_names)
             required_names.remove(r['Name'])
-            if r['Name'] == 'Tauron Tourist Outreach':
+            if r['Name'] == 'TC01-Tauron Tourist Outreach':
                 self.assertEqual(2, len(r['ChildCampaigns']['records']))
 
         self.assertEqual(0, len(required_names))
 
-        loaded_leads = self.connection.query_all('SELECT LastName, Company, (SELECT Name FROM CampaignMembers) FROM Lead').get('records')
+        loaded_leads = self.connection.query_all('SELECT LastName, Company, (SELECT Name FROM CampaignMembers) FROM Lead WHERE Company LIKE \'TC01%\'').get('records')
         self.assertEqual(4, len(loaded_leads))
         required_names = { 'Nagata', 'Adama', 'Guatrau', 'Thrace' }
         for r in loaded_leads:
@@ -339,11 +265,9 @@ Id,CampaignId,LeadId,Status
 
         self.assertEqual(0, len(required_names))
 
-        loaded_campaign_members = self.connection.query_all('SELECT Id FROM CampaignMember').get('records')
+        loaded_campaign_members = self.connection.query_all('SELECT Id FROM CampaignMember WHERE Campaign.Name LIKE \'TC01%\'').get('records')
         self.assertEqual(4, len(loaded_campaign_members))
 
-    def test_loads_from_command_line(self):
-        pass
 
 if __name__ == "__main__":
     unittest.main()

@@ -89,7 +89,8 @@ class test_load_credentials(unittest.TestCase):
                     'security-token': '98765',
                     'sandbox': True
                 }
-            }
+            },
+            False
         )
 
         self.assertEqual([], errors)
@@ -112,7 +113,8 @@ class test_load_credentials(unittest.TestCase):
                     'access-token': 'ABCDEF123456',
                     'instance-url': 'test.salesforce.com'
                 }
-            }
+            },
+            False
         )
 
         self.assertEqual([], errors)
@@ -132,7 +134,7 @@ class test_load_credentials(unittest.TestCase):
             }
         }
 
-        (result, errors) = loader.load_credentials(credentials)
+        (result, errors) = loader.load_credentials(credentials, False)
 
         self.assertIsNone(result)
         self.assertEqual(['version: [\'required field\']'], errors)
@@ -145,7 +147,7 @@ class test_load_credentials(unittest.TestCase):
             }
         }
 
-        (result, errors) = loader.load_credentials(credentials)
+        (result, errors) = loader.load_credentials(credentials, False)
 
         self.assertIsNone(result)
         self.assertEqual(['A set of valid credentials was not provided.'], errors)
@@ -498,15 +500,15 @@ class test_load_extraction_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Industry': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 }
             }
         )
@@ -724,15 +726,15 @@ class test_load_extraction_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'Industry': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 }
             }
         )
@@ -1021,11 +1023,11 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 }
             }
         )
@@ -1050,7 +1052,7 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(
             [
-                'Field Account.ParentId does not exist, is not writeable, is not visible.'
+                'Field Account.ParentId does not exist, is not writeable, or is not visible.'
             ],
             errors
         )
@@ -1087,23 +1089,23 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'LastName': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'StageName': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Subject': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 }
             }
         )
@@ -1176,15 +1178,15 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'Industry': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 }
             }
         )
@@ -1229,15 +1231,15 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'Industry': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 }
             }
         )
@@ -1284,15 +1286,15 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'Industry': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 }
             }
         )
@@ -1350,19 +1352,19 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'Industry': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'AccountSite': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 }
             }
         )
@@ -1416,15 +1418,15 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'Industry': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 }
             }
         )
@@ -1482,21 +1484,21 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Name': {
                     'type': 'string',
-                    'updateable': True
+                    'createable': True
                 },
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'ParentId': {
                     'type': 'reference',
                     'referenceTo': ['Account'],
-                    'updateable': True
+                    'createable': True
                 },
                 'Primary_Contact__c': {
                     'type': 'reference',
                     'referenceTo': ['Contact'],
-                    'updateable': True
+                    'createable': True
                 }
             }
         )
@@ -1574,12 +1576,12 @@ class test_load_load_operation(unittest.TestCase):
             return_value={ 
                 'Id': {
                     'type': 'string',
-                    'updateable': False
+                    'createable': False
                 },
                 'Parent__c': {
                     'type': 'reference',
                     'referenceTo': ['Parent__c'],
-                    'updateable': True
+                    'createable': True
                 }
             }
         )

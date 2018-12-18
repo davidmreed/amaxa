@@ -5,7 +5,7 @@ import logging
 from . import amaxa
 from . import transforms
 
-def load_credentials(incoming):
+def load_credentials(incoming, load):
     (credentials, errors) = validate_credential_schema(incoming)
     if credentials is None:
         return (None, errors)
@@ -32,7 +32,10 @@ def load_credentials(incoming):
     else:
         return (None, ['A set of valid credentials was not provided.'])
     
-    context = amaxa.ExtractOperation(connection)
+    if not load:
+        context = amaxa.ExtractOperation(connection)
+    else:
+        context = amaxa.LoadOperation(connection)
     
     return (context, [])
 
@@ -65,7 +68,7 @@ def load_load_operation(incoming, context):
         lookup_behaviors = {}
         if 'field-group' in entry:
             # Validation clamps acceptable values to 'writeable' or 'smart' by this point.
-            lam = lambda f: f['updateable']
+            lam = lambda f: f['createable']
 
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
         else:
@@ -112,8 +115,8 @@ def load_load_operation(incoming, context):
         # Validate that all fields are real and writeable by this user.
         field_map = context.get_field_map(sobject)
         for f in field_set:
-            if f not in field_map or not field_map[f]['updateable']:
-                errors.append('Field {}.{} does not exist, is not writeable, is not visible.'.format(sobject, f))
+            if f not in field_map or not field_map[f]['createable']:
+                errors.append('Field {}.{} does not exist, is not writeable, or is not visible.'.format(sobject, f))
             elif field_map[f]['type'] == 'reference':
                 # Ensure that the target objects of this reference
                 # are included in the extraction. If not, show a warning.
@@ -206,7 +209,7 @@ def load_extraction_operation(incoming, context):
             if entry['field-group'] in ['readable', 'smart']:
                 lam = lambda f: True
             else:
-                lam = lambda f: f['updateable']
+                lam = lambda f: f['createable']
 
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
         else:

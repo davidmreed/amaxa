@@ -9,6 +9,7 @@ def main():
 
     a.add_argument('config', type=argparse.FileType('r'))
     a.add_argument('-c', '--credentials', required=True, dest='credentials', type=argparse.FileType('r'))
+    a.add_argument('-l', '--load', action='store_true')
     verbosity_levels = {'quiet': logging.NOTSET, 'errors': logging.ERROR,
                         'normal': logging.INFO, 'verbose': logging.DEBUG}
 
@@ -31,7 +32,7 @@ def main():
     else:
         credentials = yaml.safe_load(f)
 
-    (context, errors) = loader.load_credentials(credentials)
+    (context, errors) = loader.load_credentials(credentials, args.load)
 
     if context is None:
         print('The supplied credentials were not valid: {}'.format('\n'.join(errors)))
@@ -42,7 +43,10 @@ def main():
     else:
         config = yaml.safe_load(args.config)
 
-    (ex, errors) = loader.load_extraction_operation(config, context)
+    if args.load:
+        (ex, errors) = loader.load_load_operation(config, context)
+    else:
+        (ex, errors) = loader.load_extraction_operation(config, context)
 
     if ex is not None:
         ex.execute()
