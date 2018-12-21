@@ -229,6 +229,7 @@ class test_load_extraction_operation(unittest.TestCase):
 
     def test_load_extraction_operation_flags_missing_sobjects(self):
         context = Mock()
+        context.steps = []
         context.connection.describe = Mock(
             return_value={
                 'sobjects': [
@@ -287,6 +288,7 @@ class test_load_extraction_operation(unittest.TestCase):
     
     def test_validate_extraction_flags_missing_fields(self):
         context = Mock()
+        context.steps = []
         context.connection.describe = Mock(
             return_value={
                 'sobjects': [
@@ -951,6 +953,7 @@ class test_load_load_operation(unittest.TestCase):
 
     def test_load_load_operation_flags_missing_sobjects(self):
         context = Mock()
+        context.steps = []
         context.connection.describe = Mock(
             return_value={
                 'sobjects': [
@@ -1009,6 +1012,7 @@ class test_load_load_operation(unittest.TestCase):
         )
     def test_validate_load_flags_missing_fields(self):
         context = Mock()
+        context.steps = []
         context.connection.describe = Mock(
             return_value={
                 'sobjects': [
@@ -1493,12 +1497,14 @@ class test_load_load_operation(unittest.TestCase):
                 'ParentId': {
                     'type': 'reference',
                     'referenceTo': ['Account'],
-                    'createable': True
+                    'createable': True,
+                    'updateable': True
                 },
                 'Primary_Contact__c': {
                     'type': 'reference',
                     'referenceTo': ['Contact'],
-                    'createable': True
+                    'createable': True,
+                    'updateable': True
                 }
             }
         )
@@ -1543,8 +1549,69 @@ class test_load_load_operation(unittest.TestCase):
         self.assertEqual(amaxa.SelfLookupBehavior.TRACE_NONE, result.steps[0].get_lookup_behavior_for_field('ParentId'))
         self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[0].get_lookup_behavior_for_field('Primary_Contact__c'))
 
-    def test_load_load_operation_validates_lookup_behaviors(self):
-        pass #FIXME: implement, see above under load_extraction
+    def test_load_load_operation_validates_lookup_behaviors_for_self_lookups(self):
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'ParentId': {
+                    'type': 'reference',
+                    'referenceTo': ['Account'],
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name',
+                        {
+                            'field': 'ParentId',
+                            'outside-lookup-behavior': 'include'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual(
+            [
+                'Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
+                    'include',
+                    'Account',
+                    'ParentId'
+                )
+            ],
+            errors
+        )
+        self.assertIsNone(result)
 
     @unittest.mock.patch('logging.getLogger')
     def test_load_load_operation_warns_lookups_other_objects(self, logger):

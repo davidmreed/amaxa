@@ -1,18 +1,29 @@
 import functools
 import simple_salesforce
 import logging
+from enum import Enum, unique
 
-class ExtractionScope(object):
+@unique
+class StringEnum(Enum):
+    @classmethod
+    def all_values(cls):
+        return [m.value for m in cls]
+    
+    @classmethod
+    def values_dict(cls):
+        return { m.value : m for m in cls }
+
+class ExtractionScope(StringEnum):
     ALL_RECORDS = 'all'
     QUERY = 'query'
     SELECTED_RECORDS = 'some'
     DESCENDENTS = 'children'
 
-class SelfLookupBehavior(object):
+class SelfLookupBehavior(StringEnum):
     TRACE_ALL = 'trace-all'
     TRACE_NONE = 'trace-none'
 
-class OutsideLookupBehavior(object):
+class OutsideLookupBehavior(StringEnum):
     DROP_FIELD = 'drop-field'
     INCLUDE = 'include'
     RECURSE = 'recurse'
@@ -228,14 +239,14 @@ class LoadStep(Step):
 
         if mapped_id is not None:
             return str(mapped_id)
-        elif b == OutsideLookupBehavior.INCLUDE:
+        elif b is OutsideLookupBehavior.INCLUDE:
             return value
-        elif b == OutsideLookupBehavior.ERROR:
+        elif b is OutsideLookupBehavior.ERROR:
             raise Exception(
                 '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.',
                 self.sobjectname, record_id, lookup, value
             )
-        elif b == OutsideLookupBehavior.DROP_FIELD:
+        elif b is OutsideLookupBehavior.DROP_FIELD:
             return ''
 
     def populate_lookups(self, record, lookups, id):
@@ -458,7 +469,7 @@ class ExtractionStep(Step):
         self.resolve_registered_dependencies()
 
         # If we have any self-lookups, we now need to iterate to handle them.
-        if len(self.self_lookups) > 0 and self.self_lookup_behavior == SelfLookupBehavior.TRACE_ALL \
+        if len(self.self_lookups) > 0 and self.self_lookup_behavior is SelfLookupBehavior.TRACE_ALL \
             and self.scope != ExtractionScope.ALL_RECORDS:
             # First we query up to the parents of objects we've already obtained (i.e. the targets of their lookups)
             # Then we query down to the children of all objects obtained.
@@ -493,7 +504,7 @@ class ExtractionStep(Step):
 
         # Add a dependency for the reference in each self lookup of this record.
         for l in self.self_lookups:
-            if self.get_self_lookup_behavior_for_field(l) != SelfLookupBehavior.TRACE_NONE and result[l] is not None:
+            if self.get_self_lookup_behavior_for_field(l) is not SelfLookupBehavior.TRACE_NONE and result[l] is not None:
                 self.context.add_dependency(self.sobjectname, SalesforceId(result[l]))
 
         # Register any dependencies from dependent lookups
@@ -537,16 +548,16 @@ class ExtractionStep(Step):
                 # This is a cross-hierarchy reference
                 behavior = self.get_outside_lookup_behavior_for_field(f)
 
-                if behavior == OutsideLookupBehavior.DROP_FIELD:
+                if behavior is OutsideLookupBehavior.DROP_FIELD:
                     del result[f]
-                elif behavior == OutsideLookupBehavior.INCLUDE:
+                elif behavior is OutsideLookupBehavior.INCLUDE:
                     continue
-                elif behavior == OutsideLookupBehavior.ERROR:
+                elif behavior is OutsideLookupBehavior.ERROR:
                     raise Exception(
                         '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.',
                         self.sobjectname, result['Id'], f, result[f]
                     )
-                elif behavior == OutsideLookupBehavior.RECURSE:
+                elif behavior is OutsideLookupBehavior.RECURSE:
                     raise NotImplementedError
 
 

@@ -104,9 +104,9 @@ def load_load_operation(incoming, context):
                         if 'transforms' in f:
                             mapper.field_transforms[f['column']] = [getattr(transforms,t) for t in f['transforms']]
                         if 'self-lookup-behavior' in f:
-                            lookup_behaviors[f['field']] = f['self-lookup-behavior']
+                            lookup_behaviors[f['field']] = amaxa.SelfLookupBehavior.values_dict()[f['self-lookup-behavior']]
                         if 'outside-lookup-behavior' in f:
-                            lookup_behaviors[f['field']] = f['outside-lookup-behavior']
+                            lookup_behaviors[f['field']] = amaxa.OutsideLookupBehavior.values_dict()[f['outside-lookup-behavior']]
                 
                 context.mappers[sobject] = mapper
             else:
@@ -136,15 +136,20 @@ def load_load_operation(incoming, context):
         step = amaxa.LoadStep(
             sobject, 
             field_set, 
-            entry['outside-lookup-behavior']
+            amaxa.OutsideLookupBehavior.values_dict()[entry['outside-lookup-behavior']]
         )
 
         # Populate expected lookup behaviors
         for l in lookup_behaviors:
             step.set_lookup_behavior_for_field(l, lookup_behaviors[l])
-            # FIXME: validate that the lookup options are applicable to this field
         
         context.add_step(step)
+
+    for step in context.steps:
+        step.scan_fields()
+
+    validate_dependent_field_permissions(context, errors)
+    validate_lookup_behaviors(context.steps, errors)
 
     if len(errors) > 0:
         return (None, errors)
@@ -244,9 +249,9 @@ def load_extraction_operation(incoming, context):
                         if 'transforms' in f:
                             mapper.field_transforms[f['field']] = [getattr(transforms,t) for t in f['transforms']]
                         if 'self-lookup-behavior' in f:
-                            lookup_behaviors[f['field']] = f['self-lookup-behavior']
+                            lookup_behaviors[f['field']] = amaxa.SelfLookupBehavior.values_dict()[f['self-lookup-behavior']]
                         if 'outside-lookup-behavior' in f:
-                            lookup_behaviors[f['field']] = f['outside-lookup-behavior']
+                            lookup_behaviors[f['field']] = amaxa.OutsideLookupBehavior.values_dict()[f['outside-lookup-behavior']]
                 
                 context.mappers[sobject] = mapper
             else:
@@ -280,16 +285,19 @@ def load_extraction_operation(incoming, context):
             scope, 
             field_set, 
             query,
-            entry['self-lookup-behavior'],
-            entry['outside-lookup-behavior']
+            amaxa.SelfLookupBehavior.values_dict()[entry['self-lookup-behavior']],
+            amaxa.OutsideLookupBehavior.values_dict()[entry['outside-lookup-behavior']]
         )
 
         # Populate expected lookup behaviors
         for l in lookup_behaviors:
             step.set_lookup_behavior_for_field(l, lookup_behaviors[l])
-            # FIXME: validate that the lookup options are applicable to this field
         
         context.add_step(step)
+
+    for step in context.steps:
+        step.scan_fields()
+    validate_lookup_behaviors(context.steps, errors)
 
     if len(errors) > 0:
         return (None, errors)
@@ -305,6 +313,27 @@ def load_extraction_operation(incoming, context):
             return (None, ['Unable to open file {} for writing ({}).'.format(e['file'], exp)])
 
     return (context, [])
+
+def validate_dependent_field_permissions(context, errors):
+    for step in context.steps:
+        field_map = context.get_field_map(step.sobjectname)
+        for f in step.dependent_lookups:
+            if not field_map[f]['updateable']:
+                errors.append('Field {}.{} is a dependent lookup, but is not updateable.'.format(step.sobjectname, f))
+
+
+def validate_lookup_behaviors(steps, errors):
+    # Scan fields for each step (populate the various lookup collections)
+    # so we can validate the lookup behaviors.
+    for step in steps:
+        for f in step.lookup_behaviors:
+            if (f in step.dependent_lookups and step.lookup_behaviors[f] not in amaxa.OutsideLookupBehavior) \
+                or (f in step.self_lookups and step.lookup_behaviors[f] not in amaxa.SelfLookupBehavior):
+                errors.append('Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
+                    step.lookup_behaviors[f].value,
+                    step.sobjectname,
+                    f
+                ))
 
 def validate_extraction_schema(input):
     v = cerberus.Validator(get_operation_schema(True))
@@ -402,12 +431,12 @@ def get_operation_schema(is_extract = True):
                     },
                     'outside-lookup-behavior': {
                         'type': 'string',
-                        'allowed': ['drop-field', 'error', 'include', 'recurse'],
+                        'allowed': amaxa.OutsideLookupBehavior.all_values(),
                         'default': 'include'
                     },
                     'self-lookup-behavior': {
                         'type': 'string',
-                        'allowed': ['trace-all', 'trace-none'],
+                        'allowed': amaxa.SelfLookupBehavior.all_values(),
                         'default': 'trace-all'
                     },
                     'extract': {
@@ -466,11 +495,11 @@ def get_operation_schema(is_extract = True):
                                 },
                                 'outside-lookup-behavior': {
                                     'type': 'string',
-                                    'allowed': ['drop-field', 'error', 'include', 'recurse']
+                                    'allowed': amaxa.OutsideLookupBehavior.all_values()
                                 },
                                 'self-lookup-behavior': {
                                     'type': 'string',
-                                    'allowed': ['trace-all', 'trace-none']
+                                    'allowed': amaxa.SelfLookupBehavior.all_values()
                                 }
                             }
                         }
