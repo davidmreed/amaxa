@@ -491,11 +491,12 @@ class test_Step(unittest.TestCase):
 
 
 class test_ExtractionStep(unittest.TestCase):
-    def retains_lookup_behavior_for_fields(self):
+    def test_retains_lookup_behavior_for_fields(self):
         step = amaxa.ExtractionStep(
             'Account',
             amaxa.ExtractionScope.ALL_RECORDS,
             ['Self_Lookup__c', 'Other__c'],
+            '',
             amaxa.SelfLookupBehavior.TRACE_NONE,
             amaxa.OutsideLookupBehavior.INCLUDE
         )
@@ -503,10 +504,11 @@ class test_ExtractionStep(unittest.TestCase):
         self.assertEqual(amaxa.SelfLookupBehavior.TRACE_NONE, step.get_self_lookup_behavior_for_field('Self_Lookup__c'))
         step.set_lookup_behavior_for_field('Self_Lookup__c', amaxa.SelfLookupBehavior.TRACE_ALL)
         self.assertEqual(amaxa.SelfLookupBehavior.TRACE_ALL, step.get_self_lookup_behavior_for_field('Self_Lookup__c'))
+
         self.assertEqual(amaxa.OutsideLookupBehavior.INCLUDE, step.get_outside_lookup_behavior_for_field('Other__c'))
         step.set_lookup_behavior_for_field('Other__c', amaxa.OutsideLookupBehavior.DROP_FIELD)
         self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, step.get_outside_lookup_behavior_for_field('Other__c'))
-    
+
     def test_store_result_calls_context(self):
         connection = Mock()
 
