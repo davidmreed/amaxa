@@ -19,7 +19,7 @@ operation:
     - 
         sobject: Contact
         file: 'Contact.csv'
-        sdl: Contact.sdl
+        field-group: readable
         outside-reference-behavior: drop-field 
         extract:
             query: "LastName = 'Test'"

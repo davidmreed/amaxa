@@ -424,11 +424,6 @@ def get_operation_schema(is_extract = True):
                         'type': 'string',
                         'default_setter': lambda doc: doc['sobject'] + '.csv'
                     },
-                    'sdl': {
-                        'type': 'string',
-                        'required': False,
-                        'excludes': ['fields', 'field-group']
-                    },
                     'outside-lookup-behavior': {
                         'type': 'string',
                         'allowed': amaxa.OutsideLookupBehavior.all_values(),
@@ -469,11 +464,11 @@ def get_operation_schema(is_extract = True):
                     'field-group': {
                         'type': 'string',
                         'allowed': ['readable', 'writeable', 'smart'] if is_extract else ['writeable', 'smart'],
-                        'excludes': ['sdl', 'fields']
+                        'excludes': ['fields']
                     },
                     'fields': {
                         'type': 'list',
-                        'excludes': ['sdl' 'field-group'],
+                        'excludes': ['field-group'],
                         'schema': {
                             'type': ['string', 'dict'],
                             'schema': {

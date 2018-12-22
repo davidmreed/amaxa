@@ -26,7 +26,6 @@ class SelfLookupBehavior(StringEnum):
 class OutsideLookupBehavior(StringEnum):
     DROP_FIELD = 'drop-field'
     INCLUDE = 'include'
-    RECURSE = 'recurse'
     ERROR = 'error'
 
 class SalesforceId(object):
@@ -557,9 +556,6 @@ class ExtractionStep(Step):
                         '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.',
                         self.sobjectname, result['Id'], f, result[f]
                     )
-                elif behavior is OutsideLookupBehavior.RECURSE:
-                    raise NotImplementedError
-
 
         # Finally, call through to the context to store this result.
         self.context.store_result(self.sobjectname, result)
