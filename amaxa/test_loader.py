@@ -235,7 +235,8 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -294,9 +295,11 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
-                ]            }
+                ]
+            }
         )
         context.get_field_map = Mock(
             return_value={ 
@@ -341,19 +344,23 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Contact',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Opportunity',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Task',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -446,7 +453,8 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -493,7 +501,8 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -546,7 +555,8 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -596,7 +606,8 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -657,7 +668,8 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -719,7 +731,7 @@ class test_load_extraction_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'queryable': True
                     }
                 ]
             }
@@ -778,11 +790,13 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Contact',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
 
                 ]
@@ -847,8 +861,146 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertEqual(amaxa.SelfLookupBehavior.TRACE_NONE, result.steps[0].get_self_lookup_behavior_for_field('ParentId'))
         self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[0].get_outside_lookup_behavior_for_field('Primary_Contact__c'))
 
-    def test_load_extraction_operation_validates_lookup_behaviors(self):
-        pass #FIXME: Implement. Currently, invalid values are just treated like the default.
+    def test_load_extraction_operation_validates_lookup_behaviors_for_self_lookups(self):
+        context = amaxa.ExtractOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'ParentId': {
+                    'type': 'reference',
+                    'referenceTo': ['Account'],
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name',
+                        {
+                            'field': 'ParentId',
+                            'outside-lookup-behavior': 'include'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction_operation(ex, context)
+
+        self.assertEqual(
+            [
+                'Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
+                    'include',
+                    'Account',
+                    'ParentId'
+                )
+            ],
+            errors
+        )
+        self.assertIsNone(result)
+
+    def test_load_extraction_operation_validates_lookup_behaviors_for_dependent_lookups(self):
+        context = amaxa.ExtractOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    },
+                    {
+                        'name': 'Contact',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'Primary_Contact__c': {
+                    'type': 'reference',
+                    'referenceTo': ['Contact'],
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name',
+                        {
+                            'field': 'Primary_Contact__c',
+                            'self-lookup-behavior': 'trace-all'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                },
+                { 
+                    'sobject': 'Contact',
+                    'fields': [ 'Name' ],
+                    'extract': { 'all': True }
+                },
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction_operation(ex, context)
+
+        self.assertEqual(
+            [
+                'Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
+                    'trace-all',
+                    'Account',
+                    'Primary_Contact__c'
+                )
+            ],
+            errors
+        )
+        self.assertIsNone(result)
 
     @unittest.mock.patch('logging.getLogger')
     def test_load_extraction_operation_warns_lookups_other_objects(self, logger):
@@ -860,15 +1012,18 @@ class test_load_extraction_operation(unittest.TestCase):
                 'sobjects': [
                     {
                         'name': 'Account',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Contact',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Test__c',
-                        'retrieveable': True
+                        'retrieveable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -1061,6 +1216,117 @@ class test_load_load_operation(unittest.TestCase):
             errors
         )
 
+    def test_validate_load_flags_non_writeable_fields(self):
+        context = Mock()
+        context.steps = []
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Industry': {
+                    'type': 'string',
+                    'createable': False
+                }
+            }
+        )
+
+        ex = { 
+            'version': 1, 
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [ 'Name', 'Industry' ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        m.assert_not_called()
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            [
+                'Field Account.Industry does not exist, is not writeable, or is not visible.'
+            ],
+            errors
+        )
+
+    def test_validate_load_flags_non_updateable_dependent_fields(self):
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'ParentId': {
+                    'type': 'reference',
+                    'referenceTo': ['Account'],
+                    'createable': True,
+                    'updateable': False
+                }
+            }
+        )
+
+        ex = { 
+            'version': 1, 
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [ 'Name', 'ParentId' ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        m.assert_not_called()
+
+        self.assertEqual(
+            [
+                'Field {}.{} is a dependent lookup, but is not updateable.'.format('Account', 'ParentId')
+            ],
+            errors
+        )
+        self.assertIsNone(result)
+
     def test_load_load_operation_creates_valid_steps(self):
         context = amaxa.LoadOperation(Mock())
         context.connection.describe = Mock(
@@ -1069,22 +1335,26 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Contact',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Opportunity',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Task',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -1173,7 +1443,8 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -1226,7 +1497,8 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -1281,7 +1553,8 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -1347,7 +1620,8 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -1413,7 +1687,8 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -1473,12 +1748,14 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Contact',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
 
                 ]
@@ -1557,7 +1834,8 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
                 ]
             }
@@ -1575,7 +1853,8 @@ class test_load_load_operation(unittest.TestCase):
                 'ParentId': {
                     'type': 'reference',
                     'referenceTo': ['Account'],
-                    'createable': True
+                    'createable': True,
+                    'updateable': True
                 }
             }
         )
@@ -1613,6 +1892,83 @@ class test_load_load_operation(unittest.TestCase):
         )
         self.assertIsNone(result)
 
+    def test_load_load_operation_validates_lookup_behaviors_for_dependent_lookups(self):
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    },
+                    {
+                        'name': 'Contact',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'Primary_Contact__c': {
+                    'type': 'reference',
+                    'referenceTo': ['Contact'],
+                    'createable': True,
+                    'updateable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name',
+                        {
+                            'field': 'Primary_Contact__c',
+                            'self-lookup-behavior': 'trace-all'
+                        }
+                    ],
+                    'extract': { 'all': True }
+                },
+                { 
+                    'sobject': 'Contact',
+                    'fields': [ 'Name' ],
+                    'extract': { 'all': True }
+                },
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual(
+            [
+                'Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
+                    'trace-all',
+                    'Account',
+                    'Primary_Contact__c'
+                )
+            ],
+            errors
+        )
+        self.assertIsNone(result)
+
     @unittest.mock.patch('logging.getLogger')
     def test_load_load_operation_warns_lookups_other_objects(self, logger):
         context = amaxa.LoadOperation(Mock())
@@ -1624,17 +1980,20 @@ class test_load_load_operation(unittest.TestCase):
                     {
                         'name': 'Account',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Contact',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     },
                     {
                         'name': 'Test__c',
                         'retrieveable': True,
-                        'createable': True
+                        'createable': True,
+                        'queryable': True
                     }
                 ]
             }

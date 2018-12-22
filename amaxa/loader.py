@@ -186,7 +186,7 @@ def load_extraction_operation(incoming, context):
     for entry in incoming['operation']:
         sobject = entry['sobject']
 
-        if sobject not in global_describe or not global_describe[sobject]['retrieveable']:
+        if sobject not in global_describe or not global_describe[sobject]['retrieveable'] or not global_describe[sobject]['queryable']:
             errors.append('sObject {} does not exist or is not visible.'.format(sobject))
             continue
 
@@ -317,7 +317,7 @@ def load_extraction_operation(incoming, context):
 def validate_dependent_field_permissions(context, errors):
     for step in context.steps:
         field_map = context.get_field_map(step.sobjectname)
-        for f in step.dependent_lookups:
+        for f in step.dependent_lookups | step.self_lookups:
             if not field_map[f]['updateable']:
                 errors.append('Field {}.{} is a dependent lookup, but is not updateable.'.format(step.sobjectname, f))
 
