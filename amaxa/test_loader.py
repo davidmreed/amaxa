@@ -546,6 +546,127 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertEqual(1, len(result.steps))
         self.assertEqual({'Name', 'Id'}, result.steps[0].field_scope)
 
+    def test_load_extraction_operation_readable_field_group_omits_unsupported_types(self):
+        context = amaxa.ExtractOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'MailingAddress': {
+                    'type': 'address',
+                    'createable': False
+                },
+                'Geolocation__c': {
+                    'type': 'location',
+                    'createable': False
+                },
+                'Body': {
+                    'type': 'base64',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'readable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
+        m.assert_called_once_with('Account.csv', 'w')
+
+        self.assertEqual(1, len(result.steps))
+        self.assertEqual({'Id', 'Name'}, result.steps[0].field_scope)
+
+    def test_load_extraction_operation_writeable_field_group_omits_unsupported_types(self):
+        context = amaxa.ExtractOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'MailingAddress': {
+                    'type': 'address',
+                    'createable': False
+                },
+                'Geolocation__c': {
+                    'type': 'location',
+                    'createable': False
+                },
+                'Body': {
+                    'type': 'base64',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'writeable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
+        m.assert_called_once_with('Account.csv', 'w')
+
+        self.assertEqual(1, len(result.steps))
+        self.assertEqual({'Id', 'Name'}, result.steps[0].field_scope)
 
     def test_load_extraction_operation_generates_field_list(self):
         connection = Mock()
@@ -660,6 +781,56 @@ class test_load_extraction_operation(unittest.TestCase):
             {'Account Name': 'university of caprica', 'Industry': 'Education'},
             mapper.transform_record({ 'Name': 'UNIversity of caprica  ', 'Industry': 'Education' })
         )
+
+    def test_load_extraction_operation_raises_exception_base64_fields(self):
+        connection = Mock()
+        context = amaxa.ExtractOperation(connection)
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string'
+                },
+                'Id': {
+                    'type': 'string'
+                },
+                'Body': {
+                    'type': 'base64'
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name', 
+                        'Body'
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction_operation(ex, context)
+
+        self.assertEqual(['Field {}.{} is a base64 field, which is not supported.'.format('Account', 'Body')], errors)
+        self.assertIsNone(result)
+        m.assert_not_called()
 
     def test_load_extraction_operation_catches_duplicate_columns(self):
         context = amaxa.ExtractOperation(Mock())
@@ -1488,6 +1659,55 @@ class test_load_load_operation(unittest.TestCase):
         self.assertEqual(1, len(result.steps))
         self.assertEqual({'Industry'}, result.steps[0].field_scope)
 
+    def test_load_load_operation_field_groups_omit_unsupported_types(self):
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Body': {
+                    'type': 'base64',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'writeable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+        m.assert_called_once_with('Account.csv', 'r')
+
+        self.assertEqual(1, len(result.steps))
+        self.assertEqual({'Name'}, result.steps[0].field_scope)
+
     def test_load_load_operation_generates_field_list(self):
         connection = Mock()
         context = amaxa.LoadOperation(connection)
@@ -1544,6 +1764,60 @@ class test_load_load_operation(unittest.TestCase):
         m.assert_called_once_with('Account.csv', 'r')
 
         self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
+
+    def test_load_load_operation_raises_exception_base64_fields(self):
+        connection = Mock()
+        context = amaxa.LoadOperation(connection)
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'queryable': True,
+                        'createable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Body': {
+                    'type': 'base64',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name', 
+                        'Body'
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual(['Field {}.{} is a base64 field, which is not supported.'.format('Account', 'Body')], errors)
+        self.assertIsNone(result)
+        m.assert_not_called()
 
     def test_load_load_operation_creates_import_mapper(self):
         context = amaxa.LoadOperation(Mock())

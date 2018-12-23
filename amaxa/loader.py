@@ -68,7 +68,9 @@ def load_load_operation(incoming, context):
         lookup_behaviors = {}
         if 'field-group' in entry:
             # Validation clamps acceptable values to 'writeable' or 'smart' by this point.
-            lam = lambda f: f['createable']
+            # Don't include field types we don't process - geolocations, addresses, and base64 fields.
+            # Geolocations and addresses are omitted automatically (they aren't writeable)
+            lam = lambda f: f['createable'] and f['type'] != 'base64'
 
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
         else:
@@ -127,6 +129,8 @@ def load_load_operation(incoming, context):
                         f,
                         ', '.join(field_map[f]['referenceTo'])
                     )
+            elif field_map[f]['type'] == 'base64':
+                errors.append('Field {}.{} is a base64 field, which is not supported.'.format(sobject, f))
 
         # If we've located any errors, continue to validate the rest of the extraction,
         # but don't actually create any steps or files.
@@ -211,10 +215,11 @@ def load_extraction_operation(incoming, context):
         # Determine the field scope
         lookup_behaviors = {}
         if 'field-group' in entry:
+            # If we're using a field group, filter by FLS and remove field types we don't handle.
             if entry['field-group'] in ['readable', 'smart']:
-                lam = lambda f: True
+                lam = lambda f: f['type'] not in ['location', 'address', 'base64']
             else:
-                lam = lambda f: f['createable']
+                lam = lambda f: f['createable'] and f['type'] not in ['location', 'address', 'base64']
 
             field_set = set(context.get_filtered_field_map(sobject, lam).keys())
         else:
@@ -274,6 +279,8 @@ def load_extraction_operation(incoming, context):
                         f,
                         ', '.join(field_map[f]['referenceTo'])
                     )
+            elif field_map[f]['type'] == 'base64':
+                errors.append('Field {}.{} is a base64 field, which is not supported.'.format(sobject, f))
 
         # If we've located any errors, continue to validate the rest of the extraction,
         # but don't actually create any steps or files.
