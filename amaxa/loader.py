@@ -167,6 +167,47 @@ def load_load_operation(incoming, context):
         except Exception as exp:
             return (None, ['Unable to open file {} for reading ({}).'.format(e['file'], exp)])
 
+    # Validate the column sets in the input files.
+    # For each file, if validation is active, check as follows.
+    # For field group steps, validate that each column in the input file
+    # is mapped to a field within the field group, but allow "missing" columns.
+    # For explicit field list steps, require that the mapped column set and field scope be 1:1
+    for (s, e) in zip(context.steps, incoming['operation']):
+        if e['input-validation'] == 'none':
+            continue
+
+        input_file = context.get_input_file(s.sobjectname)
+        file_field_set = set(input_file.fieldnames)
+        if 'Id' in file_field_set:
+            file_field_set.remove('Id')
+        # If we have transforms in place, transform all the column names into field names.
+        if s.sobjectname in context.mappers:
+            file_field_set = { context.mappers[s.sobjectname].transform_key(f) for f in file_field_set }
+
+        if 'field-group' in e and e['validation'] == 'default':
+            # Field group validation: file can omit columns but can't have extra
+            if not s.field_scope.issuperset(file_field_set):
+                errors.append(
+                    'Input file for sObject {} contains excess columns over field group \'{}\': {}'.format(
+                        s.sobjectname,
+                        e['field-group'],
+                        ', '.join(file_field_set.difference(s.field_scope))
+                    )
+                )
+        else:
+            # Field scope validation. File columns must match field scope.
+            if s.field_scope != file_field_set:
+                errors.append(
+                    'Input file for sObject {} does not match specified field scope.\nScope: {}\nFile Columns: {}\n'.format(
+                        s.sobjectname,
+                        ', '.join(s.field_scope),
+                        ', '.join(file_field_set)
+                    )
+                )
+
+    if len(errors) > 0:
+        return (None, errors)
+
     return (context, [])
 
 def load_extraction_operation(incoming, context):
@@ -430,6 +471,11 @@ def get_operation_schema(is_extract = True):
                     'file': {
                         'type': 'string',
                         'default_setter': lambda doc: doc['sobject'] + '.csv'
+                    },
+                    'input-validation': {
+                        'type': 'string',
+                        'default': 'default',
+                        'allowed': ['none', 'default', 'strict']
                     },
                     'outside-lookup-behavior': {
                         'type': 'string',

@@ -1562,22 +1562,26 @@ class test_load_load_operation(unittest.TestCase):
                 { 
                     'sobject': 'Account',
                     'fields': [ 'Name' ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 },
                 { 
                     'sobject': 'Contact',
                     'fields': [ 'LastName' ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 },
                 {
                     'sobject': 'Opportunity',
                     'fields': [ 'StageName' ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 },
                 {
                     'sobject': 'Task',
                     'fields': [ 'Subject' ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 }
 
             ]
@@ -1643,7 +1647,8 @@ class test_load_load_operation(unittest.TestCase):
                 { 
                     'sobject': 'Account',
                     'field-group': 'writeable',
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 }
             ]
         }
@@ -1692,7 +1697,8 @@ class test_load_load_operation(unittest.TestCase):
                 { 
                     'sobject': 'Account',
                     'field-group': 'writeable',
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 }
             ]
         }
@@ -1749,7 +1755,8 @@ class test_load_load_operation(unittest.TestCase):
                         'Name', 
                         'Industry'
                     ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 }
             ]
         }
@@ -1863,7 +1870,8 @@ class test_load_load_operation(unittest.TestCase):
                         },
                         'Industry'
                     ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 }
             ]
         }
@@ -2076,7 +2084,8 @@ class test_load_load_operation(unittest.TestCase):
                             'outside-lookup-behavior': 'drop-field'
                         }
                     ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 },
                 {
                     'sobject': 'Contact',
@@ -2085,7 +2094,8 @@ class test_load_load_operation(unittest.TestCase):
                             'field': 'Name'
                         }
                     ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 }
             ]
         }
@@ -2292,7 +2302,8 @@ class test_load_load_operation(unittest.TestCase):
                 { 
                     'sobject': 'Test__c',
                     'fields': [ 'Parent__c' ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 }
             ]
         }
