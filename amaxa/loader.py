@@ -180,28 +180,30 @@ def load_load_operation(incoming, context):
         file_field_set = set(input_file.fieldnames)
         if 'Id' in file_field_set:
             file_field_set.remove('Id')
+
         # If we have transforms in place, transform all the column names into field names.
         if s.sobjectname in context.mappers:
             file_field_set = { context.mappers[s.sobjectname].transform_key(f) for f in file_field_set }
 
-        if 'field-group' in e and e['validation'] == 'default':
+        if 'field-group' in e and e['input-validation'] == 'default':
             # Field group validation: file can omit columns but can't have extra
             if not s.field_scope.issuperset(file_field_set):
                 errors.append(
                     'Input file for sObject {} contains excess columns over field group \'{}\': {}'.format(
                         s.sobjectname,
                         e['field-group'],
-                        ', '.join(file_field_set.difference(s.field_scope))
+                        ', '.join(sorted(file_field_set.difference(s.field_scope)))
                     )
                 )
         else:
-            # Field scope validation. File columns must match field scope.
+            # Field scope validation, or strict-mode group validation.
+            # File columns must match field scope precisely.
             if s.field_scope != file_field_set:
                 errors.append(
                     'Input file for sObject {} does not match specified field scope.\nScope: {}\nFile Columns: {}\n'.format(
                         s.sobjectname,
-                        ', '.join(s.field_scope),
-                        ', '.join(file_field_set)
+                        ', '.join(sorted(s.field_scope)),
+                        ', '.join(sorted(file_field_set))
                     )
                 )
 

@@ -1,5 +1,6 @@
 import unittest
 import simple_salesforce
+import io
 from unittest.mock import Mock
 from . import amaxa, loader
 
@@ -1771,6 +1772,313 @@ class test_load_load_operation(unittest.TestCase):
         m.assert_called_once_with('Account.csv', 'r')
 
         self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
+
+    def test_load_load_operation_respects_none_validation_option(self):
+        connection = Mock()
+        context = amaxa.LoadOperation(connection)
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name', 
+                        'Industry'
+                    ],
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
+                }
+            ]
+        }
+
+        open_mock = Mock(side_effect=io.StringIO('Id,Name,Industry,Description'))
+        with unittest.mock.patch('builtins.open', open_mock):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+        open_mock.assert_called_once_with('Account.csv', 'r')
+
+        self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
+
+    def test_load_load_operation_validates_file_against_field_scope_excess_fields(self):
+        connection = Mock()
+        context = amaxa.LoadOperation(connection)
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name', 
+                        'Industry'
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        fieldnames = ['Id', 'Name', 'Industry', 'Description']
+        account_mock = Mock(return_value=io.StringIO(','.join(fieldnames)))
+        with unittest.mock.patch('builtins.open', account_mock):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual(
+            [
+                'Input file for sObject {} does not match specified field scope.\nScope: {}\nFile Columns: {}\n'.format(
+                    'Account',
+                    ', '.join(sorted(['Name', 'Industry'])),
+                    ', '.join(sorted(set(fieldnames) - set(['Id'])))
+                )
+            ],
+            errors
+         )
+        self.assertIsNone(result)
+        account_mock.assert_called_once_with('Account.csv', 'r')
+
+    def test_load_load_operation_validates_file_against_field_scope_missing_fields(self):
+        connection = Mock()
+        context = amaxa.LoadOperation(connection)
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name', 
+                        'Industry'
+                    ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        fieldnames = ['Id', 'Name']
+        account_mock = Mock(return_value=io.StringIO(','.join(fieldnames)))
+        with unittest.mock.patch('builtins.open', account_mock):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual(
+            [
+                'Input file for sObject {} does not match specified field scope.\nScope: {}\nFile Columns: {}\n'.format(
+                    'Account',
+                    ', '.join(sorted(['Name', 'Industry'])),
+                    ', '.join(sorted(set(fieldnames) - set(['Id'])))
+                )
+            ],
+            errors
+         )
+        self.assertIsNone(result)
+        account_mock.assert_called_once_with('Account.csv', 'r')
+
+    def test_load_load_operation_validates_file_against_field_group(self):
+        connection = Mock()
+        context = amaxa.LoadOperation(connection)
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'writeable',
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        fieldnames = ['Id', 'Name', 'Industry', 'Description']
+        account_mock = Mock(return_value=io.StringIO(','.join(fieldnames)))
+        with unittest.mock.patch('builtins.open', account_mock):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual(
+            [
+                'Input file for sObject {} contains excess columns over field group \'{}\': {}'.format(
+                    'Account',
+                    'writeable',
+                    'Description'
+                )
+            ],
+            errors
+         )
+        self.assertIsNone(result)
+        account_mock.assert_called_once_with('Account.csv', 'r')
+
+    def test_load_load_operation_validates_file_against_field_group_with_strict(self):
+        connection = Mock()
+        context = amaxa.LoadOperation(connection)
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                },
+                'Industry': {
+                    'type': 'string',
+                    'createable': True
+                }
+            }
+        )
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'field-group': 'writeable',
+                    'extract': { 'all': True },
+                    'input-validation': 'strict'
+                }
+            ]
+        }
+        fieldnames = ['Id', 'Name']
+        account_mock = Mock(return_value=io.StringIO(','.join(fieldnames) + '\n'))
+        with unittest.mock.patch('builtins.open', account_mock):
+            (result, errors) = loader.load_load_operation(ex, context)
+
+        self.assertEqual(
+            [
+                'Input file for sObject {} does not match specified field scope.\nScope: {}\nFile Columns: {}\n'.format(
+                    'Account',
+                    ', '.join(sorted(['Name', 'Industry'])),
+                    ', '.join(sorted(set(fieldnames) - set(['Id'])))
+                )
+            ],
+            errors
+         )
+        self.assertIsNone(result)
+        account_mock.assert_called_once_with('Account.csv', 'r')
 
     def test_load_load_operation_raises_exception_base64_fields(self):
         connection = Mock()
