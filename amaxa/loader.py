@@ -158,14 +158,23 @@ def load_load_operation(incoming, context):
     if len(errors) > 0:
         return (None, errors)
     
-    # Open all of the input files
+    # Open all of the input and output files
     # Create DictReaders and populate them in the context
     for (s, e) in zip(context.steps, incoming['operation']):
         try:
             input = csv.DictReader(open(e['file'], 'r'))
             context.set_input_file(s.sobjectname, input)
         except Exception as exp:
-            return (None, ['Unable to open file {} for reading ({}).'.format(e['file'], exp)])
+            errors.append('Unable to open file {} for reading ({}).'.format(e['file'], exp))
+
+        try:
+            output = csv.DictWriter(open(e['result-file'], 'w'), fieldnames=['Original Id', 'New Id'])
+            context.set_result_file(s.sobjectname, output)
+        except Exception as exp:
+            errors.append('Unable to open file {} for writing ({})'.format(e['result-file'], exp))
+
+    if len(errors) > 0:
+        return (None, errors)
 
     # Validate the column sets in the input files.
     # For each file, if validation is active, check as follows.
@@ -473,6 +482,10 @@ def get_operation_schema(is_extract = True):
                     'file': {
                         'type': 'string',
                         'default_setter': lambda doc: doc['sobject'] + '.csv'
+                    },
+                    'result-file': {
+                        'type': 'string',
+                        'default_setter': lambda doc: doc['sobject'] + '-results.csv'
                     },
                     'input-validation': {
                         'type': 'string',

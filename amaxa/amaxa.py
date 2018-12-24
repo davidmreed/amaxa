@@ -186,6 +186,7 @@ class LoadOperation(Operation):
     def __init__(self, connection):
         super().__init__(connection)
         self.input_files = {}
+        self.result_files = {}
         self.mappers = {}
         self.global_id_map = {}
 
@@ -194,10 +195,18 @@ class LoadOperation(Operation):
 
     def get_input_file(self, sobjectname):
         return self.input_files[sobjectname]
+
+    def set_result_file(self, sobjectname, f):
+        self.result_files[sobjectname] = f
     
-    def register_new_id(self, old_id, new_id):
+    def get_result_file(self, sobjectname):
+        return self.result_files[sobjectname]
+
+    def register_new_id(self, sobjectname, old_id, new_id):
         self.global_id_map[old_id] = new_id
-    
+        if sobjectname in self.result_files:
+            self.result_files[sobjectname].writerow({'Original Id': str(old_id), 'New Id': str(new_id)})
+
     def get_new_id(self, old_id):
         return self.global_id_map.get(old_id, None)
 
@@ -269,8 +278,6 @@ class LoadStep(Step):
                 return str(value)
             elif field_type in ['xsd:string', 'xsd:date', 'xsd:dateTime', 'xsd:int', 'xsd:double']:
                 return value
-            elif field_type in ['base64', 'xsd:anyType']:
-                raise NotImplementedError
             
             return None
 
@@ -330,6 +337,7 @@ class LoadStep(Step):
         for i, r in enumerate(results):
             if r['success']:
                 self.context.register_new_id(
+                    self.sobjectname,
                     SalesforceId(original_ids[i]),
                     SalesforceId(r['id']) # note lowercase in result
                 )

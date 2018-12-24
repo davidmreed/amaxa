@@ -338,7 +338,7 @@ class test_load_extraction_operation(unittest.TestCase):
             errors
         )
 
-    def test_load_extraction_operation_creates_valid_steps(self):
+    def test_load_extraction_operation_creates_valid_steps_with_files(self):
         context = amaxa.ExtractOperation(Mock())
         context.connection.describe = Mock(
             return_value={
@@ -783,7 +783,7 @@ class test_load_extraction_operation(unittest.TestCase):
             mapper.transform_record({ 'Name': 'UNIversity of caprica  ', 'Industry': 'Education' })
         )
 
-    def test_load_extraction_operation_raises_exception_base64_fields(self):
+    def test_load_extraction_operation_returns_error_base64_fields(self):
         connection = Mock()
         context = amaxa.ExtractOperation(connection)
         context.connection.describe = Mock(
@@ -1499,7 +1499,7 @@ class test_load_load_operation(unittest.TestCase):
         )
         self.assertIsNone(result)
 
-    def test_load_load_operation_creates_valid_steps(self):
+    def test_load_load_operation_creates_valid_steps_with_files(self):
         context = amaxa.LoadOperation(Mock())
         context.connection.describe = Mock(
             return_value={
@@ -1600,7 +1600,11 @@ class test_load_load_operation(unittest.TestCase):
                 unittest.mock.call('Account.csv', 'r'),
                 unittest.mock.call('Contact.csv', 'r'),
                 unittest.mock.call('Opportunity.csv', 'r'),
-                unittest.mock.call('Task.csv', 'r')
+                unittest.mock.call('Task.csv', 'r'),
+                unittest.mock.call('Account-results.csv', 'w'),
+                unittest.mock.call('Contact-results.csv', 'w'),
+                unittest.mock.call('Opportunity-results.csv', 'w'),
+                unittest.mock.call('Task-results.csv', 'w')
             ],
             any_order=True
         )
@@ -1660,7 +1664,6 @@ class test_load_load_operation(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.LoadOperation)
-        m.assert_called_once_with('Account.csv', 'r')
 
         self.assertEqual(1, len(result.steps))
         self.assertEqual({'Industry'}, result.steps[0].field_scope)
@@ -1710,7 +1713,6 @@ class test_load_load_operation(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.LoadOperation)
-        m.assert_called_once_with('Account.csv', 'r')
 
         self.assertEqual(1, len(result.steps))
         self.assertEqual({'Name'}, result.steps[0].field_scope)
@@ -1769,7 +1771,6 @@ class test_load_load_operation(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.LoadOperation)
-        m.assert_called_once_with('Account.csv', 'r')
 
         self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
 
@@ -1820,13 +1821,12 @@ class test_load_load_operation(unittest.TestCase):
             ]
         }
 
-        open_mock = Mock(side_effect=io.StringIO('Id,Name,Industry,Description'))
+        open_mock = Mock(side_effect=[io.StringIO('Id,Name,Industry,Description'), io.StringIO()])
         with unittest.mock.patch('builtins.open', open_mock):
             (result, errors) = loader.load_load_operation(ex, context)
 
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.LoadOperation)
-        open_mock.assert_called_once_with('Account.csv', 'r')
 
         self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
 
@@ -1877,7 +1877,7 @@ class test_load_load_operation(unittest.TestCase):
         }
 
         fieldnames = ['Id', 'Name', 'Industry', 'Description']
-        account_mock = Mock(return_value=io.StringIO(','.join(fieldnames)))
+        account_mock = Mock(side_effect=[io.StringIO(','.join(fieldnames)), io.StringIO()])
         with unittest.mock.patch('builtins.open', account_mock):
             (result, errors) = loader.load_load_operation(ex, context)
 
@@ -1892,7 +1892,6 @@ class test_load_load_operation(unittest.TestCase):
             errors
          )
         self.assertIsNone(result)
-        account_mock.assert_called_once_with('Account.csv', 'r')
 
     def test_load_load_operation_validates_file_against_field_scope_missing_fields(self):
         connection = Mock()
@@ -1941,7 +1940,7 @@ class test_load_load_operation(unittest.TestCase):
         }
 
         fieldnames = ['Id', 'Name']
-        account_mock = Mock(return_value=io.StringIO(','.join(fieldnames)))
+        account_mock = Mock(side_effect=[io.StringIO(','.join(fieldnames)), io.StringIO()])
         with unittest.mock.patch('builtins.open', account_mock):
             (result, errors) = loader.load_load_operation(ex, context)
 
@@ -1956,7 +1955,6 @@ class test_load_load_operation(unittest.TestCase):
             errors
          )
         self.assertIsNone(result)
-        account_mock.assert_called_once_with('Account.csv', 'r')
 
     def test_load_load_operation_validates_file_against_field_group(self):
         connection = Mock()
@@ -2002,10 +2000,11 @@ class test_load_load_operation(unittest.TestCase):
         }
 
         fieldnames = ['Id', 'Name', 'Industry', 'Description']
-        account_mock = Mock(return_value=io.StringIO(','.join(fieldnames)))
+        account_mock = Mock(side_effect=[io.StringIO(','.join(fieldnames)), io.StringIO()])
         with unittest.mock.patch('builtins.open', account_mock):
             (result, errors) = loader.load_load_operation(ex, context)
 
+        self.assertIsNone(result)
         self.assertEqual(
             [
                 'Input file for sObject {} contains excess columns over field group \'{}\': {}'.format(
@@ -2016,8 +2015,6 @@ class test_load_load_operation(unittest.TestCase):
             ],
             errors
          )
-        self.assertIsNone(result)
-        account_mock.assert_called_once_with('Account.csv', 'r')
 
     def test_load_load_operation_validates_file_against_field_group_with_strict(self):
         connection = Mock()
@@ -2063,7 +2060,7 @@ class test_load_load_operation(unittest.TestCase):
             ]
         }
         fieldnames = ['Id', 'Name']
-        account_mock = Mock(return_value=io.StringIO(','.join(fieldnames) + '\n'))
+        account_mock = Mock(side_effect=[io.StringIO(','.join(fieldnames) + '\n'), io.StringIO()])
         with unittest.mock.patch('builtins.open', account_mock):
             (result, errors) = loader.load_load_operation(ex, context)
 
@@ -2078,9 +2075,8 @@ class test_load_load_operation(unittest.TestCase):
             errors
          )
         self.assertIsNone(result)
-        account_mock.assert_called_once_with('Account.csv', 'r')
 
-    def test_load_load_operation_raises_exception_base64_fields(self):
+    def test_load_load_operation_returns_error_base64_fields(self):
         connection = Mock()
         context = amaxa.LoadOperation(connection)
         context.connection.describe = Mock(
@@ -2190,7 +2186,6 @@ class test_load_load_operation(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.LoadOperation)
-        m.assert_called_once_with('Account.csv', 'r')
 
         self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
         self.assertIn('Account', context.mappers)

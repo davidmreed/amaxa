@@ -1174,21 +1174,43 @@ class test_ExtractionStep(unittest.TestCase):
         oc.get_extracted_ids.assert_not_called()
 
 class test_LoadOperation(unittest.TestCase):
-    def test_stores_output_files(self):
+    def test_stores_input_files(self):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
 
         op.set_input_file('Account', 'a')
         self.assertEqual('a', op.get_input_file('Account'))
-    
+
+    def test_stores_result_files(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+
+        op.set_result_file('Account', 'a')
+        self.assertEqual('a', op.get_result_file('Account'))
+
     def test_maps_record_ids(self):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
 
-        op.register_new_id(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
 
         self.assertEqual(amaxa.SalesforceId('001000000000001'), op.get_new_id(amaxa.SalesforceId('001000000000000')))
-    
+
+    def test_writes_result_entries(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        result_mock = Mock()
+        op.set_result_file('Account', result_mock)
+
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
+
+        result_mock.writerow.assert_called_once_with(
+            {
+                'Original Id': str(amaxa.SalesforceId('001000000000000')),
+                'New Id': str(amaxa.SalesforceId('001000000000001'))
+            }
+        )
+
     def test_execute_runs_all_passes(self):
         connection = Mock()
         first_step = Mock()
@@ -1220,7 +1242,7 @@ class test_LoadStep(unittest.TestCase):
     def test_get_value_for_lookup_with_parent_available(self):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
-        op.register_new_id(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
 
         l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
         l.context = op
@@ -1493,6 +1515,7 @@ class test_LoadStep(unittest.TestCase):
         op.get_input_file = Mock(
             return_value=record_list
         )
+        op.get_result_file = Mock()
         account_proxy = Mock()
         op.get_bulk_proxy_object = Mock(return_value=account_proxy)
         account_proxy.insert = Mock(
@@ -1522,8 +1545,8 @@ class test_LoadStep(unittest.TestCase):
         account_proxy.insert.assert_called_once_with(clean_record_list)
         op.register_new_id.assert_has_calls(
             [
-                unittest.mock.call(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
-                unittest.mock.call(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
+                unittest.mock.call('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
+                unittest.mock.call('Account', amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
             ]
         )
 
@@ -1545,13 +1568,14 @@ class test_LoadStep(unittest.TestCase):
             'Lookup__c': { 'type': 'string' }
         })
 
-        op.register_new_id(amaxa.SalesforceId('003000000000000'), amaxa.SalesforceId('003000000000002'))
-        op.register_new_id(amaxa.SalesforceId('003000000000001'), amaxa.SalesforceId('003000000000003'))
+        op.register_new_id('Account', amaxa.SalesforceId('003000000000000'), amaxa.SalesforceId('003000000000002'))
+        op.register_new_id('Account', amaxa.SalesforceId('003000000000001'), amaxa.SalesforceId('003000000000003'))
 
         op.register_new_id = Mock()
         op.get_input_file = Mock(
             return_value=record_list
         )
+        op.get_result_file = Mock()
         account_proxy = Mock()
         op.get_bulk_proxy_object = Mock(return_value=account_proxy)
         account_proxy.insert = Mock(
@@ -1579,8 +1603,8 @@ class test_LoadStep(unittest.TestCase):
         account_proxy.insert.assert_called_once_with(transformed_record_list)
         op.register_new_id.assert_has_calls(
             [
-                unittest.mock.call(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
-                unittest.mock.call(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
+                unittest.mock.call('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
+                unittest.mock.call('Account', amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
             ]
         )
 
@@ -1605,6 +1629,7 @@ class test_LoadStep(unittest.TestCase):
         op.get_input_file = Mock(
             return_value=record_list
         )
+        op.get_result_file = Mock()
         account_proxy = Mock()
         op.get_bulk_proxy_object = Mock(return_value=account_proxy)
         account_proxy.insert = Mock(
@@ -1651,6 +1676,7 @@ class test_LoadStep(unittest.TestCase):
         op.get_input_file = Mock(
             return_value=record_list
         )
+        op.get_result_file = Mock()
         account_proxy = Mock()
         op.get_bulk_proxy_object = Mock(return_value=account_proxy)
         account_proxy.insert = Mock(
@@ -1729,8 +1755,8 @@ class test_LoadStep(unittest.TestCase):
             'Lookup__c': { 'type': 'string' }
         })
 
-        op.register_new_id(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002'))
-        op.register_new_id(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002'))
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
 
         op.register_new_id = Mock()
         op.get_input_file = Mock(
@@ -1775,8 +1801,8 @@ class test_LoadStep(unittest.TestCase):
             'Lookup__c': { 'type': 'string' }
         })
 
-        op.register_new_id(amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002'))
-        op.register_new_id(amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002'))
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
 
         op.register_new_id = Mock()
         op.get_input_file = Mock(

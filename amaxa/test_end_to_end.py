@@ -159,6 +159,8 @@ Id,CampaignId,LeadId,Status
                 m = leads
             elif f == 'CampaignMember.csv':
                 m = campaign_members
+            else:
+                m = unittest.mock.mock_open()(f, *args, **kwargs)
             
             return m
 
