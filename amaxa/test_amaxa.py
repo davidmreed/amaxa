@@ -3,6 +3,7 @@ import simple_salesforce
 from unittest.mock import Mock, PropertyMock, patch
 from . import amaxa
 from . import transforms
+from . import constants
 
 class test_SalesforceId(unittest.TestCase):
     def test_converts_real_id_pairs(self):
@@ -1206,8 +1207,8 @@ class test_LoadOperation(unittest.TestCase):
 
         result_mock.writerow.assert_called_once_with(
             {
-                'Original Id': str(amaxa.SalesforceId('001000000000000')),
-                'New Id': str(amaxa.SalesforceId('001000000000001'))
+                constants.ORIGINAL_ID: str(amaxa.SalesforceId('001000000000000')),
+                constants.NEW_ID: str(amaxa.SalesforceId('001000000000001'))
             }
         )
 

@@ -3,6 +3,7 @@ import simple_salesforce
 import cerberus
 import logging
 from . import amaxa
+from . import constants
 from . import transforms
 
 def load_credentials(incoming, load):
@@ -168,7 +169,10 @@ def load_load_operation(incoming, context):
             errors.append('Unable to open file {} for reading ({}).'.format(e['file'], exp))
 
         try:
-            output = csv.DictWriter(open(e['result-file'], 'w'), fieldnames=['Original Id', 'New Id'])
+            output = csv.DictWriter(
+                open(e['result-file'], 'w'), 
+                fieldnames=[constants.ORIGINAL_ID, constants.NEW_ID]
+            )
             context.set_result_file(s.sobjectname, output)
         except Exception as exp:
             errors.append('Unable to open file {} for writing ({})'.format(e['result-file'], exp))

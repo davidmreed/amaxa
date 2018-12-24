@@ -1,6 +1,7 @@
 import functools
 import simple_salesforce
 import logging
+from . import constants
 from enum import Enum, unique
 
 @unique
@@ -205,7 +206,12 @@ class LoadOperation(Operation):
     def register_new_id(self, sobjectname, old_id, new_id):
         self.global_id_map[old_id] = new_id
         if sobjectname in self.result_files:
-            self.result_files[sobjectname].writerow({'Original Id': str(old_id), 'New Id': str(new_id)})
+            self.result_files[sobjectname].writerow(
+                {
+                    constants.ORIGINAL_ID: str(old_id),
+                    constants.NEW_ID: str(new_id)
+                }
+            )
 
     def get_new_id(self, old_id):
         return self.global_id_map.get(old_id, None)
