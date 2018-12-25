@@ -97,8 +97,9 @@ class test_CLI(unittest.TestCase):
     @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
     def test_main_calls_execute_with_json_input_extract_mode(self, extraction_mock, credential_mock):
         context = Mock()
+        context.execute.return_value = 0
         credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (Mock(), [])
+        extraction_mock.return_value = (context, [])
         
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
@@ -119,8 +120,9 @@ class test_CLI(unittest.TestCase):
     @unittest.mock.patch('amaxa.__main__.loader.load_load_operation')
     def test_main_calls_execute_with_json_input_load_mode(self, extraction_mock, credential_mock):
         context = Mock()
+        context.execute.return_value = 0
         credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (Mock(), [])
+        extraction_mock.return_value = (context, [])
         
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
@@ -141,8 +143,9 @@ class test_CLI(unittest.TestCase):
     @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
     def test_main_calls_execute_with_yaml_input(self, extraction_mock, credential_mock):
         context = Mock()
+        context.execute.return_value = 0
         credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (Mock(), [])
+        extraction_mock.return_value = (context, [])
         
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):

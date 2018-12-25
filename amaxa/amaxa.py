@@ -29,6 +29,9 @@ class OutsideLookupBehavior(StringEnum):
     INCLUDE = 'include'
     ERROR = 'error'
 
+class AmaxaException(Exception):
+    pass
+
 class SalesforceId(object):
     def __init__(self, idstr):
         if isinstance(idstr, SalesforceId):
@@ -222,10 +225,21 @@ class LoadOperation(Operation):
             s.scan_fields()
             self.logger.info('Loading %s', s.sobjectname)
             s.execute()
+
+            # After each step, check whether errors happened and stop the process.
+            if len(s.errors) > 0:
+                self.logger.error('Errors took place during load of %s:\n%s', s.sobjectname, '\n'.join(s.errors))
+                return -1
         
         for s in self.steps:
             self.logger.info('Populating dependent and self-lookups for %s', s.sobjectname)
             s.execute_dependent_updates()
+
+            if len(s.errors) > 0:
+                self.logger.error('Errors took place during dependent updates for %s:\n%s', s.sobjectname, '\n'.join(s.errors))
+                return -1
+
+        return 0
 
 class LoadStep(Step):
     def __init__(self, sobjectname, field_scope, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
@@ -256,7 +270,7 @@ class LoadStep(Step):
         elif b is OutsideLookupBehavior.INCLUDE:
             return value
         elif b is OutsideLookupBehavior.ERROR:
-            raise Exception(
+            raise AmaxaException(
                 '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.',
                 self.sobjectname, record_id, lookup, value
             )
@@ -312,6 +326,7 @@ class LoadStep(Step):
         # Then, populate all direct lookups. Dependent lookups and self-lookups will be populated in a later pass.
         records_to_load = []
         original_ids = []
+        self.errors = []
         self.dependent_lookup_records = []
 
         reader = self.context.get_input_file(self.sobjectname)
@@ -326,18 +341,24 @@ class LoadStep(Step):
                 self.dependent_lookup_records.append(dependent_record)
 
             # Finally, prep this record for the Bulk API, populate its lookups, apply transforms, and clean dependent lookups
-            record = self.primitivize(
-                self.populate_lookups(
-                    self.clean_dependent_lookups(
-                        self.transform_record(
-                            record
-                        )
-                    ),
-                    self.descendent_lookups,
-                    original_ids[-1]
+            try:
+                record = self.primitivize(
+                    self.populate_lookups(
+                        self.clean_dependent_lookups(
+                            self.transform_record(
+                                record
+                            )
+                        ),
+                        self.descendent_lookups,
+                        original_ids[-1]
+                    )
                 )
-            )
-            records_to_load.append(record)
+                records_to_load.append(record)
+            except AmaxaException as e:
+                self.errors.append(str(e))
+
+        if len(self.errors) > 0:
+            return
 
         results = self.context.get_bulk_proxy_object(self.sobjectname).insert(records_to_load)
         for i, r in enumerate(results):
@@ -348,30 +369,34 @@ class LoadStep(Step):
                     SalesforceId(r['id']) # note lowercase in result
                 )
             else:
-                raise Exception('Failed to load {} {}', self.sobjectname, original_ids[i])
+                self.errors.append('Failed to load {} {}'.format(self.sobjectname, original_ids[i]))
     
     def execute_dependent_updates(self):
         # Populate dependent and self-lookups in a single pass
         records_to_load = []
         original_ids = []
         all_lookups = self.dependent_lookups | self.self_lookups
+        self.errors = []
 
         if len(all_lookups) > 0:
             # Re-check, for each record, whether we have any loading to do.
             # If all of the dependent lookups prove to be dropped outside references, we have no work to do.
             for record in self.dependent_lookup_records:
-                cleaned_record = self.populate_lookups(record, all_lookups, record['Id'])
-                if len([r for r in cleaned_record.values() if r is not None and r != '']) > 1: # 1 for the Id
-                    # Populate the new Id for this record
-                    original_ids.append(cleaned_record['Id'])
-                    cleaned_record['Id'] = str(self.context.get_new_id(SalesforceId(cleaned_record['Id'])))
-                    records_to_load.append(cleaned_record)
+                try:
+                    cleaned_record = self.populate_lookups(record, all_lookups, record['Id'])
+                    if len([r for r in cleaned_record.values() if r is not None and r != '']) > 1: # 1 for the Id
+                        # Populate the new Id for this record
+                        original_ids.append(cleaned_record['Id'])
+                        cleaned_record['Id'] = str(self.context.get_new_id(SalesforceId(cleaned_record['Id'])))
+                        records_to_load.append(cleaned_record)
+                except AmaxaException as e:
+                    self.errors.append(str(e))
             
-            if len(records_to_load) > 0:
+            if len(records_to_load) > 0 and len(self.errors) == 0:
                 results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
                 for i, r in enumerate(results):
                     if not r['success']:
-                        raise Exception('Failed to execute dependent updates for {} {}', self.sobjectname, original_ids[i])
+                        self.errors.append('Failed to execute dependent updates for {} {}'.format(self.sobjectname, original_ids[i]))
 
 
 class ExtractOperation(Operation):
@@ -387,7 +412,13 @@ class ExtractOperation(Operation):
         for s in self.steps:
             self.logger.info('Extracting %s', s.sobjectname)
             s.execute()
-            self.logger.info('Extracted %d records from %s', len(self.get_extracted_ids(s.sobjectname)), s.sobjectname)
+            if len(s.errors) > 0:
+                self.logger.error('Errors took place during extraction of %s:\n%s', s.sobjectname, '\n'.join(s.errors))
+                return -1
+            else:
+                self.logger.info('Extracted %d records from %s', len(self.get_extracted_ids(s.sobjectname)), s.sobjectname)
+
+        return 0
 
     def set_output_file(self, sobjectname, f):
         self.output_files[sobjectname] = f
@@ -450,6 +481,7 @@ class ExtractionStep(Step):
         return self.lookup_behaviors.get(f, self.outside_lookup_behavior)
 
     def execute(self):
+        self.errors = []
         self.scan_fields()
         # If scope if ALL_RECORDS, execute a Bulk API job to extract all records
         # If scope is QUERY, execute a Bulk API job to download a query with where_clause
@@ -479,7 +511,11 @@ class ExtractionStep(Step):
         # Note that if we're tracing self-lookups, the parent objects of all extracted records so far
         # will already be registered as dependencies.
 
-        self.resolve_registered_dependencies()
+        try:
+            self.resolve_registered_dependencies()
+        except AmaxaException as exc:
+            self.errors.append(str(exc))
+            return
 
         # If we have any self-lookups, we now need to iterate to handle them.
         if len(self.self_lookups) > 0 and self.self_lookup_behavior is SelfLookupBehavior.TRACE_ALL \
@@ -566,7 +602,7 @@ class ExtractionStep(Step):
                 elif behavior is OutsideLookupBehavior.INCLUDE:
                     continue
                 elif behavior is OutsideLookupBehavior.ERROR:
-                    raise Exception(
+                    raise AmaxaException(
                         '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.',
                         self.sobjectname, result['Id'], f, result[f]
                     )
@@ -579,7 +615,7 @@ class ExtractionStep(Step):
         self.perform_id_field_pass('Id', pre_deps)
         missing = self.context.get_dependencies(self.sobjectname).intersection(pre_deps)
         if len(missing) > 0:
-            raise Exception('Unable to resolve dependencies for sObject {}. The following Ids could not be found: {}',
+            raise AmaxaException('Unable to resolve dependencies for sObject {}. The following Ids could not be found: {}',
                 self.sobjectname, ', '.join([str(i) for i in missing]))
 
 

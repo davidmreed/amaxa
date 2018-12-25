@@ -196,7 +196,9 @@ class test_ExtractOperation(unittest.TestCase):
 
         # pylint: disable=W0612
         for i in range(3):
-            oc.add_step(Mock())
+            s = Mock()
+            s.errors = []
+            oc.add_step(s)
         
         oc.execute()
 
@@ -709,7 +711,7 @@ class test_ExtractionStep(unittest.TestCase):
         oc.add_step(step)
         step.scan_fields()
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(amaxa.AmaxaException):
             step.store_result({'Id': '003000000000001', 'AccountId': '001000000000001'})
 
     def test_store_result_respects_outside_lookup_behavior_include(self):
@@ -973,7 +975,7 @@ class test_ExtractionStep(unittest.TestCase):
             }
         })
         oc.get_dependencies = Mock(
-            return_value=[
+            side_effect=[
                 set([
                     amaxa.SalesforceId('001000000000001'),
                     amaxa.SalesforceId('001000000000002')
@@ -989,7 +991,7 @@ class test_ExtractionStep(unittest.TestCase):
         oc.add_step(step)
         step.scan_fields()
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(amaxa.AmaxaException):
             step.resolve_registered_dependencies()
 
     def test_execute_with_all_records_performs_bulk_api_pass(self):
@@ -1216,6 +1218,7 @@ class test_LoadOperation(unittest.TestCase):
         connection = Mock()
         first_step = Mock()
         second_step = Mock()
+        first_step.errors = second_step.errors = []
 
         op = amaxa.LoadOperation(connection)
 
@@ -1301,7 +1304,7 @@ class test_LoadStep(unittest.TestCase):
         l.set_lookup_behavior_for_field('ParentId', amaxa.OutsideLookupBehavior.ERROR)
 
 
-        with self.assertRaises(Exception, msg='{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.'.format(
+        with self.assertRaises(amaxa.AmaxaException, msg='{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.'.format(
                     'Account',
                     '001000000000002',
                     'ParentId',
@@ -1708,8 +1711,8 @@ class test_LoadStep(unittest.TestCase):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
         op.get_field_map = Mock(return_value={
-            'Name': { 'type': 'string '},
-            'Id': { 'type': 'string' }
+            'Name': { 'soapType': 'xsd:string', 'type': 'string' },
+            'Id': { 'soapType': 'xsd:string', 'type': 'string' }
         })
         op.register_new_id = Mock()
         op.get_input_file = Mock(
@@ -1728,11 +1731,15 @@ class test_LoadStep(unittest.TestCase):
         l.context = op
 
         l.scan_fields()
-        with self.assertRaises(Exception, msg='Failed to load {} {}'.format(
-            'Account',
-            record_list[0]['Id']
-        )):
-            l.execute()
+        l.execute()
+
+        self.assertEqual(
+            [
+                'Failed to load {} {}'.format('Account', record_list[0]['Id']),
+                'Failed to load {} {}'.format('Account', record_list[1]['Id'])
+            ],
+            l.errors
+        )
 
     def test_execute_dependent_updates_handles_lookups(self):
         record_list = [
@@ -1824,11 +1831,16 @@ class test_LoadStep(unittest.TestCase):
         l.scan_fields()
         l.self_lookups = set(['Lookup__c'])
         l.dependent_lookup_records = dependent_record_list
-        with self.assertRaises(Exception, msg='Failed to execute dependent updates for {} {}'.format(
-            'Account',
-            '001000000000000'
-        )):
-            l.execute_dependent_updates()
+
+        l.execute_dependent_updates()
+
+        self.assertEqual(
+            [
+                'Failed to execute dependent updates for {} {}'.format('Account','001000000000000'),
+                'Failed to execute dependent updates for {} {}'.format('Account','001000000000001')
+            ],
+            l.errors
+        )
 
 if __name__ == "__main__":
     unittest.main()

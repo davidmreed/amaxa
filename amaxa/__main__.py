@@ -49,7 +49,7 @@ def main():
         (ex, errors) = loader.load_extraction_operation(config, context)
 
     if ex is not None:
-        ex.execute()
+        return ex.execute()
     else:
         print('Unable to execute operation due to the following errors:\n {}'.format('\n'.join(errors)))
         return -1
