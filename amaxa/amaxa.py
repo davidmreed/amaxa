@@ -247,6 +247,7 @@ class LoadStep(Step):
         self.field_scope = field_scope
         self.outside_lookup_behavior = outside_lookup_behavior
         self.lookup_behaviors = {}
+        self.errors = []
         self.dependent_lookup_records = []
 
         self.context = None
@@ -326,8 +327,6 @@ class LoadStep(Step):
         # Then, populate all direct lookups. Dependent lookups and self-lookups will be populated in a later pass.
         records_to_load = []
         original_ids = []
-        self.errors = []
-        self.dependent_lookup_records = []
 
         reader = self.context.get_input_file(self.sobjectname)
         for record in reader:
@@ -356,6 +355,8 @@ class LoadStep(Step):
                 records_to_load.append(record)
             except AmaxaException as e:
                 self.errors.append(str(e))
+            except ValueError as e:
+                self.errors.append('Bad data in record {}: {}'.format(original_ids[-1], str(e)))
 
         if len(self.errors) > 0:
             return
@@ -376,7 +377,6 @@ class LoadStep(Step):
         records_to_load = []
         original_ids = []
         all_lookups = self.dependent_lookups | self.self_lookups
-        self.errors = []
 
         if len(all_lookups) > 0:
             # Re-check, for each record, whether we have any loading to do.
@@ -470,6 +470,7 @@ class ExtractionStep(Step):
         self.self_lookup_behavior = self_lookup_behavior
         self.outside_lookup_behavior = outside_lookup_behavior
         self.lookup_behaviors = {}
+        self.errors = []
 
     def set_lookup_behavior_for_field(self, f, behavior):
         self.lookup_behaviors[f] = behavior
@@ -481,7 +482,6 @@ class ExtractionStep(Step):
         return self.lookup_behaviors.get(f, self.outside_lookup_behavior)
 
     def execute(self):
-        self.errors = []
         self.scan_fields()
         # If scope if ALL_RECORDS, execute a Bulk API job to extract all records
         # If scope is QUERY, execute a Bulk API job to download a query with where_clause
@@ -511,11 +511,7 @@ class ExtractionStep(Step):
         # Note that if we're tracing self-lookups, the parent objects of all extracted records so far
         # will already be registered as dependencies.
 
-        try:
-            self.resolve_registered_dependencies()
-        except AmaxaException as exc:
-            self.errors.append(str(exc))
-            return
+        self.resolve_registered_dependencies()
 
         # If we have any self-lookups, we now need to iterate to handle them.
         if len(self.self_lookups) > 0 and self.self_lookup_behavior is SelfLookupBehavior.TRACE_ALL \
@@ -602,9 +598,13 @@ class ExtractionStep(Step):
                 elif behavior is OutsideLookupBehavior.INCLUDE:
                     continue
                 elif behavior is OutsideLookupBehavior.ERROR:
-                    raise AmaxaException(
-                        '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.',
-                        self.sobjectname, result['Id'], f, result[f]
+                    self.errors.append(
+                        '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.'.format(
+                            self.sobjectname,
+                            result['Id'],
+                            f,
+                            result[f]
+                        )
                     )
 
         # Finally, call through to the context to store this result.
@@ -615,16 +615,17 @@ class ExtractionStep(Step):
         self.perform_id_field_pass('Id', pre_deps)
         missing = self.context.get_dependencies(self.sobjectname).intersection(pre_deps)
         if len(missing) > 0:
-            raise AmaxaException('Unable to resolve dependencies for sObject {}. The following Ids could not be found: {}',
-                self.sobjectname, ', '.join([str(i) for i in missing]))
-
+            self.errors.append(
+                'Unable to resolve dependencies for sObject {}. The following Ids could not be found: {}'.format(
+                    self.sobjectname,
+                    ', '.join([str(i) for i in missing])
+                )
+            )
 
     def perform_bulk_api_pass(self, query):
         bulk_proxy = self.context.get_bulk_proxy_object(self.sobjectname)
 
         results = bulk_proxy.query(query)
-
-        # FIXME: error handling.
 
         for rec in results:
             self.store_result(rec)

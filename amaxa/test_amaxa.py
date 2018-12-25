@@ -711,8 +711,18 @@ class test_ExtractionStep(unittest.TestCase):
         oc.add_step(step)
         step.scan_fields()
 
-        with self.assertRaises(amaxa.AmaxaException):
-            step.store_result({'Id': '003000000000001', 'AccountId': '001000000000001'})
+        step.store_result({'Id': '003000000000001', 'AccountId': '001000000000001'})
+        self.assertEqual(
+            [
+                '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.'.format(
+                    'Contact',
+                    '003000000000001',
+                    'AccountId',
+                    '001000000000001'
+                )
+            ],
+            step.errors
+        )
 
     def test_store_result_respects_outside_lookup_behavior_include(self):
         connection = Mock()
@@ -991,8 +1001,16 @@ class test_ExtractionStep(unittest.TestCase):
         oc.add_step(step)
         step.scan_fields()
 
-        with self.assertRaises(amaxa.AmaxaException):
-            step.resolve_registered_dependencies()
+        step.resolve_registered_dependencies()
+        self.assertEqual(
+            [
+                'Unable to resolve dependencies for sObject {}. The following Ids could not be found: {}'.format(
+                    step.sobjectname,
+                    ', '.join([str(i) for i in [amaxa.SalesforceId('001000000000002')]])
+                )
+            ],
+            step.errors
+        )
 
     def test_execute_with_all_records_performs_bulk_api_pass(self):
         connection = Mock()
