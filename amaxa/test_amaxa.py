@@ -973,7 +973,7 @@ class test_ExtractionStep(unittest.TestCase):
         step.perform_id_field_pass.assert_called_once_with('Id', set([amaxa.SalesforceId('001000000000001'),
             amaxa.SalesforceId('001000000000002')]))
 
-    def test_resolve_registered_dependencies_throws_exception_for_missing_ids(self):
+    def test_resolve_registered_dependencies_registers_error_for_missing_ids(self):
         connection = Mock()
 
         oc = amaxa.ExtractOperation(connection)
@@ -1243,7 +1243,7 @@ class test_LoadOperation(unittest.TestCase):
         op.add_step(first_step)
         op.add_step(second_step)
 
-        op.execute()
+        self.assertEqual(0, op.execute())
 
         first_step.execute.assert_called_once_with()
         first_step.execute_dependent_updates.assert_called_once_with()
@@ -1251,6 +1251,49 @@ class test_LoadOperation(unittest.TestCase):
         second_step.execute.assert_called_once_with()
         second_step.execute_dependent_updates.assert_called_once_with()
 
+    def test_execute_stops_after_first_error_in_step_execute(self):
+        connection = Mock()
+        first_step = Mock()
+        first_step.errors = ['Err']
+        second_step = Mock()
+        second_step.errors = []
+
+        op = amaxa.LoadOperation(connection)
+
+        op.add_step(first_step)
+        op.add_step(second_step)
+
+        self.assertEqual(-1, op.execute())
+
+        first_step.execute.assert_called_once_with()
+        first_step.execute_dependent_updates.assert_not_called()
+
+        second_step.execute.assert_not_called()
+        second_step.execute_dependent_updates.assert_not_called()
+
+    def test_execute_stops_after_first_error_in_step_execute_dependent_updates(self):
+        def side_effect():
+            first_step.errors = ['Err']
+        
+        connection = Mock()
+        first_step = Mock()
+        first_step.errors = []
+        first_step.execute_dependent_updates = Mock(side_effect=side_effect)
+        second_step = Mock()
+        second_step.errors = []
+
+        op = amaxa.LoadOperation(connection)
+
+        op.add_step(first_step)
+        op.add_step(second_step)
+
+        self.assertEqual(-1, op.execute())
+
+        first_step.execute.assert_called_once_with()
+        first_step.execute_dependent_updates.assert_called_once_with()
+
+        second_step.execute.assert_called_once_with()
+        second_step.execute_dependent_updates.assert_not_called()
 
 class test_LoadStep(unittest.TestCase):
     def test_stores_lookup_behaviors(self):

@@ -201,3 +201,22 @@ class test_CLI(unittest.TestCase):
         extraction_mock.assert_called_once_with(yaml.safe_load(extraction_bad), context)
 
         self.assertEqual(-1, return_value)
+    
+    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
+    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
+    def test_main_returns_error_with_errors_during_extraction(self, extraction_mock, credential_mock):
+        context = Mock()
+        op = Mock()
+        op.execute = Mock(return_value=-1)
+        credential_mock.return_value = (context, [])
+        extraction_mock.return_value = (op, [])
+        
+        m = Mock(side_effect=select_file)
+        with unittest.mock.patch('builtins.open', m):
+            with unittest.mock.patch(
+                'sys.argv',
+                ['amaxa', '-c', 'credentials-good.yaml', 'extraction-good.yaml']
+            ):
+                return_value = main()
+
+        self.assertEqual(-1, return_value)

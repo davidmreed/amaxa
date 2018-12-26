@@ -256,8 +256,11 @@ def load_extraction_operation(incoming, context):
 
         if 'ids' in to_extract:
             # Register the required IDs in the context
-            for id in to_extract.get('ids'):
-                context.add_dependency(sobject, amaxa.SalesforceId(id))
+            try:
+                for id in to_extract.get('ids'):
+                    context.add_dependency(sobject, amaxa.SalesforceId(id))
+            except ValueError:
+                errors.append('One or more invalid Id values provided for sObject {}'.format(sobject))
             
             scope = amaxa.ExtractionScope.SELECTED_RECORDS
         elif 'query' in to_extract:

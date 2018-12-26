@@ -207,6 +207,54 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertEqual(['version: [\'required field\']'], errors)
         context.assert_not_called()
 
+    def test_load_extraction_operation_returns_error_on_bad_ids(self):
+        context = Mock()
+        context.steps = []
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string'
+                },
+                'Id': {
+                    'type': 'string'
+                }
+            }
+        )
+
+        (result, errors) = loader.load_extraction_operation(
+            {
+                'version': 1,
+                'operation': [
+                    { 
+                        'sobject': 'Account',
+                        'fields': [ 'Name' ],
+                        'extract': { 
+                            'ids': [
+                                '001XXXXXXXXXXXXXXXXX',
+                                ''
+                            ] 
+                        }
+                    }
+                ]
+            },
+            context
+        )
+
+        self.assertIsNone(result)
+        self.assertEqual(['One or more invalid Id values provided for sObject Account'], errors)
+        context.assert_not_called()
+
     @unittest.mock.patch('simple_salesforce.Salesforce')
     def test_load_extraction_operation_traps_login_exceptions(self, sf_mock):
         return_exception = simple_salesforce.SalesforceAuthenticationFailed(500, 'Internal Server Error')
