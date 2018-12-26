@@ -17,6 +17,14 @@ class test_end_to_end(unittest.TestCase):
             session_id=os.environ['ACCESS_TOKEN']
         )
 
+    def tearDown(self):
+        self.connection.restful(
+            'tooling/executeAnonymous', 
+            {
+                'anonymousBody': 'delete [SELECT Id FROM Lead]; delete [SELECT Id FROM Product2]; delete [SELECT Id FROM Campaign];'
+            }
+        )
+
     def test_extracts_from_command_line(self):
         contact_mock = io.StringIO()
         account_mock = io.StringIO()
@@ -93,21 +101,19 @@ class test_end_to_end(unittest.TestCase):
         self.assertEqual(set(['FirstName', 'LastName', 'AccountId', 'Id']), set(contact_reader.fieldnames))
 
     def test_loads_from_command_line(self):
-        # To avoid conflict with other load tests and with extract tests,
-        # we load Campaigns, Campaign Members, and Leads.
-        # Relative to the integration tests, we use "TC02-" as a namespace on created records.
+        # To avoid conflict with extract tests, we load Campaigns, Campaign Members, and Leads.
         campaigns = io.StringIO('''
 Id,Name,IsActive,ParentId
-701000000000001,TC02-Tauron Tourist Outreach,true,
-701000000000002,TC02-Aerilon Outreach,true,701000000000001
-701000000000003AAA,TC02-Caprica City Direct Mailer,false,701000000000001
+701000000000001,Tauron Tourist Outreach,true,
+701000000000002,Aerilon Outreach,true,701000000000001
+701000000000003AAA,Caprica City Direct Mailer,false,701000000000001
         '''.strip())
         leads = io.StringIO('''
 Id,Company,LastName
-00Q000000000001,TC02-Picon Fleet Headquarters,Nagata
-00Q000000000002,TC02-Picon Fleet Headquarters,Adama
-00Q000000000003,TC02-Ha-La-Tha,Guatrau
-00Q000000000004,TC02-[not provided],Thrace
+00Q000000000001,Picon Fleet Headquarters,Nagata
+00Q000000000002,Picon Fleet Headquarters,Adama
+00Q000000000003,Ha-La-Tha,Guatrau
+00Q000000000004,[not provided],Thrace
         '''.strip())
         campaign_members = io.StringIO('''
 Id,CampaignId,LeadId,Status
@@ -174,18 +180,18 @@ Id,CampaignId,LeadId,Status
 
                 self.assertEqual(0, return_value)
 
-        loaded_campaigns = self.connection.query_all('SELECT Name, IsActive, (SELECT Name FROM ChildCampaigns) FROM Campaign WHERE Name LIKE \'TC02%\'').get('records')
+        loaded_campaigns = self.connection.query_all('SELECT Name, IsActive, (SELECT Name FROM ChildCampaigns) FROM Campaign').get('records')
         self.assertEqual(3, len(loaded_campaigns))
-        required_names = { 'TC02-Tauron Tourist Outreach', 'TC02-Aerilon Outreach', 'TC02-Caprica City Direct Mailer' }
+        required_names = { 'Tauron Tourist Outreach', 'Aerilon Outreach', 'Caprica City Direct Mailer' }
         for r in loaded_campaigns:
             self.assertIn(r['Name'], required_names)
             required_names.remove(r['Name'])
-            if r['Name'] == 'TC02-Tauron Tourist Outreach':
+            if r['Name'] == 'Tauron Tourist Outreach':
                 self.assertEqual(2, len(r['ChildCampaigns']['records']))
 
         self.assertEqual(0, len(required_names))
 
-        loaded_leads = self.connection.query_all('SELECT LastName, Company, (SELECT Name FROM CampaignMembers) FROM Lead WHERE Company LIKE \'TC02%\'').get('records')
+        loaded_leads = self.connection.query_all('SELECT LastName, Company, (SELECT Name FROM CampaignMembers) FROM Lead').get('records')
         self.assertEqual(4, len(loaded_leads))
         required_names = { 'Nagata', 'Adama', 'Guatrau', 'Thrace' }
         for r in loaded_leads:
@@ -200,5 +206,5 @@ Id,CampaignId,LeadId,Status
 
         self.assertEqual(0, len(required_names))
 
-        loaded_campaign_members = self.connection.query_all('SELECT Id FROM CampaignMember WHERE Campaign.Name LIKE \'TC02%\'').get('records')
+        loaded_campaign_members = self.connection.query_all('SELECT Id FROM CampaignMember').get('records')
         self.assertEqual(4, len(loaded_campaign_members))
