@@ -379,7 +379,11 @@ def load_extraction_operation(incoming, context):
     # Create DictWriters and populate them in the context
     for (s, e) in zip(context.steps, incoming['operation']):
         try:
-            output = csv.DictWriter(open(e['file'], 'w'), fieldnames = s.field_scope, extrasaction='ignore')
+            output = csv.DictWriter(
+                open(e['file'], 'w'),
+                fieldnames = sorted(s.field_scope, key=lambda x: x if x != 'Id' else ' Id'),
+                extrasaction='ignore'
+            )
             output.writeheader()
             context.set_output_file(s.sobjectname, output)
         except Exception as exp:
