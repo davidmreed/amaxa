@@ -405,8 +405,8 @@ class ExtractOperation(Operation):
         self.required_ids = {}
         self.extracted_ids = {}
         self.output_files = {}
+        self.output_file_handles = {}
         self.mappers = {}
-        self.file_objects = []
 
     def execute(self):
         self.logger.info('Starting extraction with sObjects %s', self.get_sobject_list())
@@ -415,6 +415,7 @@ class ExtractOperation(Operation):
             s.execute()
             if len(s.errors) > 0:
                 self.logger.error('%s: errors took place during extraction:\n%s', s.sobjectname, '\n'.join(s.errors))
+                self.close_files()
                 return -1
             else:
                 self.logger.info(
@@ -423,11 +424,17 @@ class ExtractOperation(Operation):
                     len(self.get_extracted_ids(s.sobjectname)),
                     's' if len(self.get_extracted_ids(s.sobjectname)) > 1 else ''
                 )
-        
+
+        self.close_files()
         return 0
 
-    def set_output_file(self, sobjectname, f):
-        self.output_files[sobjectname] = f
+    def set_output_file(self, sobjectname, output, f):
+        self.output_files[sobjectname] = output
+        self.output_file_handles[sobjectname] = f
+
+    def close_files(self):
+        for f in self.output_file_handles.values():
+            f.close()
 
     def add_dependency(self, sobjectname, id):
         if sobjectname not in self.required_ids:

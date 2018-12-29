@@ -123,16 +123,16 @@ def load_load_operation(incoming, context):
             elif field_map[f]['type'] == 'reference':
                 # Ensure that the target objects of this reference
                 # are included in the extraction. If not, show a warning.
-                if any([ref not in all_sobjects for ref in field_map[f]['referenceTo']]):
-                    logging.getLogger('amaxa').debug(
-                        'Field %s.%s is a reference whose targets (%s) are not all included in the load. Reference handlers will be inactive for references to non-included sObjects.',
+                if not any([ref in all_sobjects for ref in field_map[f]['referenceTo']]):
+                    logging.getLogger('amaxa').warn(
+                        'Field %s.%s is a reference none of whose targets (%s) are included in the load. Reference handlers will be inactive for references to non-included sObjects.',
                         sobject,
                         f,
                         ', '.join(field_map[f]['referenceTo'])
                     )
-                elif not any([ref in all_sobjects for ref in field_map[f]['referenceTo']]):
-                    logging.getLogger('amaxa').warn(
-                        'Field %s.%s is a reference none of whose targets (%s) are included in the load. Reference handlers will be inactive for references to non-included sObjects.',
+                elif not all([ref in all_sobjects for ref in field_map[f]['referenceTo']]):
+                    logging.getLogger('amaxa').debug(
+                        'Field %s.%s is a reference whose targets (%s) are not all included in the load. Reference handlers will be inactive for references to non-included sObjects.',
                         sobject,
                         f,
                         ', '.join(field_map[f]['referenceTo'])
@@ -338,8 +338,15 @@ def load_extraction_operation(incoming, context):
             elif field_map[f]['type'] == 'reference':
                 # Ensure that the target objects of this reference
                 # are included in the extraction. If not, show a warning.
-                if any([ref not in all_sobjects for ref in field_map[f]['referenceTo']]):
+                if not any([ref in all_sobjects for ref in field_map[f]['referenceTo']]):
                     logging.getLogger('amaxa').warn(
+                        'Field %s.%s is a reference none of whose targets (%s) are included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
+                        sobject,
+                        f,
+                        ', '.join(field_map[f]['referenceTo'])
+                    )
+                elif not all([ref in all_sobjects for ref in field_map[f]['referenceTo']]):
+                    logging.getLogger('amaxa').debug(
                         'Field %s.%s is a reference whose targets (%s) are not all included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
                         sobject,
                         f,
@@ -379,13 +386,14 @@ def load_extraction_operation(incoming, context):
     # Create DictWriters and populate them in the context
     for (s, e) in zip(context.steps, incoming['operation']):
         try:
+            f = open(e['file'], 'w')
             output = csv.DictWriter(
-                open(e['file'], 'w'),
+                f,
                 fieldnames = sorted(s.field_scope, key=lambda x: x if x != 'Id' else ' Id'),
                 extrasaction='ignore'
             )
             output.writeheader()
-            context.set_output_file(s.sobjectname, output)
+            context.set_output_file(s.sobjectname, output, f)
         except Exception as exp:
             return (None, ['Unable to open file {} for writing ({}).'.format(e['file'], exp)])
 

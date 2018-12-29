@@ -1278,7 +1278,7 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.ExtractOperation)
         amaxa_logger.warn.assert_called_once_with(
-            'Field %s.%s is a reference whose targets (%s) are not all included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
+            'Field %s.%s is a reference none of whose targets (%s) are included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
             'Test__c',
             'Parent__c',
             ', '.join(['Parent__c'])
@@ -2666,7 +2666,7 @@ class test_load_load_operation(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.LoadOperation)
         amaxa_logger.warn.assert_called_once_with(
-            'Field %s.%s is a reference whose targets (%s) are not all included in the load. Reference handlers will be inactive for references to non-included sObjects.',
+            'Field %s.%s is a reference none of whose targets (%s) are included in the load. Reference handlers will be inactive for references to non-included sObjects.',
             'Test__c',
             'Parent__c',
             ', '.join(['Parent__c'])
