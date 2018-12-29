@@ -124,8 +124,15 @@ def load_load_operation(incoming, context):
                 # Ensure that the target objects of this reference
                 # are included in the extraction. If not, show a warning.
                 if any([ref not in all_sobjects for ref in field_map[f]['referenceTo']]):
-                    logging.getLogger('amaxa').warn(
+                    logging.getLogger('amaxa').debug(
                         'Field %s.%s is a reference whose targets (%s) are not all included in the load. Reference handlers will be inactive for references to non-included sObjects.',
+                        sobject,
+                        f,
+                        ', '.join(field_map[f]['referenceTo'])
+                    )
+                elif not any([ref in all_sobjects for ref in field_map[f]['referenceTo']]):
+                    logging.getLogger('amaxa').warn(
+                        'Field %s.%s is a reference none of whose targets (%s) are included in the load. Reference handlers will be inactive for references to non-included sObjects.',
                         sobject,
                         f,
                         ', '.join(field_map[f]['referenceTo'])

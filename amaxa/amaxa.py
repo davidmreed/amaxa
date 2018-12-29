@@ -223,20 +223,20 @@ class LoadOperation(Operation):
         self.logger.info('Starting load with sObjects %s', self.get_sobject_list())
         for s in self.steps:
             s.scan_fields()
-            self.logger.info('Loading %s', s.sobjectname)
+            self.logger.info('%s: starting load', s.sobjectname)
             s.execute()
 
             # After each step, check whether errors happened and stop the process.
             if len(s.errors) > 0:
-                self.logger.error('Errors took place during load of %s:\n%s', s.sobjectname, '\n'.join(s.errors))
+                self.logger.error('%s: errors took place during load:\n%s', s.sobjectname, '\n'.join(s.errors))
                 return -1
         
         for s in self.steps:
-            self.logger.info('Populating dependent and self-lookups for %s', s.sobjectname)
+            self.logger.info('%s: populating dependent and self-lookups', s.sobjectname)
             s.execute_dependent_updates()
 
             if len(s.errors) > 0:
-                self.logger.error('Errors took place during dependent updates for %s:\n%s', s.sobjectname, '\n'.join(s.errors))
+                self.logger.error('%s: errors took place during dependent updates:\n%s', s.sobjectname, '\n'.join(s.errors))
                 return -1
 
         return 0
@@ -406,18 +406,24 @@ class ExtractOperation(Operation):
         self.extracted_ids = {}
         self.output_files = {}
         self.mappers = {}
+        self.file_objects = []
 
     def execute(self):
         self.logger.info('Starting extraction with sObjects %s', self.get_sobject_list())
         for s in self.steps:
-            self.logger.info('Extracting %s', s.sobjectname)
+            self.logger.info('%s: starting extraction', s.sobjectname)
             s.execute()
             if len(s.errors) > 0:
-                self.logger.error('Errors took place during extraction of %s:\n%s', s.sobjectname, '\n'.join(s.errors))
+                self.logger.error('%s: errors took place during extraction:\n%s', s.sobjectname, '\n'.join(s.errors))
                 return -1
             else:
-                self.logger.info('Extracted %d records from %s', len(self.get_extracted_ids(s.sobjectname)), s.sobjectname)
-
+                self.logger.info(
+                    '%s: extracted %d record%s',
+                    s.sobjectname,
+                    len(self.get_extracted_ids(s.sobjectname)),
+                    's' if len(self.get_extracted_ids(s.sobjectname)) > 1 else ''
+                )
+        
         return 0
 
     def set_output_file(self, sobjectname, f):
@@ -450,8 +456,8 @@ class ExtractOperation(Operation):
         if sobjectname not in self.extracted_ids:
             self.extracted_ids[sobjectname] = set()
 
-        self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
         if SalesforceId(record['Id']) not in self.extracted_ids[sobjectname]:
+            self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
             self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
             self.output_files[sobjectname].writerow(
                 self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
