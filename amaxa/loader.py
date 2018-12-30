@@ -176,11 +176,13 @@ def load_load_operation(incoming, context):
             errors.append('Unable to open file {} for reading ({}).'.format(e['file'], exp))
 
         try:
+            f = open(e['result-file'], 'w')
             output = csv.DictWriter(
-                open(e['result-file'], 'w'), 
+                f, 
                 fieldnames=[constants.ORIGINAL_ID, constants.NEW_ID]
             )
-            context.set_result_file(s.sobjectname, output)
+            output.writeheader()
+            context.set_result_file(s.sobjectname, output, f)
         except Exception as exp:
             errors.append('Unable to open file {} for writing ({})'.format(e['result-file'], exp))
 

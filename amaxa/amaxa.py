@@ -191,6 +191,7 @@ class LoadOperation(Operation):
         super().__init__(connection)
         self.input_files = {}
         self.result_files = {}
+        self.result_file_handles = {}
         self.mappers = {}
         self.global_id_map = {}
 
@@ -200,8 +201,9 @@ class LoadOperation(Operation):
     def get_input_file(self, sobjectname):
         return self.input_files[sobjectname]
 
-    def set_result_file(self, sobjectname, f):
-        self.result_files[sobjectname] = f
+    def set_result_file(self, sobjectname, output, f):
+        self.result_files[sobjectname] = output
+        self.result_file_handles[sobjectname] = f
     
     def get_result_file(self, sobjectname):
         return self.result_files[sobjectname]
@@ -229,6 +231,7 @@ class LoadOperation(Operation):
             # After each step, check whether errors happened and stop the process.
             if len(s.errors) > 0:
                 self.logger.error('%s: errors took place during load:\n%s', s.sobjectname, '\n'.join(s.errors))
+                self.close_files()
                 return -1
         
         for s in self.steps:
@@ -237,9 +240,15 @@ class LoadOperation(Operation):
 
             if len(s.errors) > 0:
                 self.logger.error('%s: errors took place during dependent updates:\n%s', s.sobjectname, '\n'.join(s.errors))
+                self.close_files()
                 return -1
 
+        self.close_files()
         return 0
+
+    def close_files(self):
+        for f in self.result_file_handles.values():
+            f.close()
 
 class LoadStep(Step):
     def __init__(self, sobjectname, field_scope, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
