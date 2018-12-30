@@ -370,7 +370,20 @@ class LoadStep(Step):
                     SalesforceId(r['id']) # note lowercase in result
                 )
             else:
-                self.errors.append('Failed to load {} {}'.format(self.sobjectname, original_ids[i]))
+                self.errors.append(
+                    'Failed to load {} {}: {}'.format(
+                        self.sobjectname, 
+                        original_ids[i],
+                        '\n'.join(
+                            [self.construct_error_message(error) for error in r['errors']]
+                        )
+                    )
+                )
+
+    def construct_error_message(self, error):
+        return '{statusCode}: {message} ({extendedErrorDetails})'.format(
+            **{ k: '' if v is None else v for (k, v) in error.items() }
+        )
     
     def execute_dependent_updates(self):
         # Populate dependent and self-lookups in a single pass
@@ -396,7 +409,15 @@ class LoadStep(Step):
                 results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
                 for i, r in enumerate(results):
                     if not r['success']:
-                        self.errors.append('Failed to execute dependent updates for {} {}'.format(self.sobjectname, original_ids[i]))
+                        self.errors.append(
+                            'Failed to execute dependent updates for {} {}: {}'.format(
+                                self.sobjectname, 
+                                original_ids[i],
+                                '\n'.join(
+                                    [self.construct_error_message(error) for error in r['errors']]
+                                )
+                            )
+                        )
 
 
 class ExtractOperation(Operation):

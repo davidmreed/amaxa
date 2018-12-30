@@ -1781,10 +1781,24 @@ class test_LoadStep(unittest.TestCase):
         )
         account_proxy = Mock()
         op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        error = {
+            'statusCode': 'DUPLICATES_DETECTED',
+            'message': 'Duplicate Alert',
+            'extendedErrorDetails': None,
+            'fields': []
+        }
         account_proxy.insert = Mock(
             return_value=[
-                { 'success': False, 'id': '001000000000002' },
-                { 'success': False, 'id': '001000000000003' }
+                { 
+                    'success': False, 
+                    'id': None, 
+                    'errors': [ error ]
+                },
+                { 
+                    'success': False, 
+                    'id': None, 
+                    'errors': [ error ]
+                }
             ]
         )
 
@@ -1796,8 +1810,8 @@ class test_LoadStep(unittest.TestCase):
 
         self.assertEqual(
             [
-                'Failed to load {} {}'.format('Account', record_list[0]['Id']),
-                'Failed to load {} {}'.format('Account', record_list[1]['Id'])
+                'Failed to load {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account', record_list[0]['Id']),
+                'Failed to load {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account', record_list[1]['Id'])
             ],
             l.errors
         )
@@ -1879,10 +1893,16 @@ class test_LoadStep(unittest.TestCase):
         )
         account_proxy = Mock()
         op.get_bulk_proxy_object = Mock(return_value=account_proxy)
+        error = {
+            'statusCode': 'DUPLICATES_DETECTED',
+            'message': 'Duplicate Alert',
+            'extendedErrorDetails': None,
+            'fields': []
+        }
         account_proxy.update = Mock(
             return_value=[
-                { 'success': False },
-                { 'success': False }
+                { 'success': False, 'errors': [ error ] },
+                { 'success': False, 'errors': [ error ] }
             ]
         )
 
@@ -1897,8 +1917,8 @@ class test_LoadStep(unittest.TestCase):
 
         self.assertEqual(
             [
-                'Failed to execute dependent updates for {} {}'.format('Account','001000000000000'),
-                'Failed to execute dependent updates for {} {}'.format('Account','001000000000001')
+                'Failed to execute dependent updates for {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account','001000000000000'),
+                'Failed to execute dependent updates for {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account','001000000000001')
             ],
             l.errors
         )
