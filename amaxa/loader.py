@@ -207,12 +207,24 @@ def load_load_operation(incoming, context):
 
         if 'field-group' in e and e['input-validation'] == 'default':
             # Field group validation: file can omit columns but can't have extra
-            if not s.field_scope.issuperset(file_field_set):
+            # For the 'smart' field group, we permit any readable (but not writeable) fields
+            # to be in the file, since the file was likely pulled with 'smart'=='readable'
+            if e['field-group'] == 'smart':
+                comparand = set(
+                    context.get_filtered_field_map(
+                        s.sobjectname,
+                        lambda f: f['type'] not in ['location', 'address', 'base64']
+                    ).keys()
+                )
+            else:
+                comparand = s.field_scope
+
+            if not comparand.issuperset(file_field_set):
                 errors.append(
                     'Input file for sObject {} contains excess columns over field group \'{}\': {}'.format(
                         s.sobjectname,
                         e['field-group'],
-                        ', '.join(sorted(file_field_set.difference(s.field_scope)))
+                        ', '.join(sorted(file_field_set.difference(comparand)))
                     )
                 )
         else:
