@@ -179,7 +179,7 @@ def load_load_operation(incoming, context):
             f = open(e['result-file'], 'w')
             output = csv.DictWriter(
                 f, 
-                fieldnames=[constants.ORIGINAL_ID, constants.NEW_ID]
+                fieldnames=[constants.ORIGINAL_ID, constants.NEW_ID, constants.ERROR]
             )
             output.writeheader()
             context.set_result_file(s.sobjectname, output, f)

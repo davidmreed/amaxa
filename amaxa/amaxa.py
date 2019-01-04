@@ -230,7 +230,8 @@ class LoadOperation(Operation):
 
             # After each step, check whether errors happened and stop the process.
             if len(s.errors) > 0:
-                self.logger.error('%s: errors took place during load:\n%s', s.sobjectname, '\n'.join(s.errors))
+                self.logger.error('%s: errors took place during load. See results file for details.', s.sobjectname)
+                self.write_errors(s)
                 self.close_files()
                 return -1
         
@@ -239,12 +240,23 @@ class LoadOperation(Operation):
             s.execute_dependent_updates()
 
             if len(s.errors) > 0:
-                self.logger.error('%s: errors took place during dependent updates:\n%s', s.sobjectname, '\n'.join(s.errors))
+                self.logger.error('%s: errors took place during dependent updates. See results file for details.', s.sobjectname)
+                self.write_errors(s)
                 self.close_files()
                 return -1
 
         self.close_files()
         return 0
+
+    def write_errors(self, step):
+        if step.sobjectname in self.result_files:
+            for record_id, error in step.errors.items():
+                self.result_files[step.sobjectname].writerow(
+                    {
+                        constants.ORIGINAL_ID: str(record_id),
+                        constants.ERROR: error
+                    }
+                )
 
     def close_files(self):
         for f in self.result_file_handles.values():
@@ -256,7 +268,7 @@ class LoadStep(Step):
         self.field_scope = field_scope
         self.outside_lookup_behavior = outside_lookup_behavior
         self.lookup_behaviors = {}
-        self.errors = []
+        self.errors = {}
         self.dependent_lookup_records = []
 
         self.context = None
@@ -363,9 +375,9 @@ class LoadStep(Step):
                 )
                 records_to_load.append(record)
             except AmaxaException as e:
-                self.errors.append(str(e))
+                self.errors[original_ids[-1]] = str(e)
             except ValueError as e:
-                self.errors.append('Bad data in record {}: {}'.format(original_ids[-1], str(e)))
+                self.errors[original_ids[-1]] = 'Bad data in record {}: {}'.format(original_ids[-1], str(e))
 
         if len(self.errors) > 0:
             return
@@ -379,13 +391,11 @@ class LoadStep(Step):
                     SalesforceId(r['id']) # note lowercase in result
                 )
             else:
-                self.errors.append(
-                    'Failed to load {} {}: {}'.format(
-                        self.sobjectname, 
-                        original_ids[i],
-                        '\n'.join(
-                            [self.construct_error_message(error) for error in r['errors']]
-                        )
+                self.errors[original_ids[i]] = 'Failed to load {} {}: {}'.format(
+                    self.sobjectname, 
+                    original_ids[i],
+                    '\n'.join(
+                        [self.construct_error_message(error) for error in r['errors']]
                     )
                 )
 
@@ -412,19 +422,17 @@ class LoadStep(Step):
                         cleaned_record['Id'] = str(self.context.get_new_id(SalesforceId(cleaned_record['Id'])))
                         records_to_load.append(cleaned_record)
                 except AmaxaException as e:
-                    self.errors.append(str(e))
+                    self.errors[original_ids[-1]] = str(e)
             
             if len(records_to_load) > 0 and len(self.errors) == 0:
                 results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
                 for i, r in enumerate(results):
                     if not r['success']:
-                        self.errors.append(
-                            'Failed to execute dependent updates for {} {}: {}'.format(
-                                self.sobjectname, 
-                                original_ids[i],
-                                '\n'.join(
-                                    [self.construct_error_message(error) for error in r['errors']]
-                                )
+                        self.errors[original_ids[i]] = 'Failed to execute dependent updates for {} {}: {}'.format(
+                            self.sobjectname, 
+                            original_ids[i],
+                            '\n'.join(
+                                [self.construct_error_message(error) for error in r['errors']]
                             )
                         )
 
