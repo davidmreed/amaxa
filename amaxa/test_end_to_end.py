@@ -28,6 +28,8 @@ class test_end_to_end(unittest.TestCase):
     def test_extracts_from_command_line(self):
         contact_mock = io.StringIO()
         account_mock = io.StringIO()
+        account_mock.close = Mock()
+        contact_mock.close = Mock()
 
         expected_account_names = {'Picon Fleet Headquarters'}
         expected_contact_names = {'Admiral'}

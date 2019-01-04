@@ -1206,7 +1206,7 @@ class test_LoadOperation(unittest.TestCase):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
 
-        op.set_result_file('Account', 'a')
+        op.set_result_file('Account', 'a', Mock())
         self.assertEqual('a', op.get_result_file('Account'))
 
     def test_maps_record_ids(self):
@@ -1221,7 +1221,7 @@ class test_LoadOperation(unittest.TestCase):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
         result_mock = Mock()
-        op.set_result_file('Account', result_mock)
+        op.set_result_file('Account', result_mock, Mock())
 
         op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
 

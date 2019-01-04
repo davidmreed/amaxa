@@ -19,7 +19,7 @@ class test_Integration_Extraction(unittest.TestCase):
 
     def test_all_records_extracts_accounts(self):
         oc = amaxa.ExtractOperation(self.connection)
-        oc.set_output_file('Account', Mock())
+        oc.set_output_file('Account', Mock(), Mock())
 
         extraction = amaxa.ExtractionStep(
             'Account',
@@ -36,7 +36,7 @@ class test_Integration_Extraction(unittest.TestCase):
         expected_names = {'Caprica Cosmetics', 'Gemenon Gastronomy', 'Aerilon Agrinomics'}
         oc = amaxa.ExtractOperation(self.connection)
         output = Mock()
-        oc.set_output_file('Account', output)
+        oc.set_output_file('Account', output, Mock())
 
         rec = self.connection.query('SELECT Id FROM Account WHERE Name = \'Caprica Cosmetics\'')
         oc.add_dependency('Account', rec.get('records')[0]['Id'])
@@ -62,8 +62,8 @@ class test_Integration_Extraction(unittest.TestCase):
         oc = amaxa.ExtractOperation(self.connection)
         output_accounts = Mock()
         output_contacts = Mock()
-        oc.set_output_file('Account', output_accounts)
-        oc.set_output_file('Contact', output_contacts)
+        oc.set_output_file('Account', output_accounts, Mock())
+        oc.set_output_file('Contact', output_contacts, Mock())
 
         rec = self.connection.query('SELECT Id FROM Account WHERE Name = \'Caprica Cosmetics\'')
         oc.add_dependency('Account', rec.get('records')[0]['Id'])
@@ -100,8 +100,8 @@ class test_Integration_Extraction(unittest.TestCase):
         oc = amaxa.ExtractOperation(self.connection)
         output_accounts = Mock()
         output_contacts = Mock()
-        oc.set_output_file('Account', output_accounts)
-        oc.set_output_file('Contact', output_contacts)
+        oc.set_output_file('Account', output_accounts, Mock())
+        oc.set_output_file('Contact', output_contacts, Mock())
 
         rec = self.connection.query('SELECT Id FROM Contact WHERE LastName = \'Baltar\'')
         oc.add_dependency('Contact', rec.get('records')[0]['Id'])
@@ -143,8 +143,8 @@ class test_Integration_Extraction(unittest.TestCase):
         oc = amaxa.ExtractOperation(self.connection)
         output_accounts = Mock()
         output_users = Mock()
-        oc.set_output_file('Account', output_accounts)
-        oc.set_output_file('User', output_users)
+        oc.set_output_file('Account', output_accounts, Mock())
+        oc.set_output_file('User', output_users, Mock())
 
         rec = self.connection.query('SELECT Id FROM Account WHERE Name = \'Caprica Cosmetics\'')
         oc.add_dependency('Account', rec.get('records')[0]['Id'])
