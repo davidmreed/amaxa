@@ -1236,7 +1236,7 @@ class test_LoadOperation(unittest.TestCase):
         connection = Mock()
         first_step = Mock()
         second_step = Mock()
-        first_step.errors = second_step.errors = []
+        first_step.errors = second_step.errors = {}
 
         op = amaxa.LoadOperation(connection)
 
@@ -1254,9 +1254,9 @@ class test_LoadOperation(unittest.TestCase):
     def test_execute_stops_after_first_error_in_step_execute(self):
         connection = Mock()
         first_step = Mock()
-        first_step.errors = ['Err']
+        first_step.errors = {'001000000000000': 'err'}
         second_step = Mock()
-        second_step.errors = []
+        second_step.errors = {}
 
         op = amaxa.LoadOperation(connection)
 
@@ -1273,14 +1273,14 @@ class test_LoadOperation(unittest.TestCase):
 
     def test_execute_stops_after_first_error_in_step_execute_dependent_updates(self):
         def side_effect():
-            first_step.errors = ['Err']
+            first_step.errors = {'001000000000000': 'err'}
         
         connection = Mock()
         first_step = Mock()
-        first_step.errors = []
+        first_step.errors = {}
         first_step.execute_dependent_updates = Mock(side_effect=side_effect)
         second_step = Mock()
-        second_step.errors = []
+        second_step.errors = {}
 
         op = amaxa.LoadOperation(connection)
 
@@ -1294,6 +1294,40 @@ class test_LoadOperation(unittest.TestCase):
 
         second_step.execute.assert_called_once_with()
         second_step.execute_dependent_updates.assert_not_called()
+
+    def test_execute_calls_write_errors(self):
+        connection = Mock()
+        first_step = Mock()
+        first_step.errors = {'001000000000000': 'err'}
+
+        op = amaxa.LoadOperation(connection)
+        op.write_errors = Mock()
+
+        op.add_step(first_step)
+        
+        self.assertEqual(-1, op.execute())
+
+        first_step.execute.assert_called_once_with()
+        op.write_errors.assert_called_once_with(first_step)
+
+    def test_write_errors_logs_to_result_file(self):
+        connection = Mock()
+        first_step = Mock()
+        first_step.sobjectname = 'Account'
+        first_step.errors = {'001000000000000': 'err'}
+
+        op = amaxa.LoadOperation(connection)
+        op.result_files = { 'Account': Mock() }
+
+        op.add_step(first_step)
+        
+        self.assertEqual(-1, op.execute())
+        op.result_files['Account'].writerow.assert_called_once_with(
+            {
+                constants.ORIGINAL_ID: '001000000000000',
+                constants.ERROR: 'err'
+            }
+        )
 
 class test_LoadStep(unittest.TestCase):
     def test_stores_lookup_behaviors(self):
@@ -1809,10 +1843,10 @@ class test_LoadStep(unittest.TestCase):
         l.execute()
 
         self.assertEqual(
-            [
-                'Failed to load {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account', record_list[0]['Id']),
-                'Failed to load {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account', record_list[1]['Id'])
-            ],
+            {
+                record_list[0]['Id']: 'Failed to load {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account', record_list[0]['Id']),
+                record_list[1]['Id']: 'Failed to load {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account', record_list[1]['Id'])
+            },
             l.errors
         )
 
@@ -1916,10 +1950,10 @@ class test_LoadStep(unittest.TestCase):
         l.execute_dependent_updates()
 
         self.assertEqual(
-            [
-                'Failed to execute dependent updates for {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account','001000000000000'),
-                'Failed to execute dependent updates for {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account','001000000000001')
-            ],
+            {
+                '001000000000000': 'Failed to execute dependent updates for {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account','001000000000000'),
+                '001000000000001': 'Failed to execute dependent updates for {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account','001000000000001')
+            },
             l.errors
         )
 
