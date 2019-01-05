@@ -315,6 +315,46 @@ class test_ExtractOperation(unittest.TestCase):
         self.assertEqual(set([amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('003000000000000')]),
                          oc.get_sobject_ids_for_reference('Account', 'Lookup__c'))
 
+    def test_close_files_closes_all_handles(self):
+        connection = Mock()
+
+        op = amaxa.ExtractOperation(connection)
+        op.output_file_handles = {
+            'Account': Mock(),
+            'Contact': Mock()
+        }
+
+        op.close_files()
+
+        for f in op.output_file_handles.values():
+            f.close.assert_called_once_with()
+
+    def test_execute_calls_close_files_on_error(self):
+        connection = Mock()
+        first_step = Mock()
+        first_step.errors = ['err']
+
+        op = amaxa.ExtractOperation(connection)
+        op.close_files = Mock()
+
+        op.add_step(first_step)
+
+        self.assertEqual(-1, op.execute())
+        op.close_files.assert_called_once_with()
+
+    def test_execute_calls_close_files_on_success(self):
+        connection = Mock()
+        first_step = Mock()
+        first_step.errors = []
+
+        op = amaxa.ExtractOperation(connection)
+        op.close_files = Mock()
+
+        op.add_step(first_step)
+
+        self.assertEqual(0, op.execute())
+        op.close_files.assert_called_once_with()
+
 
 class test_DataMapper(unittest.TestCase):
     def test_transform_key_applies_mapping(self):
@@ -340,6 +380,7 @@ class test_DataMapper(unittest.TestCase):
                 { 'Test__c': '  NOTHING MUCH', 'Second Key': 'another Response' }
             )
         )
+
 
 class test_Step(unittest.TestCase):
     def test_scan_fields_identifies_self_lookups(self):
@@ -1328,6 +1369,46 @@ class test_LoadOperation(unittest.TestCase):
                 constants.ERROR: 'err'
             }
         )
+
+    def test_close_files_closes_all_handles(self):
+        connection = Mock()
+
+        op = amaxa.LoadOperation(connection)
+        op.result_file_handles = {
+            'Account': Mock(),
+            'Contact': Mock()
+        }
+
+        op.close_files()
+
+        for f in op.result_file_handles.values():
+            f.close.assert_called_once_with()
+
+    def test_execute_calls_close_files_on_error(self):
+        connection = Mock()
+        first_step = Mock()
+        first_step.errors = {'001000000000000': 'err'}
+
+        op = amaxa.LoadOperation(connection)
+        op.close_files = Mock()
+
+        op.add_step(first_step)
+
+        self.assertEqual(-1, op.execute())
+        op.close_files.assert_called_once_with()
+
+    def test_execute_calls_close_files_on_success(self):
+        connection = Mock()
+        first_step = Mock()
+        first_step.errors = {}
+
+        op = amaxa.LoadOperation(connection)
+        op.close_files = Mock()
+
+        op.add_step(first_step)
+
+        self.assertEqual(0, op.execute())
+        op.close_files.assert_called_once_with()
 
 class test_LoadStep(unittest.TestCase):
     def test_stores_lookup_behaviors(self):
