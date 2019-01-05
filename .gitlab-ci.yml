@@ -27,6 +27,7 @@ test:
     - openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d -md sha256
     - node_modules/sfdx-cli/bin/run force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
     - node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f assets/project-scratch-def.json -a scratch
+    - node_modules/sfdx-cli/bin/run force:apex:execute -f assets/UpdateUser.apex -u scratch
     - node_modules/sfdx-cli/bin/run force:data:tree:import -p test_data/Account-Contact-plan.json -u scratch
     - USER_DETAIL=$(node_modules/sfdx-cli/bin/run force:user:display --json)
     - export ACCESS_TOKEN=$(echo $USER_DETAIL | python -c "import json; import sys; print(json.load(sys.stdin)['result']['accessToken'])")
