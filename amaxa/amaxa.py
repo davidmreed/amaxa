@@ -688,7 +688,7 @@ class ExtractionStep(Step):
                 for f in date_time_fields:
                     if rec[f] is not None:
                         # Format the datetime according to Salesforce's particular wants
-                        rec[f] = (datetime.utcfromtimestamp(0) + timedelta(milliseconds=rec[f])).isoformat(timespec='milliseconds') + 'Z'
+                        rec[f] = (datetime.utcfromtimestamp(0) + timedelta(milliseconds=rec[f])).isoformat(timespec='milliseconds') + '+0000'
 
             self.store_result(rec)
 
