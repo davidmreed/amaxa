@@ -3,6 +3,7 @@ import simple_salesforce
 import logging
 from . import constants
 from enum import Enum, unique
+from datetime import datetime, timedelta
 
 @unique
 class StringEnum(Enum):
@@ -678,7 +679,17 @@ class ExtractionStep(Step):
 
         results = bulk_proxy.query(query)
 
+        # The JSON Bulk API returns DateTime values as epoch seconds, instead of ISO 8601-format strings.
+        # If we have DateTime fields in our field set, postprocess the result before we store it.
+        date_time_fields = [f for f in self.field_scope if self.context.get_field_map(self.sobjectname)[f]['type'] == 'datetime']
+
         for rec in results:
+            if len(date_time_fields) > 0:
+                for f in date_time_fields:
+                    if rec[f] is not None:
+                        # Format the datetime according to Salesforce's particular wants
+                        rec[f] = (datetime.utcfromtimestamp(0) + timedelta(milliseconds=rec[f])).isoformat(timespec='milliseconds') + 'Z'
+
             self.store_result(rec)
 
     def perform_id_field_pass(self, id_field, id_set):

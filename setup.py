@@ -8,7 +8,7 @@ setup(
     author_email='david@ktema.org',
     license='MIT License',
     packages=['amaxa'],
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     requires=['pyyaml', 'simple_salesforce', 'cerberus'],
     tests_require=['pytest', 'pytest-cov', 'codecov', 'wheel'],
     entry_points={
