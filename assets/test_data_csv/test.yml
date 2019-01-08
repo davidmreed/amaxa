@@ -1,0 +1,32 @@
+version: 1
+operation:
+    - 
+        sobject: Account
+        field-group: smart
+        extract: 
+            all: True
+    -
+        sobject: Lead
+        field-group: smart
+        extract:
+          all: True
+    - 
+        sobject: Contact
+        field-group: smart
+        extract:
+            descendents: True
+    - 
+        sobject: Opportunity
+        field-group: smart
+        extract:
+            descendents: True
+    -
+        sobject: OpportunityContactRole
+        field-group: smart
+        extract:
+            descendents: True
+    - 
+        sobject: Campaign
+        field-group: smart
+        extract:
+            descendents: True
