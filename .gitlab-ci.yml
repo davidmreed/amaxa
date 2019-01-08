@@ -14,6 +14,7 @@ test:
     - python -V
     - python -m venv venv
     - source venv/bin/activate
+    - pip install --upgrade pip
     - pip install -r requirements.txt -r testing-requirements.txt
     - if [ ! -d node_modules/sfdx-cli ]; then
           export SFDX_AUTOUPDATE_DISABLE=true;
