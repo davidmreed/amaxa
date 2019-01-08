@@ -4,6 +4,22 @@ Amaxa is a new data loader and ETL (extract-transform-load) tool for Salesforce,
 
 Amaxa is designed to replace complex, error-prone workflows that manipulate data exports with `VLOOKUP()` to maintain object relationships.
 
+## Installing, Building, and Testing Amaxa
+
+Amaxa requires Python 3.6, and the packages `simple_salesforce`, `pyyaml`, and `cerberus`. It is operating system-agnostic, but has been tested only on Linux.
+
+To install Amaxa, clone the Git repository. Then, from the repository root, issue
+
+    $ python setup.py install
+    
+If you have multiple versions of Python installed, make sure to specify Python 3.6, or create a virtual environment for Amaxa.
+
+To work on development of Amaxa, build a virtual environment, then do
+
+    $ pip install -r requirements.txt -r testing-requirements.txt
+    
+Tests are executed using `pytest`. If a Salesforce access token and instance URL are present in the environment variables `INSTANCE_URL` and `ACCESS_TOKEN`, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org (see `.gitlab-ci.yml` for the specific testing process).
+
 ## Running Amaxa
 
 The command-line API is very simple. To extract data, given an operation definition file `op.yml` and a credential file `cred.yml`, run
@@ -32,7 +48,8 @@ Credentials are supplied in a YAML or JSON file, as shown here.
         password: 'blah'
         security-token: '00000'
         sandbox: True
-
+        
+Amaxa doesn't currently support JWT authentication, but this is a planned future option.
 
 ## Defining Operations
 
@@ -192,3 +209,18 @@ When extracting, it consumes one Bulk API job for any sObject with `extract` set
 When loading, Amaxa uses one Bulk API job for each sObject, plus one Bulk API job for each sObject that has self or dependent lookups.
 
 A small number of additional API calls are used on each operation to obtain schema information for the org.
+
+## Limitations, Known Issues, and Future Plans
+
+ - Amaxa will not operate correctly in very high data volume environments (approaching the limits of a single Bulk API job/hundreds of thousands of records in a single sObject). Future work to use the `salesforce-bulk` library will rectify this issue.
+ - Amaxa does not support import or export of compound fields (Addresses and Geolocations), but can import and export their component fields, such as `MailingStreet`.
+ - Amaxa does not support Base64 binary-blob fields.
+ 
+
+Future plans include:
+
+ - Improvements to efficiency in API use and memory consumption.
+ - More sophisticated handling of references to "metadata-ish" sObjects, like Users and Record Types.
+ - Error recovery and pause/continue workflows.
+ - Support for importing data that does not have a Salesforce Id
+ - Recursive logic on extraction to handle outside references.
