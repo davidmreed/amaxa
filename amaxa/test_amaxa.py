@@ -946,7 +946,7 @@ class test_ExtractionStep(unittest.TestCase):
             }
         })
         bulk_proxy = Mock()
-        bulk_proxy.query = Mock(side_effect=lambda x: { 'records': [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}] })
+        bulk_proxy.query = Mock(return_value=[{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}])
         oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.QUERY, ['Lookup__c'])
@@ -981,6 +981,33 @@ class test_ExtractionStep(unittest.TestCase):
         step.perform_bulk_api_pass('SELECT Id FROM Account')
         step.store_result.assert_any_call(bulk_proxy.query.return_value[0])
         step.store_result.assert_any_call(bulk_proxy.query.return_value[1])
+
+    def test_perform_bulk_api_pass_converts_datetimes(self):
+        connection = Mock()
+
+        oc = amaxa.ExtractOperation(connection)
+        oc.get_field_map = Mock(return_value={
+            'CreatedDate': {
+                'name': 'CreatedDate',
+                'type': 'datetime'
+            }
+        })
+        bulk_proxy = Mock()
+        bulk_proxy.query = Mock(return_value=[{ 'Id': '001000000000001', 'CreatedDate': 1546659665000}])
+        oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
+
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.QUERY, ['CreatedDate'])
+        step.store_result = Mock()
+        oc.add_step(step)
+        step.scan_fields()
+
+        step.perform_bulk_api_pass('SELECT Id, CreatedDate FROM Account')
+        step.store_result.assert_called_once_with(
+            {
+                'Id': '001000000000001',
+                'CreatedDate': '2019-01-05T03:41:05.000+0000'
+            }
+        )
 
     def test_resolve_registered_dependencies_loads_records(self):
         connection = Mock()
