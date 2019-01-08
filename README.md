@@ -71,7 +71,7 @@ Here's an example of an Amaxa operation definition in YAML.
 
 The meat of the definition is list of sObjects under the `operation` key. We list objects in order of their extraction or load. The order is important, because it plays into how Amaxa will locate, extract, and load relationships between the objects. Generally speaking, you should start an operation definition with the highest-level object you want to extract or load. This may be `Account`, for example, or if loading a custom object with children, the parent object. Then, we list child objects and other dependencies in order below it. Objects listed later in the list may be extracted based on lookup or master-detail relationships to objects higher in the list.
 
-For each object, we answer two main questions.
+For each object, we answer a few main questions.
 
 ## Which records do we want to extract?
 
@@ -79,7 +79,7 @@ Record selection is specified with the `extract:` key. We can specify several di
 
     query: 'Industry = "Non-Profit"'
     
-The `query` type of extraction pulls records that match a SOQL `WHERE` clause that you supply.
+The `query` type of extraction pulls records that match a SOQL `WHERE` clause that you supply. (Do not include the `WHERE` keyword).
 
     descendents: True
 
@@ -159,15 +159,36 @@ An "outside reference", in Amaxa's terminology, is a reference from sObject B to
 
   - both sObjects are included in the operation;
   - sObject A is above sObject B;
-  - the field value of the reference on some record of sObject B is a record of sObject A that was not extracted.
+  - the field value of the reference on some record of sObject B is the Id of a record of sObject A that was not extracted.
 
 Amaxa offers special handling behaviors for outside references to help ensure that extracted data maintains referential integrity and can be loaded safely in another org.
 
 Like with self-lookups, outside reference behavior is specified with a key, `outside-lookup-behavior`, that can be placed at the sObject level or the field level in the definition file. The allowed options are
 
- - `include`, the default: include the outside reference in extracted data. (Errors may be thrown on load if the target record is not present).
+ - `include`, the default: include the outside reference in extracted data. (Errors may be thrown on load if the linked record is not present in the target environment).
  - `drop-field`: null out the outside reference when extracting and loading.
  - `error`: stop and record an error when an outside reference is found.
 
 Note that references to sObjects that aren't part of the operation at all are not considered outside references, and handler behavior is inactive for such references. For example, the `OwnerId` field is a reference to the `Queue` or `User` sObjects. If these sObjects are not included in the operation, specifying `outside-lookup-behavior: drop-field` will have no effect on the `OwnerId` field. 
 
+Outside reference behavior can be very useful in situations with complex dependent reference networks. A Contact with a reference to an Account other than its own, for example, is likely to constitute an outside reference. Outside reference behaviors allow for omitting such lookups from the operation, ensuring that the data extracted does not contain dangling references.
+
+## Error Behavior
+
+Amaxa stops loading data when it receives an error from Salesforce. Because Amaxa uses the Bulk API, in many cases this will take place after a majority of the records for a given sObject have been loaded.
+
+When an error is encountered, operations stop immediately. This means that the last sObject to be loaded may not have self and dependent lookups populated, and some or most of the last sObject loaded may have been created in the target environment. Details of the errors encountered are shown in the results file, which by default is `sObjectName-results.csv`.
+
+Recovering from errors can be challenging. At present, the best solution is to remove all loaded records and restart the operation. Future versions of Amaxa will provide sophisticated recovery or stop-and-resume support.
+
+Because error recovery when loading complex object networks is difficult and the overall load operation is not atomic, it's strongly recommended that all triggers, workflow rules, processes, validation rules, and lookup field filters be deactivated during the load process.
+
+## API Usage
+
+Amaxa uses both the REST and Bulk APIs to do its work. 
+
+When extracting, it consumes one Bulk API job for any sObject with `extract` set to `all` or `query`, plus approximately one API call (to the REST API) per 200 records that are extracted by Id due to dependencies or `extract` set to `descendents`. 
+
+When loading, Amaxa uses one Bulk API job for each sObject, plus one Bulk API job for each sObject that has self or dependent lookups.
+
+A small number of additional API calls are used on each operation to obtain schema information for the org.
