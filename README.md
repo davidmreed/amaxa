@@ -228,4 +228,4 @@ Future plans include:
 
 ## What Does Amaxa Mean?
 
-[ἄμαξα](http://www.perseus.tufts.edu/hopper/text?doc=Perseus%3Atext%3A1999.04.0058%3Aentry%3Da)%2Fmaca) is the Ancient Greek word for a wagon.
+[ἄμαξα](http://www.perseus.tufts.edu/hopper/text?doc=Perseus%3Atext%3A1999.04.0058%3Aentry%3Da\)%2Fmaca) is the Ancient Greek word for a wagon.
