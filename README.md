@@ -90,7 +90,7 @@ The meat of the definition is list of sObjects under the `operation` key. We lis
 
 For each object, we answer a few main questions.
 
-## Which records do we want to extract?
+### Which records do we want to extract?
 
 Record selection is specified with the `extract:` key. We can specify several different types of record-level extraction mechanics. The `extract` key is ignored during load operations.
 
@@ -113,7 +113,7 @@ All types of extraction also retrieve *dependent relationships*. When an sObject
 
 The combination of dependent and descendent relationship tracing helps ensure that Amaxa extracts and loads an internally consistent slice of your org's data based upon the operation definition you provide.
 
-## Which fields do we want to extract or load?
+### Which fields do we want to extract or load?
 
 This is specified with the `fields` or `field-group` keys.
 
@@ -137,7 +137,7 @@ is an example of a simple field specification.
                 
 would extract the `Description` field, name the CSV column `Desc`, and apply the transformations `strip` (remove leading and trailing whitespace) and `lowercase` (convert text to lower case) on extracted data. On load, Amaxa would look for a CSV column `Desc`, map it to the `Description` field, and apply the same transformations to inbound data.
 
-## Where is the data going to or coming from?
+### Where is the data going to or coming from?
 
 The `file` key for each sObject specifies a CSV file. This is the input data for a load operation, or the output data for an extraction. Amaxa will specify `sObjectName.csv` if the key is not provided.
 
@@ -215,7 +215,7 @@ A small number of additional API calls are used on each operation to obtain sche
  - Amaxa will not operate correctly in very high data volume environments (approaching the limits of a single Bulk API job/hundreds of thousands of records in a single sObject). Future work to use the `salesforce-bulk` library will rectify this issue.
  - Amaxa does not support import or export of compound fields (Addresses and Geolocations), but can import and export their component fields, such as `MailingStreet`.
  - Amaxa does not support Base64 binary-blob fields.
- 
+ - Tests are not effectively abstracted and are fairly repetitive. 
 
 Future plans include:
 
@@ -224,3 +224,8 @@ Future plans include:
  - Error recovery and pause/continue workflows.
  - Support for importing data that does not have a Salesforce Id
  - Recursive logic on extraction to handle outside references.
+ 
+
+## What Does Amaxa Mean?
+
+[ἄμαξα](http://www.perseus.tufts.edu/hopper/text?doc=Perseus%3Atext%3A1999.04.0058%3Aentry%3Da)%2Fmaca) is the Ancient Greek word for a wagon.
