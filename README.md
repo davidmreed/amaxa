@@ -6,19 +6,19 @@ Amaxa is designed to replace complex, error-prone workflows that manipulate data
 
 ## Installing, Building, and Testing Amaxa
 
-Amaxa requires Python 3.6, and the packages `simple_salesforce`, `pyyaml`, and `cerberus`. It is operating system-agnostic, but has been tested only on Linux.
+Amaxa requires Python 3.6 and the packages `simple_salesforce`, `pyyaml`, and `cerberus`. Additional packages are required for development and testing (see `requirements.txt` and `testing-requirements.txt`). Amaxa is operating system-agnostic, but has been tested only on Linux.
 
-To install Amaxa, clone the Git repository. Then, from the repository root, issue
+To start working with Amaxa in a virtual environment, clone the Git repository. Then, create a virtual environment for Amaxa and install there:
 
-    $ python setup.py install
-    
-If you have multiple versions of Python installed, make sure to specify Python 3.6, or create a virtual environment for Amaxa.
-
-To work on development of Amaxa, build a virtual environment, then do
-
+    $ cd amaxa
+    $ python3.6 -m venv venv
+    $ source venv/bin/activate
     $ pip install -r requirements.txt -r testing-requirements.txt
-    
-Tests are executed using `pytest`. If a Salesforce access token and instance URL are present in the environment variables `INSTANCE_URL` and `ACCESS_TOKEN`, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org (see `.gitlab-ci.yml` for the specific testing process).
+    $ python setup.py install
+
+You'll then be able to invoke `amaxa` from the command line whenever the virtual environment is active.
+
+Tests are executed using `pytest`. If a valid Salesforce access token and instance URL are present in the environment variables `INSTANCE_URL` and `ACCESS_TOKEN`, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org (see `.gitlab-ci.yml` for the specific testing process).
 
 ## Running Amaxa
 
@@ -210,6 +210,10 @@ When loading, Amaxa uses one Bulk API job for each sObject, plus one Bulk API jo
 
 A small number of additional API calls are used on each operation to obtain schema information for the org.
 
+## Example Data and Test Suites
+
+Two example data suites and operation definition files are included with Amaxa in the `assets` directory. See `about.md` in each directory for information about what the data suite includes and tests and how to use it.
+
 ## Limitations, Known Issues, and Future Plans
 
  - Amaxa will not operate correctly in very high data volume environments (approaching the limits of a single Bulk API job/hundreds of thousands of records in a single sObject). Future work to use the `salesforce-bulk` library will rectify this issue.
@@ -222,7 +226,8 @@ Future plans include:
  - Improvements to efficiency in API use and memory consumption.
  - More sophisticated handling of references to "metadata-ish" sObjects, like Users and Record Types.
  - Error recovery and pause/continue workflows.
- - Support for importing data that does not have a Salesforce Id
+ - Support for importing data from external systems that does not have a Salesforce Id
+   - Note that synthesizing the Id in input data is perfectly fine.
  - Recursive logic on extraction to handle outside references.
  
 
