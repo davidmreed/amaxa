@@ -21,22 +21,20 @@ test:
           export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true;
           export SFDX_DOMAIN_RETRY=300;
           npm install sfdx-cli;
-          node_modules/sfdx-cli/bin/run --version;
-          node_modules/sfdx-cli/bin/run plugins --core;
+          ln -s node_modules/sfdx-cli/bin/sfdx node_modules/sfdx-cli/bin/run
+          export PATH="$PATH:node_modules/sfdx-cli/bin"
+          sfdx --version;
+          sfdx plugins --core;
       fi;
   script:
     - openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d -md sha256
-    - node_modules/sfdx-cli/bin/run force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
-    - node_modules/sfdx-cli/bin/run force:org:create -v DevHub -s -f assets/project-scratch-def.json -a scratch
-    - node_modules/sfdx-cli/bin/run force:apex:execute -f assets/UpdateUser.apex -u scratch
-    - node_modules/sfdx-cli/bin/run force:data:tree:import -p assets/test_data_sfdx/Account-Contact-plan.json -u scratch
-    - USER_DETAIL=$(node_modules/sfdx-cli/bin/run force:user:display --json)
-    - export ACCESS_TOKEN=$(echo $USER_DETAIL | python -c "import json; import sys; print(json.load(sys.stdin)['result']['accessToken'])")
-    - export INSTANCE_URL=$(echo $USER_DETAIL | python -c "import json; import sys; print(json.load(sys.stdin)['result']['instanceUrl'])")
+    - sfdx force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
+    - source assets/scripts/prep-scratch-org.sh
+    - sfdx force:apex:execute -f assets/scripts/UpdateUser.apex -u scratch
     - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa
     - codecov
   after_script:
-    - node_modules/sfdx-cli/bin/run force:org:delete -u scratch -p
+    - sfdx force:org:delete -u scratch -p
     - rm assets/server.key
   artifacts:
     reports:
