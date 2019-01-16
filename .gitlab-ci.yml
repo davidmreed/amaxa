@@ -21,12 +21,12 @@ test:
           export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true;
           export SFDX_DOMAIN_RETRY=300;
           npm install sfdx-cli;
-          ln -s node_modules/sfdx-cli/bin/sfdx node_modules/sfdx-cli/bin/run
-          export PATH="$PATH:node_modules/sfdx-cli/bin"
-          sfdx --version;
-          sfdx plugins --core;
       fi;
   script:
+    - sudo ln -s $(pwd)/node_modules/sfdx-cli/bin/run /usr/local/bin/sfdx;
+    - export PATH="$PATH:$(pwd)/node_modules/sfdx-cli/bin"
+    - sfdx --version
+    - sfdx plugins --core
     - openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d -md sha256
     - sfdx force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
     - source assets/scripts/prep-scratch-org.sh
