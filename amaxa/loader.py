@@ -138,6 +138,7 @@ def load_load_operation(incoming, context):
                         ', '.join(field_map[f]['referenceTo'])
                     )
             elif field_map[f]['type'] == 'base64':
+                # Compound fields aren't writeable, so will be handled by the branch above.
                 errors.append('Field {}.{} is a base64 field, which is not supported.'.format(sobject, f))
 
         # If we've located any errors, continue to validate the rest of the extraction,
@@ -366,8 +367,8 @@ def load_extraction_operation(incoming, context):
                         f,
                         ', '.join(field_map[f]['referenceTo'])
                     )
-            elif field_map[f]['type'] == 'base64':
-                errors.append('Field {}.{} is a base64 field, which is not supported.'.format(sobject, f))
+            elif field_map[f]['type'] in ['location', 'address', 'base64']:
+                errors.append('Field {}.{} is a {} field, which is not supported.'.format(sobject, f, field_map[f]['type']))
 
         # If we've located any errors, continue to validate the rest of the extraction,
         # but don't actually create any steps or files.
