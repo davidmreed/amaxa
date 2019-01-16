@@ -172,14 +172,16 @@ class test_Operation(unittest.TestCase):
     def test_maps_ids_to_sobject_types(self):
         connection = Mock()
         connection.describe = Mock(return_value={
-            'sobjects': {
-                'Account': {
+            'sobjects': [
+                {
+                    'name': 'Account',
                     'keyPrefix': '001'
                 },
-                'Contact': {
+                {
+                    'name': 'Contact',
                     'keyPrefix': '003'
                 }
-            }
+            ]
         })
 
         oc = amaxa.Operation(connection)

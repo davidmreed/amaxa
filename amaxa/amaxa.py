@@ -96,7 +96,7 @@ class Operation(object):
         if self.key_prefix_map is None:
             global_describe = self.connection.describe()['sobjects']
             self.key_prefix_map = {
-                global_describe[name]['keyPrefix']: name for name in global_describe
+                sobject['keyPrefix']: sobject['name'] for sobject in global_describe
             }
         
         return self.key_prefix_map[id[:3]]
