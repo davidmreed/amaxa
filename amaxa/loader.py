@@ -401,9 +401,10 @@ def load_extraction_operation(incoming, context):
     for (s, e) in zip(context.steps, incoming['operation']):
         try:
             f = open(e['file'], 'w')
+            fieldnames = s.field_scope if s.sobjectname not in context.mappers else [context.mappers[s.sobjectname].transform_key(k) for k in s.field_scope]
             output = csv.DictWriter(
                 f,
-                fieldnames = sorted(s.field_scope, key=lambda x: x if x != 'Id' else ' Id'),
+                fieldnames = sorted(fieldnames, key=lambda x: x if x != 'Id' else ' Id'),
                 extrasaction='ignore'
             )
             output.writeheader()
