@@ -1,10 +1,10 @@
 import unittest
 import json
 import yaml
-from . import loader
-from .__main__ import main as main
-
 from unittest.mock import Mock
+from .. import loader
+from ..__main__ import main as main
+
 
 credentials_good_yaml = '''
 version: 1

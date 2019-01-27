@@ -1,5 +1,6 @@
 import unittest
-from . import transforms
+from .. import transforms
+
 
 class test_transforms(unittest.TestCase):
     def test_transforms(self):

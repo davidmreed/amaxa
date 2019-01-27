@@ -4,9 +4,10 @@ import io
 import csv
 from simple_salesforce import Salesforce
 from unittest.mock import Mock
-from . import amaxa
-from . import loader
-from .__main__ import main as main
+from .. import amaxa
+from .. import loader
+from ..__main__ import main as main
+
 
 @unittest.skipIf(any(['INSTANCE_URL' not in os.environ, 'ACCESS_TOKEN' not in os.environ]),
                  'environment not configured for end-to-end test')

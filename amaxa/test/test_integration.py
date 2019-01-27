@@ -4,9 +4,10 @@ import io
 import csv
 from simple_salesforce import Salesforce
 from unittest.mock import Mock
-from . import amaxa
-from . import loader
-from .__main__ import main as main
+from .. import amaxa
+from .. import loader
+from ..__main__ import main as main
+
 
 @unittest.skipIf(any(['INSTANCE_URL' not in os.environ, 'ACCESS_TOKEN' not in os.environ]),
                  'environment not configured for integration test')
@@ -275,7 +276,3 @@ Id,CampaignId,LeadId,Status
 
         loaded_campaign_members = self.connection.query_all('SELECT Id FROM CampaignMember').get('records')
         self.assertEqual(4, len(loaded_campaign_members))
-
-
-if __name__ == "__main__":
-    unittest.main()
