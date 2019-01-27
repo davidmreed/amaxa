@@ -1,9 +1,13 @@
 import functools
 import simple_salesforce
 import logging
+import json
+import salesforce_bulk
 from . import constants
 from enum import Enum, unique
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
+from time import sleep
 
 @unique
 class StringEnum(Enum):
@@ -71,16 +75,39 @@ class SalesforceId(object):
     def __repr__(self):
         return self.id
 
+def JSONIterator(records):
+    def enc(r):
+        return json.dumps(r).encode('utf-8')
+
+    yield b'['
+
+    i = iter(records)
+    yield enc(next(i))
+    for rec in i:
+        yield b',' + enc(rec)
+
+    yield b']'
+
 class Operation(object):
     def __init__(self, connection):
         self.steps = []
         self.connection = connection
+        self._bulk = None
         self.describe_info = {}
         self.field_maps = {}
         self.proxy_objects = {}
-        self.bulk_proxy_objects = {}
         self.key_prefix_map = None
         self.logger = logging.getLogger('amaxa')
+
+    @property
+    def bulk(self):
+        if self._bulk is None:
+            self._bulk = salesforce_bulk.SalesforceBulk(
+                sessionId=self.connection.session_id,
+                host=urlparse(self.connection.bulk_url).hostname
+            )
+        
+        return self._bulk
 
     def execute(self):
         pass
@@ -106,12 +133,6 @@ class Operation(object):
             self.proxy_objects[sobjectname] = getattr(self.connection, sobjectname)
 
         return self.proxy_objects[sobjectname]
-
-    def get_bulk_proxy_object(self, sobjectname):
-        if sobjectname not in self.bulk_proxy_objects:
-            self.bulk_proxy_objects[sobjectname] = getattr(self.connection.bulk, sobjectname)
-
-        return self.bulk_proxy_objects[sobjectname]
 
     def get_describe(self, sobjectname):
         if sobjectname not in self.describe_info:
@@ -383,28 +404,26 @@ class LoadStep(Step):
         if len(self.errors) > 0:
             return
 
-        results = self.context.get_bulk_proxy_object(self.sobjectname).insert(records_to_load)
-        for i, r in enumerate(results):
-            if r['success']:
+        job = self.context.bulk.create_insert_job(self.sobjectname, contentType='JSON')
+        json_iter = JSONIterator(records_to_load)
+        batch = self.context.bulk.post_batch(job, json_iter)
+        self.context.bulk.wait_for_batch(job, batch)
+        self.context.bulk.close_job(job)
+        
+        for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
+            if r.success:
                 self.context.register_new_id(
                     self.sobjectname,
                     SalesforceId(original_ids[i]),
-                    SalesforceId(r['id']) # note lowercase in result
+                    SalesforceId(r.id) # note lowercase in result
                 )
             else:
                 self.errors[original_ids[i]] = 'Failed to load {} {}: {}'.format(
                     self.sobjectname, 
                     original_ids[i],
-                    '\n'.join(
-                        [self.construct_error_message(error) for error in r['errors']]
-                    )
+                    r.error
                 )
 
-    def construct_error_message(self, error):
-        return '{statusCode}: {message} ({extendedErrorDetails})'.format(
-            **{ k: '' if v is None else v for (k, v) in error.items() }
-        )
-    
     def execute_dependent_updates(self):
         # Populate dependent and self-lookups in a single pass
         records_to_load = []
@@ -423,18 +442,21 @@ class LoadStep(Step):
                         cleaned_record['Id'] = str(self.context.get_new_id(SalesforceId(cleaned_record['Id'])))
                         records_to_load.append(cleaned_record)
                 except AmaxaException as e:
-                    self.errors[original_ids[-1]] = str(e)
+                    self.errors[record['Id']] = str(e)
             
             if len(records_to_load) > 0 and len(self.errors) == 0:
-                results = self.context.get_bulk_proxy_object(self.sobjectname).update(records_to_load)
-                for i, r in enumerate(results):
-                    if not r['success']:
+                job = self.context.bulk.create_update_job(self.sobjectname, contentType='JSON')
+                json_iter = JSONIterator(records_to_load)
+                batch = self.context.bulk.post_batch(job, json_iter)
+                self.context.bulk.wait_for_batch(job, batch)
+                self.context.bulk.close_job(job)
+
+                for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
+                    if not r.success:
                         self.errors[original_ids[i]] = 'Failed to execute dependent updates for {} {}: {}'.format(
                             self.sobjectname, 
                             original_ids[i],
-                            '\n'.join(
-                                [self.construct_error_message(error) for error in r['errors']]
-                            )
+                            r.error
                         )
 
 
@@ -675,22 +697,28 @@ class ExtractionStep(Step):
             )
 
     def perform_bulk_api_pass(self, query):
-        bulk_proxy = self.context.get_bulk_proxy_object(self.sobjectname)
+        bulk = self.context.bulk
+        job = bulk.create_query_job(self.sobjectname, contentType='JSON')
+        batch = bulk.query(job, query)
+        bulk.close_job(job)
 
-        results = bulk_proxy.query(query)
+        while not bulk.is_batch_done(batch):
+            sleep(5)
 
         # The JSON Bulk API returns DateTime values as epoch seconds, instead of ISO 8601-format strings.
         # If we have DateTime fields in our field set, postprocess the result before we store it.
         date_time_fields = [f for f in self.field_scope if self.context.get_field_map(self.sobjectname)[f]['type'] == 'datetime']
 
-        for rec in results:
-            if len(date_time_fields) > 0:
-                for f in date_time_fields:
-                    if rec[f] is not None:
-                        # Format the datetime according to Salesforce's particular wants
-                        rec[f] = (datetime.utcfromtimestamp(0) + timedelta(milliseconds=rec[f])).isoformat(timespec='milliseconds') + '+0000'
+        for result in bulk.get_all_results_for_query_batch(batch):
+            result = json.load(result)
+            for rec in result:
+                if len(date_time_fields) > 0:
+                    for f in date_time_fields:
+                        if rec[f] is not None:
+                            # Format the datetime according to Salesforce's particular wants
+                            rec[f] = (datetime.utcfromtimestamp(0) + timedelta(milliseconds=rec[f])).isoformat(timespec='milliseconds') + '+0000'
 
-            self.store_result(rec)
+                self.store_result(rec)
 
     def perform_id_field_pass(self, id_field, id_set):
         query = 'SELECT {} FROM {} WHERE {} IN ({})'

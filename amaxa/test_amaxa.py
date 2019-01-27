@@ -1,6 +1,9 @@
 import unittest
 import simple_salesforce
-from unittest.mock import Mock, PropertyMock, patch
+import json
+from unittest.mock import Mock, MagicMock, PropertyMock, patch
+from salesforce_bulk import UploadResult
+from salesforce_bulk.util import IteratorBytesIO
 from . import amaxa
 from . import transforms
 from . import constants
@@ -90,24 +93,19 @@ class test_Operation(unittest.TestCase):
         self.assertEqual('Account', proxy)
         p.assert_not_called()
 
-    def test_creates_and_caches_bulk_proxy_objects(self):
-        connection = Mock()
-        p = PropertyMock(return_value='Account')
-        type(connection.bulk).Account = p
-
+    @patch('salesforce_bulk.SalesforceBulk')
+    def test_creates_and_caches_bulk_proxy_object(self, bulk_proxy):
+        connection = Mock(session_id = '000', bulk_url='https://login.salesforce.com')
         oc = amaxa.Operation(connection)
 
-        proxy = oc.get_bulk_proxy_object('Account')
+        b = oc.bulk
+        bulk_proxy.assert_called_once_with(sessionId='000', host='login.salesforce.com')
 
-        self.assertEqual('Account', proxy)
-        p.assert_called_once_with()
-
-        p.reset_mock()
-        proxy = oc.get_bulk_proxy_object('Account')
+        bulk_proxy.reset_mock()
+        b = oc.bulk
 
         # Proxy should be cached
-        self.assertEqual('Account', proxy)
-        p.assert_not_called()
+        bulk_proxy.assert_not_called()
 
     @patch('amaxa.Operation.get_proxy_object')
     def test_caches_describe_results(self, proxy_mock):
@@ -936,9 +934,9 @@ class test_ExtractionStep(unittest.TestCase):
 
         connection.query_all.assert_not_called()
 
-    def test_perform_bulk_api_pass_performs_query(self):
+    @patch('amaxa.ExtractOperation.bulk', new_callable=PropertyMock())
+    def test_perform_bulk_api_pass_calls_query(self, bulk_proxy):
         connection = Mock()
-
         oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
@@ -947,20 +945,23 @@ class test_ExtractionStep(unittest.TestCase):
                 'referenceTo': ['Account']
             }
         })
-        bulk_proxy = Mock()
-        bulk_proxy.query = Mock(return_value=[{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}])
-        oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
-
+        retval = [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}]
+        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
+        bulk_proxy.create_query_job = Mock(return_value = '075000000000000AAA')
+        bulk_proxy.get_all_results_for_query_batch = Mock(
+            return_value = [IteratorBytesIO([json.dumps(retval).encode('utf-8')])]
+        )
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.QUERY, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
         step.scan_fields()
 
         step.perform_bulk_api_pass('SELECT Id FROM Account')
-        oc.get_bulk_proxy_object.assert_called_once_with('Account')
-        bulk_proxy.query.assert_called_once_with('SELECT Id FROM Account')
+        bulk_proxy.query.assert_called_once_with('075000000000000AAA', 'SELECT Id FROM Account')
 
-    def test_perform_bulk_api_pass_stores_results(self):
+    @patch('amaxa.ExtractOperation.bulk', new_callable=PropertyMock())
+
+    def test_perform_bulk_api_pass_stores_results(self, bulk_proxy):
         connection = Mock()
 
         oc = amaxa.ExtractOperation(connection)
@@ -971,9 +972,12 @@ class test_ExtractionStep(unittest.TestCase):
                 'referenceTo': ['Account']
             }
         })
-        bulk_proxy = Mock()
-        bulk_proxy.query = Mock(return_value=[{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}])
-        oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
+        retval = [{ 'Id': '001000000000001'}, { 'Id': '001000000000002'}]
+        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
+        bulk_proxy.create_query_job = Mock(return_value = '075000000000000AAA')
+        bulk_proxy.get_all_results_for_query_batch = Mock(
+            return_value = [IteratorBytesIO([json.dumps(retval).encode('utf-8')])]
+        )
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.store_result = Mock()
@@ -981,10 +985,11 @@ class test_ExtractionStep(unittest.TestCase):
         step.scan_fields()
 
         step.perform_bulk_api_pass('SELECT Id FROM Account')
-        step.store_result.assert_any_call(bulk_proxy.query.return_value[0])
-        step.store_result.assert_any_call(bulk_proxy.query.return_value[1])
+        step.store_result.assert_any_call(retval[0])
+        step.store_result.assert_any_call(retval[1])
 
-    def test_perform_bulk_api_pass_converts_datetimes(self):
+    @patch('amaxa.ExtractOperation.bulk', new_callable=PropertyMock())
+    def test_perform_bulk_api_pass_converts_datetimes(self, bulk_proxy):
         connection = Mock()
 
         oc = amaxa.ExtractOperation(connection)
@@ -994,9 +999,12 @@ class test_ExtractionStep(unittest.TestCase):
                 'type': 'datetime'
             }
         })
-        bulk_proxy = Mock()
-        bulk_proxy.query = Mock(return_value=[{ 'Id': '001000000000001', 'CreatedDate': 1546659665000}])
-        oc.get_bulk_proxy_object = Mock(return_value=bulk_proxy)
+        retval = [{ 'Id': '001000000000001', 'CreatedDate': 1546659665000}]
+        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
+        bulk_proxy.create_query_job = Mock(return_value = '075000000000000AAA')
+        bulk_proxy.get_all_results_for_query_batch = Mock(
+            return_value = [IteratorBytesIO([json.dumps(retval).encode('utf-8')])]
+        )
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.QUERY, ['CreatedDate'])
         step.store_result = Mock()
@@ -1705,7 +1713,9 @@ class test_LoadStep(unittest.TestCase):
             )
         )
 
-    def test_execute_transforms_and_loads_records_without_lookups(self):
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    @patch.object(amaxa, 'JSONIterator')
+    def test_execute_transforms_and_loads_records_without_lookups(self, json_iterator_proxy, bulk_proxy):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000' },
             { 'Name': 'Test 2', 'Id': '001000000000001' }
@@ -1725,12 +1735,10 @@ class test_LoadStep(unittest.TestCase):
             return_value=record_list
         )
         op.get_result_file = Mock()
-        account_proxy = Mock()
-        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
-        account_proxy.insert = Mock(
+        bulk_proxy.get_batch_results = Mock(
             return_value=[
-                { 'success': True, 'id': '001000000000002' },
-                { 'success': True, 'id': '001000000000003' }
+                UploadResult('001000000000002', True, True, ''),
+                UploadResult('001000000000003', True, True, '')
             ]
         )
         op.mappers['Account'] = Mock()
@@ -1750,8 +1758,11 @@ class test_LoadStep(unittest.TestCase):
             [unittest.mock.call(x, set(), y['Id']) for (x, y) in zip(clean_record_list, record_list)]
         )
 
-        op.get_bulk_proxy_object.assert_called_once_with('Account')
-        account_proxy.insert.assert_called_once_with(clean_record_list)
+        json_iterator_proxy.assert_called_once_with(clean_record_list)
+        bulk_proxy.post_batch.assert_called_once_with(
+            bulk_proxy.create_insert_job.return_value,
+            json_iterator_proxy.return_value
+        )
         op.register_new_id.assert_has_calls(
             [
                 unittest.mock.call('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
@@ -1759,7 +1770,9 @@ class test_LoadStep(unittest.TestCase):
             ]
         )
 
-    def test_execute_transforms_and_loads_records_with_lookups(self):
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    @patch.object(amaxa, 'JSONIterator')
+    def test_execute_transforms_and_loads_records_with_lookups(self, json_iterator_proxy, bulk_proxy):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '003000000000000' },
             { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '003000000000001'}
@@ -1785,14 +1798,13 @@ class test_LoadStep(unittest.TestCase):
             return_value=record_list
         )
         op.get_result_file = Mock()
-        account_proxy = Mock()
-        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
-        account_proxy.insert = Mock(
+        bulk_proxy.get_batch_results = Mock(
             return_value=[
-                { 'success': True, 'id': '001000000000002' },
-                { 'success': True, 'id': '001000000000003' }
+                UploadResult('001000000000002', True, True, ''),
+                UploadResult('001000000000003', True, True, '')
             ]
         )
+        bulk_proxy.create_insert_job = Mock(return_value=Mock())
         op.mappers['Account'] = Mock()
         op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
 
@@ -1808,8 +1820,11 @@ class test_LoadStep(unittest.TestCase):
         op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in record_list])
         l.primitivize.assert_has_calls([unittest.mock.call(x) for x in transformed_record_list])
 
-        op.get_bulk_proxy_object.assert_called_once_with('Account')
-        account_proxy.insert.assert_called_once_with(transformed_record_list)
+        json_iterator_proxy.assert_called_once_with(transformed_record_list)
+        bulk_proxy.post_batch.assert_called_once_with(
+            bulk_proxy.create_insert_job.return_value,
+            json_iterator_proxy.return_value
+        )
         op.register_new_id.assert_has_calls(
             [
                 unittest.mock.call('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000002')),
@@ -1817,7 +1832,9 @@ class test_LoadStep(unittest.TestCase):
             ]
         )
 
-    def test_execute_loads_cleaned_records(self):
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    @patch.object(amaxa, 'JSONIterator')
+    def test_execute_loads_cleaned_records(self, json_iterator_proxy, bulk_proxy):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000', 'ParentId': '001000000000001' },
             { 'Name': 'Test 2', 'Id': '001000000000001', 'ParentId': ''}
@@ -1839,14 +1856,13 @@ class test_LoadStep(unittest.TestCase):
             return_value=record_list
         )
         op.get_result_file = Mock()
-        account_proxy = Mock()
-        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
-        account_proxy.insert = Mock(
+        bulk_proxy.get_batch_results = Mock(
             return_value=[
-                { 'success': True, 'id': '001000000000002' },
-                { 'success': True, 'id': '001000000000003' }
+                UploadResult('001000000000002', True, True, ''),
+                UploadResult('001000000000003', True, True, '')
             ]
         )
+        bulk_proxy.create_insert_job = Mock(return_value=Mock())
         op.mappers['Account'] = Mock()
         op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
 
@@ -1862,10 +1878,14 @@ class test_LoadStep(unittest.TestCase):
         op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in record_list])
         l.primitivize.assert_has_calls([unittest.mock.call(x) for x in cleaned_record_list])
 
-        op.get_bulk_proxy_object.assert_called_once_with('Account')
-        account_proxy.insert.assert_called_once_with(cleaned_record_list)
+        json_iterator_proxy.assert_called_once_with(cleaned_record_list)
+        bulk_proxy.post_batch.assert_called_once_with(
+            bulk_proxy.create_insert_job.return_value,
+            json_iterator_proxy.return_value
+        )
 
-    def test_execute_accumulates_cleaned_dependent_records(self):
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    def test_execute_accumulates_cleaned_dependent_records(self, bulk_proxy):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000', 'ParentId': '001000000000001' },
             { 'Name': 'Test 2', 'Id': '001000000000001', 'ParentId': ''}
@@ -1886,12 +1906,10 @@ class test_LoadStep(unittest.TestCase):
             return_value=record_list
         )
         op.get_result_file = Mock()
-        account_proxy = Mock()
-        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
-        account_proxy.insert = Mock(
+        bulk_proxy.get_batch_results = Mock(
             return_value=[
-                { 'success': True, 'id': '001000000000002' },
-                { 'success': True, 'id': '001000000000003' }
+                UploadResult('001000000000002', True, True, ''),
+                UploadResult('001000000000003', True, True, '')
             ]
         )
         op.mappers['Account'] = Mock()
@@ -1908,7 +1926,8 @@ class test_LoadStep(unittest.TestCase):
 
         self.assertEqual(cleaned_record_list, l.dependent_lookup_records)
 
-    def test_execute_handles_errors(self):
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    def test_execute_handles_errors(self, bulk_proxy):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000' },
             { 'Name': 'Test 2', 'Id': '001000000000001' }
@@ -1923,26 +1942,11 @@ class test_LoadStep(unittest.TestCase):
         op.get_input_file = Mock(
             return_value=record_list
         )
-        account_proxy = Mock()
-        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
-        error = {
-            'statusCode': 'DUPLICATES_DETECTED',
-            'message': 'Duplicate Alert',
-            'extendedErrorDetails': None,
-            'fields': []
-        }
-        account_proxy.insert = Mock(
+        error = 'DUPLICATES_DETECTED'
+        bulk_proxy.get_batch_results = Mock(
             return_value=[
-                { 
-                    'success': False, 
-                    'id': None, 
-                    'errors': [ error ]
-                },
-                { 
-                    'success': False, 
-                    'id': None, 
-                    'errors': [ error ]
-                }
+                UploadResult(None, False, False, error),
+                UploadResult(None, False, False, error)
             ]
         )
 
@@ -1954,13 +1958,15 @@ class test_LoadStep(unittest.TestCase):
 
         self.assertEqual(
             {
-                record_list[0]['Id']: 'Failed to load {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account', record_list[0]['Id']),
-                record_list[1]['Id']: 'Failed to load {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account', record_list[1]['Id'])
+                record_list[0]['Id']: 'Failed to load {} {}: {}'.format('Account', record_list[0]['Id'], error),
+                record_list[1]['Id']: 'Failed to load {} {}: {}'.format('Account', record_list[1]['Id'], error)
             },
             l.errors
         )
 
-    def test_execute_dependent_updates_handles_lookups(self):
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    @patch.object(amaxa, 'JSONIterator')
+    def test_execute_dependent_updates_handles_lookups(self, json_iterator_proxy, bulk_proxy):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '001000000000001' },
             { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '001000000000000'}
@@ -1989,12 +1995,10 @@ class test_LoadStep(unittest.TestCase):
         op.get_input_file = Mock(
             return_value=record_list
         )
-        account_proxy = Mock()
-        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
-        account_proxy.update = Mock(
+        bulk_proxy.get_batch_results = Mock(
             return_value=[
-                { 'success': True },
-                { 'success': True }
+                UploadResult('001000000000002', True, True, ''),
+                UploadResult('001000000000003', True, True, '')
             ]
         )
 
@@ -2004,13 +2008,17 @@ class test_LoadStep(unittest.TestCase):
         l.scan_fields()
         l.self_lookups = set(['Lookup__c'])
         l.dependent_lookup_records = cleaned_record_list
-
         l.execute_dependent_updates()
+        self.assertEqual({}, l.errors, 'no errors')
+        bulk_proxy.create_update_job.assert_called_once_with('Account', contentType='JSON')
+        json_iterator_proxy.assert_called_once_with(transformed_record_list)
+        bulk_proxy.post_batch.assert_called_once_with(
+            bulk_proxy.create_update_job.return_value, 
+            json_iterator_proxy.return_value
+        )
 
-        op.get_bulk_proxy_object.assert_called_once_with('Account')
-        account_proxy.update.assert_called_once_with(transformed_record_list)
-
-    def test_execute_dependent_updates_handles_errors(self):
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    def test_execute_dependent_updates_handles_errors(self, bulk_proxy):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000', 'Lookup__c': '001000000000001' },
             { 'Name': 'Test 2', 'Id': '001000000000001', 'Lookup__c': '001000000000000' }
@@ -2035,18 +2043,11 @@ class test_LoadStep(unittest.TestCase):
         op.get_input_file = Mock(
             return_value=record_list
         )
-        account_proxy = Mock()
-        op.get_bulk_proxy_object = Mock(return_value=account_proxy)
-        error = {
-            'statusCode': 'DUPLICATES_DETECTED',
-            'message': 'Duplicate Alert',
-            'extendedErrorDetails': None,
-            'fields': []
-        }
-        account_proxy.update = Mock(
+        error = 'DUPLICATES_DETECTED'
+        bulk_proxy.get_batch_results = Mock(
             return_value=[
-                { 'success': False, 'errors': [ error ] },
-                { 'success': False, 'errors': [ error ] }
+                UploadResult(None, False, False, error),
+                UploadResult(None, False, False, error)
             ]
         )
 
@@ -2061,8 +2062,8 @@ class test_LoadStep(unittest.TestCase):
 
         self.assertEqual(
             {
-                '001000000000000': 'Failed to execute dependent updates for {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account','001000000000000'),
-                '001000000000001': 'Failed to execute dependent updates for {} {}: DUPLICATES_DETECTED: Duplicate Alert ()'.format('Account','001000000000001')
+                record_list[0]['Id']: 'Failed to execute dependent updates for {} {}: {}'.format('Account', record_list[0]['Id'], error),
+                record_list[1]['Id']: 'Failed to execute dependent updates for {} {}: {}'.format('Account', record_list[1]['Id'], error)
             },
             l.errors
         )
