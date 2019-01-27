@@ -3,11 +3,13 @@ import simple_salesforce
 import logging
 import json
 import salesforce_bulk
+import itertools
 from . import constants
 from enum import Enum, unique
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from time import sleep
+
 
 @unique
 class StringEnum(Enum):
@@ -87,6 +89,14 @@ def JSONIterator(records):
         yield b',' + enc(rec)
 
     yield b']'
+
+def BatchIterator(iterator, n=10000):
+    while True:
+        batch = list(itertools.islice(iterator, n))
+        if not batch:
+            return
+        
+        yield batch
 
 class Operation(object):
     def __init__(self, connection):
@@ -405,24 +415,30 @@ class LoadStep(Step):
             return
 
         job = self.context.bulk.create_insert_job(self.sobjectname, contentType='JSON')
-        json_iter = JSONIterator(records_to_load)
-        batch = self.context.bulk.post_batch(job, json_iter)
-        self.context.bulk.wait_for_batch(job, batch)
+        batches = []
+        for record_batch in BatchIterator(iter(records_to_load)):
+            json_iter = JSONIterator(record_batch)
+            batches.append(self.context.bulk.post_batch(job, json_iter))
+
+        for batch in batches:
+            self.context.bulk.wait_for_batch(job, batch)
+
         self.context.bulk.close_job(job)
         
-        for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
-            if r.success:
-                self.context.register_new_id(
-                    self.sobjectname,
-                    SalesforceId(original_ids[i]),
-                    SalesforceId(r.id) # note lowercase in result
-                )
-            else:
-                self.errors[original_ids[i]] = 'Failed to load {} {}: {}'.format(
-                    self.sobjectname, 
-                    original_ids[i],
-                    r.error
-                )
+        for batch in batches:
+            for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
+                if r.success:
+                    self.context.register_new_id(
+                        self.sobjectname,
+                        SalesforceId(original_ids[i]),
+                        SalesforceId(r.id) # note lowercase in result
+                    )
+                else:
+                    self.errors[original_ids[i]] = 'Failed to load {} {}: {}'.format(
+                        self.sobjectname, 
+                        original_ids[i],
+                        r.error
+                    )
 
     def execute_dependent_updates(self):
         # Populate dependent and self-lookups in a single pass

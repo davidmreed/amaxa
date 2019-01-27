@@ -6,7 +6,7 @@ Amaxa is designed to replace complex, error-prone workflows that manipulate data
 
 ## Installing, Building, and Testing Amaxa
 
-Amaxa requires Python 3.6 and the packages `simple_salesforce`, `pyyaml`, and `cerberus`. Additional packages are required for development and testing (see `requirements.txt` and `testing-requirements.txt`). Amaxa is operating system-agnostic, but has been tested only on Linux.
+Amaxa requires Python 3.6 and the packages `simple_salesforce`, `salesforce-bulk`, `pyyaml`, and `cerberus`. Additional packages are required for development and testing (see `requirements.txt` and `testing-requirements.txt`). Amaxa is operating system-agnostic, but has been tested only on Linux.
 
 To start working with Amaxa in a virtual environment, clone the Git repository. Then, create a virtual environment for Amaxa and install there:
 
@@ -216,7 +216,6 @@ Two example data suites and operation definition files are included with Amaxa i
 
 ## Limitations, Known Issues, and Future Plans
 
- - Amaxa will not operate correctly in very high data volume environments (approaching the limits of a single Bulk API job/hundreds of thousands of records in a single sObject). Future work to use the `salesforce-bulk` library will rectify this issue.
  - Amaxa does not support import or export of compound fields (Addresses and Geolocations), but can import and export their component fields, such as `MailingStreet`.
  - Amaxa does not support Base64 binary-blob fields.
  - Tests are not effectively abstracted and are fairly repetitive. 

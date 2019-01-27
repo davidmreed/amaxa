@@ -460,6 +460,41 @@ class test_ExtractionStep(unittest.TestCase):
         step.store_result.assert_any_call(retval[1])
 
     @patch('amaxa.ExtractOperation.bulk', new_callable=PropertyMock())
+
+    def test_perform_bulk_api_pass_stores_high_volume_results(self, bulk_proxy):
+        connection = Mock()
+
+        oc = amaxa.ExtractOperation(connection)
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+        retval = []
+        for i in range(5):
+            retval.append([
+                {'Id': '00100000{:d}{:06d}'.format(i, j), 'Name': 'Account {:d}{:06d}'.format(i, j)}
+                for j in range(100000)
+            ])
+
+
+        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
+        bulk_proxy.create_query_job = Mock(return_value = '075000000000000AAA')
+        bulk_proxy.get_all_results_for_query_batch = Mock(
+            return_value = [IteratorBytesIO([json.dumps(chunk).encode('utf-8')]) for chunk in retval]
+        )
+
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        step.store_result = Mock()
+        oc.add_step(step)
+        step.scan_fields()
+
+        step.perform_bulk_api_pass('SELECT Id FROM Account')
+        self.assertEqual(500000, step.store_result.call_count)
+
+    @patch('amaxa.ExtractOperation.bulk', new_callable=PropertyMock())
     def test_perform_bulk_api_pass_converts_datetimes(self, bulk_proxy):
         connection = Mock()
 
