@@ -1,3 +1,4 @@
 pyyaml
-simple_salesforce
 cerberus
+simple_salesforce
+salesforce_bulk

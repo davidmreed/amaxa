@@ -9,7 +9,7 @@ setup(
     license='MIT License',
     packages=['amaxa'],
     python_requires='>=3.6',
-    requires=['pyyaml', 'simple_salesforce', 'cerberus'],
+    requires=['pyyaml', 'simple_salesforce', 'salesforce-bulk', 'cerberus'],
     tests_require=['pytest', 'pytest-cov', 'codecov', 'wheel'],
     entry_points={
         'console_scripts': [
