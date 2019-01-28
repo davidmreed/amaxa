@@ -6,7 +6,27 @@ Amaxa is designed to replace complex, error-prone workflows that manipulate data
 
 ## Installing, Building, and Testing Amaxa
 
-Using Amaxa requires Python 3.6 and the following packages:
+Using Amaxa requires Python 3.6. To install Amaxa using `pip`, execute
+
+    $ pip install amaxa
+
+Make sure to invoke within a Python 3.6+ virtual environment or specify Python 3.6 or greater as required by your operating system.
+
+Amaxa is operating system-agnostic, but has been tested only on Linux.
+
+### Development
+
+To start working with Amaxa in a virtual environment, clone the Git repository. Then, create a virtual environment for Amaxa and install there:
+
+    $ cd amaxa
+    $ python3.6 -m venv venv
+    $ source venv/bin/activate
+    $ pip install -r requirements.txt -r testing-requirements.txt
+    $ python setup.py install
+
+You'll then be able to invoke `amaxa` from the command line whenever the virtual environment is active.
+
+Amaxa depends on the following packages to run:
 
  - `simple_salesforce`
  - `salesforce-bulk`
@@ -22,18 +42,6 @@ Using Amaxa requires Python 3.6 and the following packages:
  - `codecov`
  - `wheel`
  - `setuptools`
- 
- Amaxa is operating system-agnostic, but has been tested only on Linux.
-
-To start working with Amaxa in a virtual environment, clone the Git repository. Then, create a virtual environment for Amaxa and install there:
-
-    $ cd amaxa
-    $ python3.6 -m venv venv
-    $ source venv/bin/activate
-    $ pip install -r requirements.txt -r testing-requirements.txt
-    $ python setup.py install
-
-You'll then be able to invoke `amaxa` from the command line whenever the virtual environment is active.
 
 Tests are executed using `pytest`. If a valid Salesforce access token and instance URL are present in the environment variables `INSTANCE_URL` and `ACCESS_TOKEN`, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org (see `.gitlab-ci.yml` for the specific testing process).
 
