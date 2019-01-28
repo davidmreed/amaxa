@@ -5,6 +5,7 @@ import logging
 from . import amaxa
 from . import constants
 from . import transforms
+from . import jwt_auth
 
 def load_credentials(incoming, load):
     (credentials, errors) = validate_credential_schema(incoming)
@@ -20,12 +21,31 @@ def load_credentials(incoming, load):
         connection = simple_salesforce.Salesforce(
             username = credentials['username'],
             password = credentials['password'],
-            security_token = credentials.get('security-token') or '',
-            organizationId = credentials.get('organization-id') or '',
-            sandbox = credentials.get('sandbox')
+            security_token = credentials.get('security-token', ''),
+            organizationId = credentials.get('organization-id', ''),
+            sandbox = credentials.get('sandbox', False)
         )
 
         logging.getLogger('amaxa').debug('Authenticating to Salesforce with user name and password')
+    elif 'username' in credentials and 'consumer-key' and 'jwt-key' in credentials:
+        # JWT authentication with key provided inline.
+        connection = jwt_auth.jwt_login(
+            credentials['consumer-key'],
+            credentials['username'],
+            credentials['jwt-key'],
+            credentials.get('sandbox', False)
+        )
+        logging.getLogger('amaxa').debug('Authenticating to Salesforce with inline JWT key')
+    elif 'username' in credentials and 'jwt-file' in credentials:
+        # JWT authentication with external keyfile.
+        with open(credentials['jwt-file'], 'r') as jwt_file:
+            connection = jwt_auth.jwt_login(
+                credentials['consumer-key'],
+                credentials['username'],
+                jwt_file.read(),
+                credentials.get('sandbox', False)
+            )
+        logging.getLogger('amaxa').debug('Authenticating to Salesforce with external JWT key')
     elif 'access-token' in credentials and 'instance-url' in credentials:
         connection = simple_salesforce.Salesforce(instance_url=credentials['instance-url'], 
                                                   session_id=credentials['access-token'])
@@ -468,7 +488,6 @@ credential_schema = {
         'required': True,
         'schema': {
             'username': {
-                'dependencies': ['password'],
                 'type': 'string',
                 'excludes': ['access-token', 'instance-url']
             },
@@ -479,27 +498,42 @@ credential_schema = {
             'access-token': {
                 'dependencies': ['instance-url'],
                 'type': 'string',
-                'excludes': ['username', 'password', 'security-token']
+                'excludes': ['username', 'password', 'security-token', 'jwt-key', 'jwt-file', 'consumer-key']
             },
             'password': {
                 'dependencies': ['username'],
                 'type': 'string',
-                'excludes': ['access-token', 'instance-url']
+                'excludes': ['access-token', 'instance-url', 'jwt-key', 'jwt-file', 'consumer-key']
             },
             'security-token': {
                 'dependencies': ['username', 'password'],
                 'type': 'string',
-                'excludes': ['access-token', 'instance-url']
+                'excludes': ['access-token', 'instance-url', 'jwt-key', 'jwt-file', 'consumer-key']
             },
             'organization-id': {
                 'dependencies': ['username', 'password'],
                 'type': 'string',
-                'excludes': ['access-token', 'instance-url']
+                'excludes': ['access-token', 'instance-url', 'jwt-key', 'jwt-file', 'consumer-key']
             },
             'instance-url': {
                 'dependencies': ['access-token'],
                 'type': 'string',
-                'excludes': ['username', 'password', 'security-token']
+                'excludes': ['username', 'password', 'security-token', 'jwt-key', 'jwt-file', 'consumer-key']
+            },
+            'jwt-key': {
+                'dependencies': ['consumer-key', 'username'],
+                'type': 'string',
+                'excludes': ['password', 'security-token', 'access-token', 'instance-url', 'jwt-file']
+            },
+            'jwt-file': {
+                'dependencies': ['consumer-key', 'username'],
+                'type': 'string',
+                'excludes': ['password', 'security-token', 'access-token', 'instance-url', 'jwt-key']
+            },
+            'consumer-key': {
+                'dependencies': ['username'],
+                'type': 'string',
+                'excludes': ['password', 'security-token', 'access-token', 'instance-url']
             }
         }
     }

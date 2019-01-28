@@ -9,7 +9,7 @@ setup(
     license='GNU GPLv3',
     packages=['amaxa'],
     python_requires='>=3.6',
-    requires=['pyyaml', 'simple_salesforce', 'salesforce_bulk', 'cerberus'],
+    requires=['pyyaml', 'simple_salesforce', 'salesforce_bulk', 'cerberus', 'requests', 'pyjwt'],
     tests_require=['pytest', 'pytest-cov', 'codecov', 'wheel'],
     entry_points={
         'console_scripts': [

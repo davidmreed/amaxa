@@ -6,7 +6,24 @@ Amaxa is designed to replace complex, error-prone workflows that manipulate data
 
 ## Installing, Building, and Testing Amaxa
 
-Amaxa requires Python 3.6 and the packages `simple_salesforce`, `salesforce-bulk`, `pyyaml`, and `cerberus`. Additional packages are required for development and testing (see `requirements.txt` and `testing-requirements.txt`). Amaxa is operating system-agnostic, but has been tested only on Linux.
+Using Amaxa requires Python 3.6 and the following packages:
+
+ - `simple_salesforce`
+ - `salesforce-bulk`
+ - `pyyaml`
+ - `pyjwt`
+ - `requests`
+ - `cerberus`
+ 
+ For development and testing, you'll also need 
+
+ - `pytest`
+ - `pytest-cov`
+ - `codecov`
+ - `wheel`
+ - `setuptools`
+ 
+ Amaxa is operating system-agnostic, but has been tested only on Linux.
 
 To start working with Amaxa in a virtual environment, clone the Git repository. Then, create a virtual environment for Amaxa and install there:
 
@@ -40,7 +57,7 @@ To see usage help, execute
     
 ## Supplying Credentials
 
-Credentials are supplied in a YAML or JSON file, as shown here.
+Credentials are supplied in a YAML or JSON file, as shown here (for username and password)
 
     version: 1
     credentials:
@@ -49,7 +66,27 @@ Credentials are supplied in a YAML or JSON file, as shown here.
         security-token: '00000'
         sandbox: True
         
-Amaxa doesn't currently support JWT authentication, but this is a planned future option.
+Amaxa also allows JWT authentication, for headless operation:
+
+    version: 1
+    credentials:
+        username: 'test@example.com'
+        consumer-key: 'GOES_HERE'
+        jwt-key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        <snipped>
+        -----END RSA PRIVATE KEY-----
+        sandbox: False
+
+If your JWT key is stored externally in a file, use the key `jwt-file` with the name of that file.
+
+Lastly, if you establish authentication outside Amaxa, you can directly provide an access token and instance URL.
+
+    version: 1
+    credentials:
+        access-token: '.....'
+        instance-url: 'test.salesforce.com
+
 
 ## Defining Operations
 

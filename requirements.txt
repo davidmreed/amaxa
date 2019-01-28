@@ -1,4 +1,5 @@
 pyyaml
+pyjwt
 cerberus
 simple_salesforce
 salesforce_bulk
