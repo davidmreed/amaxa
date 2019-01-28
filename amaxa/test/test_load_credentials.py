@@ -1,3 +1,4 @@
+import simple_salesforce
 import unittest
 from unittest.mock import patch, Mock
 from .. import amaxa, loader
@@ -218,6 +219,41 @@ class test_load_credentials(unittest.TestCase):
         sf_mock.assert_called_once_with(
             session_id = 'swordfish',
             instance_url = 'test.salesforce.com'
+        )
+
+    @patch('requests.post')
+    @patch('jwt.encode')
+    @patch('simple_salesforce.Salesforce')
+    def test_load_credentials_returns_error_on_jwt_failure(self, sf_mock, jwt_mock, requests_mock):
+        body = { 'error': 'bad JWT', 'error_description': 'key error' }
+        requests_mock.return_value.status_code = 400
+        requests_mock.return_value.json = Mock(
+            return_value = body
+        )
+        (result, errors) = loader.load_credentials(
+            {
+                'version': 1,
+                'credentials': {
+                    'consumer-key': '123456',
+                    'username': 'baltar@ucaprica.cc',
+                    'jwt-key': '00000',
+                    'sandbox': True
+                }
+            },
+            False
+        )
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            [
+                'Failed to authenticate with JWT: {}'.format(
+                    simple_salesforce.exceptions.SalesforceAuthenticationFailed(
+                        body['error'],
+                        body['error_description']
+                    ).message
+                )
+            ],
+            errors
         )
 
     @patch('simple_salesforce.Salesforce')

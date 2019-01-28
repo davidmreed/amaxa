@@ -29,23 +29,29 @@ def load_credentials(incoming, load):
         logging.getLogger('amaxa').debug('Authenticating to Salesforce with user name and password')
     elif 'username' in credentials and 'consumer-key' and 'jwt-key' in credentials:
         # JWT authentication with key provided inline.
-        connection = jwt_auth.jwt_login(
-            credentials['consumer-key'],
-            credentials['username'],
-            credentials['jwt-key'],
-            credentials.get('sandbox', False)
-        )
-        logging.getLogger('amaxa').debug('Authenticating to Salesforce with inline JWT key')
-    elif 'username' in credentials and 'jwt-file' in credentials:
-        # JWT authentication with external keyfile.
-        with open(credentials['jwt-file'], 'r') as jwt_file:
+        try:
             connection = jwt_auth.jwt_login(
                 credentials['consumer-key'],
                 credentials['username'],
-                jwt_file.read(),
+                credentials['jwt-key'],
                 credentials.get('sandbox', False)
             )
-        logging.getLogger('amaxa').debug('Authenticating to Salesforce with external JWT key')
+            logging.getLogger('amaxa').debug('Authenticating to Salesforce with inline JWT key')
+        except simple_salesforce.exceptions.SalesforceAuthenticationFailed as e:
+            return (None, ['Failed to authenticate with JWT: {}'.format(e.message)])
+    elif 'username' in credentials and 'jwt-file' in credentials:
+        # JWT authentication with external keyfile.
+        try:
+            with open(credentials['jwt-file'], 'r') as jwt_file:
+                connection = jwt_auth.jwt_login(
+                    credentials['consumer-key'],
+                    credentials['username'],
+                    jwt_file.read(),
+                    credentials.get('sandbox', False)
+                )
+            logging.getLogger('amaxa').debug('Authenticating to Salesforce with external JWT key')
+        except simple_salesforce.exceptions.SalesforceAuthenticationFailed as e:
+            return (None, ['Failed to authenticate with JWT: {}'.format(e.message)])
     elif 'access-token' in credentials and 'instance-url' in credentials:
         connection = simple_salesforce.Salesforce(instance_url=credentials['instance-url'], 
                                                   session_id=credentials['access-token'])
