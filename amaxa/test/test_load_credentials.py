@@ -224,7 +224,7 @@ class test_load_credentials(unittest.TestCase):
     @patch('requests.post')
     @patch('jwt.encode')
     @patch('simple_salesforce.Salesforce')
-    def test_load_credentials_returns_error_on_jwt_failure(self, sf_mock, jwt_mock, requests_mock):
+    def test_load_credentials_returns_error_on_jwt_key_failure(self, sf_mock, jwt_mock, requests_mock):
         body = { 'error': 'bad JWT', 'error_description': 'key error' }
         requests_mock.return_value.status_code = 400
         requests_mock.return_value.json = Mock(
@@ -242,6 +242,43 @@ class test_load_credentials(unittest.TestCase):
             },
             False
         )
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            [
+                'Failed to authenticate with JWT: {}'.format(
+                    simple_salesforce.exceptions.SalesforceAuthenticationFailed(
+                        body['error'],
+                        body['error_description']
+                    ).message
+                )
+            ],
+            errors
+        )
+
+    @patch('requests.post')
+    @patch('jwt.encode')
+    @patch('simple_salesforce.Salesforce')
+    def test_load_credentials_returns_error_on_jwt_file_failure(self, sf_mock, jwt_mock, requests_mock):
+        body = { 'error': 'bad JWT', 'error_description': 'key error' }
+        requests_mock.return_value.status_code = 400
+        requests_mock.return_value.json = Mock(
+            return_value = body
+        )
+        m = unittest.mock.mock_open(read_data='00000')
+        with patch('builtins.open', m):
+            (result, errors) = loader.load_credentials(
+                {
+                    'version': 1,
+                    'credentials': {
+                        'consumer-key': '123456',
+                        'username': 'baltar@ucaprica.cc',
+                        'jwt-file': 'server.key',
+                        'sandbox': True
+                    }
+                },
+                False
+            )
 
         self.assertIsNone(result)
         self.assertEqual(
