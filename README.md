@@ -32,6 +32,7 @@ Amaxa depends on the following packages to run:
  - `salesforce-bulk`
  - `pyyaml`
  - `pyjwt`
+ - `cryptography`
  - `requests`
  - `cerberus`
  
