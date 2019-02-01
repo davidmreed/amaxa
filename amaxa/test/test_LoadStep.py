@@ -471,46 +471,6 @@ class test_LoadStep(unittest.TestCase):
         self.assertEqual(20000, op.register_new_id.call_count)
 
     @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
-    def test_execute_accumulates_cleaned_dependent_records(self, bulk_proxy):
-        record_list = [
-            { 'Name': 'Test', 'Id': '001000000000000', 'ParentId': '001000000000001' },
-            { 'Name': 'Test 2', 'Id': '001000000000001', 'ParentId': ''}
-        ]
-        cleaned_record_list = [
-            { 'Id': '001000000000000', 'ParentId': '001000000000001' }
-        ]
-
-        connection = Mock()
-        op = amaxa.LoadOperation(connection)
-        op.file_store = MockFileStore()
-        op.get_field_map = Mock(return_value={
-            'Name': { 'type': 'string '},
-            'Id': { 'type': 'string' },
-            'ParentId': { 'type': 'string' }
-        })
-
-        op.file_store.records['Account'] = record_list
-        bulk_proxy.get_batch_results = Mock(
-            return_value=[
-                UploadResult('001000000000002', True, True, ''),
-                UploadResult('001000000000003', True, True, '')
-            ]
-        )
-        op.mappers['Account'] = Mock()
-        op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
-
-        l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
-        l.context = op
-        l.primitivize = Mock(side_effect=lambda x: x)
-
-        l.initialize()
-        l.self_lookups = set(['ParentId'])
-
-        l.execute()
-
-        self.assertEqual(cleaned_record_list, l.dependent_lookup_records)
-
-    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
     def test_execute_handles_errors(self, bulk_proxy):
         record_list = [
             { 'Name': 'Test', 'Id': '001000000000000' },

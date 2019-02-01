@@ -4,6 +4,7 @@ import logging
 import json
 import salesforce_bulk
 import itertools
+import csv
 from . import constants
 from enum import Enum, unique
 from datetime import datetime, timedelta
@@ -404,13 +405,8 @@ class LoadStep(Step):
             # We need to save off the original record Id because it'll be cleaned from the record before insert.
             # We use the original Id for error reporting.
             original_ids.append(record['Id'])
-            # We also need (before we clean the record) to save off a copy for population of its dependent lookups in a later pass.
-            # Confirm first that we have a nonzero count of populated dependent lookups (we'll recheck in execute_dependent_updates)
-            dependent_record = self.extract_dependent_lookups(record)
-            if len([r for r in dependent_record.values() if r is not None and r != '']) > 1: # 1 for the Id
-                self.dependent_lookup_records.append(dependent_record)
 
-            # Finally, prep this record for the Bulk API, populate its lookups, apply transforms, and clean dependent lookups
+            # Then, prep this record for the Bulk API, populate its lookups, apply transforms, and clean dependent lookups
             try:
                 record = self.primitivize(
                     self.populate_lookups(
@@ -464,6 +460,15 @@ class LoadStep(Step):
                         )
                     )
 
+    def reset_input_csv(self):
+        fh = self.context.file_store.get_file(self.sobjectname, FileType.INPUT)
+        fh.seek(0)
+        self.context.file_store.set_csv(
+            self.sobjectname,
+            FileType.INPUT,
+            csv.DictReader(fh)
+        )
+
     def execute_dependent_updates(self):
         # Populate dependent and self-lookups in a single pass
         records_to_load = []
@@ -471,13 +476,19 @@ class LoadStep(Step):
         all_lookups = self.dependent_lookups | self.self_lookups
         success = True
 
-        if len(all_lookups) > 0 and len(self.dependent_lookup_records) > 0:
+        if len(all_lookups) > 0:
             # Re-check, for each record, whether we have any loading to do.
             # If all of the dependent lookups prove to be dropped outside references, we have no work to do.
-            for record in self.dependent_lookup_records:
+            self.reset_input_csv()
+            reader = self.context.file_store.get_csv(self.sobjectname, FileType.INPUT)
+            for record in reader:
                 try:
-                    cleaned_record = self.populate_lookups(record, all_lookups, record['Id'])
-                    if len([r for r in cleaned_record.values() if r is not None and r != '']) > 1: # 1 for the Id
+                    cleaned_record = self.populate_lookups(
+                        self.extract_dependent_lookups(record),
+                        all_lookups,
+                        record['Id']
+                    )
+                    if len(list(filter(lambda r: r is not None and r != '', cleaned_record.values()))) > 1: # 1 for the Id
                         # Populate the new Id for this record
                         original_ids.append(cleaned_record['Id'])
                         cleaned_record['Id'] = str(self.context.get_new_id(SalesforceId(cleaned_record['Id'])))
