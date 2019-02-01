@@ -2,6 +2,7 @@ import unittest
 import json
 from unittest.mock import Mock, MagicMock, PropertyMock, patch
 from salesforce_bulk import UploadResult
+from .MockFileStore import MockFileStore
 from .. import amaxa
 
 
@@ -17,6 +18,7 @@ class test_LoadStep(unittest.TestCase):
     def test_get_value_for_lookup_with_parent_available(self):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = Mock()
         op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000001'))
 
         l = amaxa.LoadStep('Account', ['Name', 'ParentId'])
@@ -284,15 +286,13 @@ class test_LoadStep(unittest.TestCase):
         ]
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
         op.get_field_map = Mock(return_value={
             'Name': { 'type': 'string '},
             'Id': { 'type': 'string' }
         })
         op.register_new_id = Mock()
-        op.get_input_file = Mock(
-            return_value=record_list
-        )
-        op.get_result_file = Mock()
+        op.file_store.records['Account'] = record_list
         bulk_proxy.get_batch_results = Mock(
             return_value=[
                 UploadResult('001000000000002', True, True, ''),
@@ -307,7 +307,7 @@ class test_LoadStep(unittest.TestCase):
         l.primitivize = Mock(side_effect=lambda x: x)
         l.populate_lookups = Mock(side_effect=lambda x, y, z: x)
 
-        l.scan_fields()
+        l.initialize()
         l.execute()
 
         op.mappers['Account'].transform_record.assert_has_calls([unittest.mock.call(x) for x in record_list])
@@ -342,6 +342,7 @@ class test_LoadStep(unittest.TestCase):
 
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
         op.get_field_map = Mock(return_value={
             'Name': { 'type': 'string '},
             'Id': { 'type': 'string' },
@@ -352,10 +353,7 @@ class test_LoadStep(unittest.TestCase):
         op.register_new_id('Account', amaxa.SalesforceId('003000000000001'), amaxa.SalesforceId('003000000000003'))
 
         op.register_new_id = Mock()
-        op.get_input_file = Mock(
-            return_value=record_list
-        )
-        op.get_result_file = Mock()
+        op.file_store.records['Account'] = record_list
         bulk_proxy.get_batch_results = Mock(
             return_value=[
                 UploadResult('001000000000002', True, True, ''),
@@ -370,7 +368,7 @@ class test_LoadStep(unittest.TestCase):
         l.context = op
         l.primitivize = Mock(side_effect=lambda x: x)
 
-        l.scan_fields()
+        l.initialize()
         l.descendent_lookups = set(['Lookup__c'])
 
         l.execute()
@@ -404,16 +402,14 @@ class test_LoadStep(unittest.TestCase):
 
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
         op.get_field_map = Mock(return_value={
             'Name': { 'type': 'string '},
             'Id': { 'type': 'string' },
             'ParentId': { 'type': 'string' }
         })
 
-        op.get_input_file = Mock(
-            return_value=record_list
-        )
-        op.get_result_file = Mock()
+        op.file_store.records['Account'] = record_list
         bulk_proxy.get_batch_results = Mock(
             return_value=[
                 UploadResult('001000000000002', True, True, ''),
@@ -428,7 +424,7 @@ class test_LoadStep(unittest.TestCase):
         l.context = op
         l.primitivize = Mock(side_effect=lambda x: x)
 
-        l.scan_fields()
+        l.initialize()
         l.self_lookups = set(['ParentId'])
 
         l.execute()
@@ -446,6 +442,7 @@ class test_LoadStep(unittest.TestCase):
     def test_execute_loads_high_volume_records(self, bulk_proxy):
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
         op.get_field_map = Mock(return_value={
             'Name': { 'type': 'string', 'soapType': 'string' },
             'Id': { 'type': 'string', 'soapType': 'string' }
@@ -453,9 +450,7 @@ class test_LoadStep(unittest.TestCase):
         op.register_new_id = Mock()
 
         record_list = [{'Id': '001000000{:06d}'.format(i), 'Name': 'Account {:06d}'.format(i)} for i in range(20000)]
-        op.get_input_file = Mock(
-            return_value=record_list
-        )
+        op.file_store.records['Account'] = record_list
         op.get_result_file = Mock()
         bulk_proxy.get_batch_results = Mock(
             side_effect=[
@@ -467,7 +462,7 @@ class test_LoadStep(unittest.TestCase):
         l = amaxa.LoadStep('Account', ['Name'])
         l.context = op
 
-        l.scan_fields()
+        l.initialize()
         l.execute()
 
         self.assertEqual(2, bulk_proxy.post_batch.call_count)
@@ -487,16 +482,14 @@ class test_LoadStep(unittest.TestCase):
 
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
         op.get_field_map = Mock(return_value={
             'Name': { 'type': 'string '},
             'Id': { 'type': 'string' },
             'ParentId': { 'type': 'string' }
         })
 
-        op.get_input_file = Mock(
-            return_value=record_list
-        )
-        op.get_result_file = Mock()
+        op.file_store.records['Account'] = record_list
         bulk_proxy.get_batch_results = Mock(
             return_value=[
                 UploadResult('001000000000002', True, True, ''),
@@ -510,7 +503,7 @@ class test_LoadStep(unittest.TestCase):
         l.context = op
         l.primitivize = Mock(side_effect=lambda x: x)
 
-        l.scan_fields()
+        l.initialize()
         l.self_lookups = set(['ParentId'])
 
         l.execute()
@@ -525,14 +518,14 @@ class test_LoadStep(unittest.TestCase):
         ]
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
+        op.file_store.records['Account'] = record_list
         op.get_field_map = Mock(return_value={
             'Name': { 'soapType': 'xsd:string', 'type': 'string' },
             'Id': { 'soapType': 'xsd:string', 'type': 'string' }
         })
         op.register_new_id = Mock()
-        op.get_input_file = Mock(
-            return_value=record_list
-        )
+        op.register_error = Mock()
         error = 'DUPLICATES_DETECTED'
         bulk_proxy.get_batch_results = Mock(
             return_value=[
@@ -544,15 +537,15 @@ class test_LoadStep(unittest.TestCase):
         l = amaxa.LoadStep('Account', ['Name'])
         l.context = op
 
-        l.scan_fields()
+        l.initialize()
         l.execute()
 
         self.assertEqual(
-            {
-                record_list[0]['Id']: 'Failed to load {} {}: {}'.format('Account', record_list[0]['Id'], error),
-                record_list[1]['Id']: 'Failed to load {} {}: {}'.format('Account', record_list[1]['Id'], error)
-            },
-            l.errors
+            [
+                unittest.mock.call('Account', record_list[0]['Id'], 'Failed to load {} {}: {}'.format('Account', record_list[0]['Id'], error)),
+                unittest.mock.call('Account', record_list[1]['Id'], 'Failed to load {} {}: {}'.format('Account', record_list[1]['Id'], error))
+            ],
+            op.register_error.call_args_list
         )
 
     @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
@@ -573,6 +566,7 @@ class test_LoadStep(unittest.TestCase):
 
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
         op.get_field_map = Mock(return_value={
             'Name': { 'type': 'string '},
             'Id': { 'type': 'string' },
@@ -583,9 +577,8 @@ class test_LoadStep(unittest.TestCase):
         op.register_new_id('Account', amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
 
         op.register_new_id = Mock()
-        op.get_input_file = Mock(
-            return_value=record_list
-        )
+        op.register_error = Mock()
+        op.file_store.records['Account'] = record_list
         bulk_proxy.get_batch_results = Mock(
             return_value=[
                 UploadResult('001000000000002', True, True, ''),
@@ -596,11 +589,12 @@ class test_LoadStep(unittest.TestCase):
         l = amaxa.LoadStep('Account', ['Name', 'Lookup__c'])
         l.context = op
 
-        l.scan_fields()
+        l.initialize()
         l.self_lookups = set(['Lookup__c'])
         l.dependent_lookup_records = cleaned_record_list
         l.execute_dependent_updates()
-        self.assertEqual({}, l.errors, 'no errors')
+
+        op.register_error.assert_not_called()
         bulk_proxy.create_update_job.assert_called_once_with('Account', contentType='JSON')
         json_iterator_proxy.assert_called_once_with(transformed_record_list)
         bulk_proxy.post_batch.assert_called_once_with(
@@ -621,6 +615,7 @@ class test_LoadStep(unittest.TestCase):
 
         connection = Mock()
         op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
         op.get_field_map = Mock(return_value={
             'Name': { 'type': 'string '},
             'Id': { 'type': 'string' },
@@ -631,9 +626,8 @@ class test_LoadStep(unittest.TestCase):
         op.register_new_id('Account', amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000003'))
 
         op.register_new_id = Mock()
-        op.get_input_file = Mock(
-            return_value=record_list
-        )
+        op.register_error = Mock()
+        op.file_store.records['Account'] = record_list
         error = 'DUPLICATES_DETECTED'
         bulk_proxy.get_batch_results = Mock(
             return_value=[
@@ -645,16 +639,16 @@ class test_LoadStep(unittest.TestCase):
         l = amaxa.LoadStep('Account', ['Name', 'Lookup__c'])
         l.context = op
 
-        l.scan_fields()
+        l.initialize()
         l.self_lookups = set(['Lookup__c'])
         l.dependent_lookup_records = dependent_record_list
 
         l.execute_dependent_updates()
 
         self.assertEqual(
-            {
-                record_list[0]['Id']: 'Failed to execute dependent updates for {} {}: {}'.format('Account', record_list[0]['Id'], error),
-                record_list[1]['Id']: 'Failed to execute dependent updates for {} {}: {}'.format('Account', record_list[1]['Id'], error)
-            },
-            l.errors
+            [
+                unittest.mock.call('Account', record_list[0]['Id'], 'Failed to execute dependent updates for {} {}: {}'.format('Account', record_list[0]['Id'], error)),
+                unittest.mock.call('Account', record_list[1]['Id'], 'Failed to execute dependent updates for {} {}: {}'.format('Account', record_list[1]['Id'], error))
+            ],
+            op.register_error.call_args_list
         )

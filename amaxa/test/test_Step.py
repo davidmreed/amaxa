@@ -4,12 +4,12 @@ from .. import amaxa
 
 
 class test_Step(unittest.TestCase):
-    def test_scan_fields_identifies_self_lookups(self):
+    def test_initialize_identifies_self_lookups(self):
         connection = Mock()
 
         oc = amaxa.ExtractOperation(connection)
 
-        oc.output_files['Account'] = Mock()
+        oc.file_store.set_csv('Account', amaxa.FileType.OUTPUT, Mock())
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -26,17 +26,17 @@ class test_Step(unittest.TestCase):
         step = amaxa.Step('Account', ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
-        step.scan_fields()
+        step.initialize()
 
         self.assertEqual(set(['Lookup__c']), step.self_lookups)
     
-    def test_scan_fields_identifies_dependent_lookups(self):
+    def test_initialize_identifies_dependent_lookups(self):
         connection = Mock()
 
         oc = amaxa.ExtractOperation(connection)
 
-        oc.output_files['Account'] = Mock()
-        oc.output_files['Contact'] = Mock()
+        oc.file_store.set_csv('Account', amaxa.FileType.OUTPUT, Mock())
+        oc.file_store.set_csv('Contact', amaxa.FileType.OUTPUT, Mock())
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -54,17 +54,17 @@ class test_Step(unittest.TestCase):
         step = amaxa.Step('Account', ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
-        step.scan_fields()
+        step.initialize()
 
         self.assertEqual(set(['Other__c']), step.dependent_lookups)
     
-    def test_scan_fields_identifies_all_lookups_within_extraction(self):
+    def test_initialize_identifies_all_lookups_within_extraction(self):
         connection = Mock()
 
         oc = amaxa.ExtractOperation(connection)
 
-        oc.output_files['Account'] = Mock()
-        oc.output_files['Contact'] = Mock()
+        oc.file_store.set_csv('Account', amaxa.FileType.OUTPUT, Mock())
+        oc.file_store.set_csv('Contact', amaxa.FileType.OUTPUT, Mock())
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -87,17 +87,17 @@ class test_Step(unittest.TestCase):
         step = amaxa.Step('Account', ['Lookup__c', 'Other__c', 'Outside__c'])
         oc.add_step(step)
 
-        step.scan_fields()
+        step.initialize()
 
         self.assertEqual(set(['Other__c', 'Lookup__c']), step.all_lookups)
         
-    def test_scan_fields_identifies_descendent_lookups(self):
+    def test_initialize_identifies_descendent_lookups(self):
         connection = Mock()
 
         oc = amaxa.ExtractOperation(connection)
 
-        oc.output_files['Account'] = Mock()
-        oc.output_files['Contact'] = Mock()
+        oc.file_store.set_csv('Account', amaxa.FileType.OUTPUT, Mock())
+        oc.file_store.set_csv('Contact', amaxa.FileType.OUTPUT, Mock())
         oc.get_field_map = Mock(return_value={
             'Lookup__c': {
                 'name': 'Lookup__c',
@@ -115,18 +115,18 @@ class test_Step(unittest.TestCase):
         step = amaxa.Step('Contact', ['Lookup__c', 'Other__c'])
         oc.add_step(step)
 
-        step.scan_fields()
+        step.initialize()
 
         self.assertEqual(set(['Lookup__c']), step.descendent_lookups)
     
-    def test_scan_fields_handles_mixed_polymorphic_lookups(self):
+    def test_initialize_handles_mixed_polymorphic_lookups(self):
         connection = Mock()
 
         oc = amaxa.ExtractOperation(connection)
 
-        oc.output_files['Account'] = Mock()
-        oc.output_files['Contact'] = Mock()
-        oc.output_files['Opportunity'] = Mock()
+        oc.file_store.set_csv('Account', amaxa.FileType.OUTPUT, Mock())
+        oc.file_store.set_csv('Contact', amaxa.FileType.OUTPUT, Mock())
+        oc.file_store.set_csv('Opportunity', amaxa.FileType.OUTPUT, Mock())
         oc.get_field_map = Mock(return_value={
             'Poly_Lookup__c': {
                 'name': 'Lookup__c',
@@ -144,7 +144,7 @@ class test_Step(unittest.TestCase):
         step = amaxa.Step('Contact', ['Poly_Lookup__c', 'Other__c'])
         oc.add_step(step)
 
-        step.scan_fields()
+        step.initialize()
 
         self.assertEqual(set(['Poly_Lookup__c']), step.dependent_lookups)
         self.assertEqual(set(['Poly_Lookup__c']), step.descendent_lookups)

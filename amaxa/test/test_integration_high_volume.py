@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from .. import amaxa
 from .. import loader
 from ..__main__ import main as main
+from .MockFileStore import MockFileStore
 
 @unittest.skipIf(any(['INSTANCE_URL' not in os.environ, 'ACCESS_TOKEN' not in os.environ]),
                  'environment not configured for integration test')
@@ -18,31 +19,34 @@ class test_integration_high_volume(unittest.TestCase):
         )
 
     def tearDown(self):
-        # We have to run this twice to stick within the DML Rows limit.
-        self.connection.restful(
-            'tooling/executeAnonymous', 
-            {
-                'anonymousBody': 'delete [SELECT Id FROM Lead LIMIT 50000];'
-            }
-        )
-        self.connection.restful(
-            'tooling/executeAnonymous', 
-            {
-                'anonymousBody': 'delete [SELECT Id FROM Lead LIMIT 50000];'
-            }
-        )
+        # We have to run this repeatedly to stick within the DML Rows limit.
+        for i in range(10):
+            self.connection.restful(
+                'tooling/executeAnonymous', 
+                {
+                    'anonymousBody': 'delete [SELECT Id FROM Lead LIMIT 10000];'
+                }
+            )
 
     def test_loads_and_extracts_high_data_volume(self):
         # This is a single unit test rather than multiple to save on execution time.
-        records = 'Id,Company,LastName\n'
+        records = []
 
         for i in range(100000):
-            records += '00Q000000{:06d},[not provided],Lead {:06d}\n'.format(i, i)
+            records.append(
+                {
+                    'Id': '00Q000000{:06d}'.format(i),
+                    'Company': '[not provided]',
+                    'LastName': 'Lead {:06d}'.format(i)
+                }
+            )
 
         op = amaxa.LoadOperation(self.connection)
-        op.set_input_file('Lead', csv.DictReader(io.StringIO(records)))
+        op.file_store = MockFileStore()
+        op.file_store.records['Lead'] = records
         op.add_step(amaxa.LoadStep('Lead', set(['LastName', 'Company'])))
 
+        op.initialize()
         op.execute()
 
         self.assertEqual(
@@ -51,8 +55,8 @@ class test_integration_high_volume(unittest.TestCase):
         )
 
         oc = amaxa.ExtractOperation(self.connection)
-        oc.set_output_file('Lead', Mock(), Mock())
-
+        oc.file_store = MockFileStore()
+ 
         extraction = amaxa.ExtractionStep(
             'Lead',
             amaxa.ExtractionScope.ALL_RECORDS,
@@ -60,6 +64,7 @@ class test_integration_high_volume(unittest.TestCase):
         )
         oc.add_step(extraction)
 
+        extraction.initialize()
         extraction.execute()
 
         self.assertEqual(100000, len(oc.get_extracted_ids('Lead')))

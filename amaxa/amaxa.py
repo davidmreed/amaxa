@@ -36,6 +36,12 @@ class OutsideLookupBehavior(StringEnum):
     INCLUDE = 'include'
     ERROR = 'error'
 
+class FileType(Enum):
+    INPUT = 1
+    OUTPUT = 2
+    RESULT = 3
+    STATE = 4
+
 class AmaxaException(Exception):
     pass
 
@@ -98,6 +104,28 @@ def BatchIterator(iterator, n=10000):
         
         yield batch
 
+class FileStore(object):
+    def __init__(self):
+        self.store = {}
+        self.csv_store = {}
+
+    def set_file(self, sobject, ftype, f):
+        self.store[(sobject, ftype)] = f
+    
+    def set_csv(self, sobject, ftype, f):
+        self.csv_store[(sobject, ftype)] = f
+    
+    def get_file(self, sobject, ftype):
+        return self.store[(sobject, ftype)]
+
+    def get_csv(self, sobject, ftype):
+        return self.csv_store[(sobject, ftype)]
+
+    def close(self):
+        for f in self.store.values():
+            f.close()
+
+
 class Operation(object):
     def __init__(self, connection):
         self.steps = []
@@ -108,6 +136,22 @@ class Operation(object):
         self.proxy_objects = {}
         self.key_prefix_map = None
         self.logger = logging.getLogger('amaxa')
+        self.file_store = FileStore()
+
+    def run(self):
+        try:
+            self.initialize()
+            return self.execute()
+        except Exception as e:
+            self.logger.error('Unexpected exception {} occurred.'.format(str(e)))
+            return -1
+        finally:
+            self.file_store.close()
+
+    def initialize(self):
+        self.logger.info('Initializing operation')
+        for s in self.steps:
+            s.initialize()
 
     @property
     def bulk(self):
@@ -172,7 +216,7 @@ class Step(object):
     def get_field_list(self):
         return ', '.join(self.field_scope)
 
-    def scan_fields(self):
+    def initialize(self):
         # Determine whether we have any self-lookups or dependent lookups
         field_map = self.context.get_field_map(self.sobjectname)
         sobjects = self.context.get_sobject_list()
@@ -221,78 +265,52 @@ class Step(object):
 class LoadOperation(Operation):
     def __init__(self, connection):
         super().__init__(connection)
-        self.input_files = {}
-        self.result_files = {}
-        self.result_file_handles = {}
         self.mappers = {}
         self.global_id_map = {}
-
-    def set_input_file(self, sobjectname, f):
-        self.input_files[sobjectname] = f
-
-    def get_input_file(self, sobjectname):
-        return self.input_files[sobjectname]
-
-    def set_result_file(self, sobjectname, output, f):
-        self.result_files[sobjectname] = output
-        self.result_file_handles[sobjectname] = f
-    
-    def get_result_file(self, sobjectname):
-        return self.result_files[sobjectname]
+        self.success = True
 
     def register_new_id(self, sobjectname, old_id, new_id):
         self.global_id_map[old_id] = new_id
-        if sobjectname in self.result_files:
-            self.result_files[sobjectname].writerow(
-                {
-                    constants.ORIGINAL_ID: str(old_id),
-                    constants.NEW_ID: str(new_id)
-                }
-            )
+        self.file_store.get_csv(sobjectname, FileType.RESULT).writerow(
+            {
+                constants.ORIGINAL_ID: str(old_id),
+                constants.NEW_ID: str(new_id)
+            }
+        )
+
+    def register_error(self, sobjectname, old_id, error):
+        self.file_store.get_csv(sobjectname, FileType.RESULT).writerow(
+            {
+                constants.ORIGINAL_ID: str(old_id),
+                constants.ERROR: error
+            }
+        )
+        self.success = False
 
     def get_new_id(self, old_id):
         return self.global_id_map.get(old_id, None)
 
     def execute(self):
-        self.logger.info('Starting load with sObjects %s', self.get_sobject_list())
+        self.logger.info('Starting load with sObjects %s', ', '.join(self.get_sobject_list()))
         for s in self.steps:
-            s.scan_fields()
             self.logger.info('%s: starting load', s.sobjectname)
             s.execute()
 
             # After each step, check whether errors happened and stop the process.
-            if len(s.errors) > 0:
+            if not self.success:
                 self.logger.error('%s: errors took place during load. See results file for details.', s.sobjectname)
-                self.write_errors(s)
-                self.close_files()
                 return -1
         
         for s in self.steps:
             self.logger.info('%s: populating dependent and self-lookups', s.sobjectname)
             s.execute_dependent_updates()
 
-            if len(s.errors) > 0:
+            if not self.success:
                 self.logger.error('%s: errors took place during dependent updates. See results file for details.', s.sobjectname)
-                self.write_errors(s)
-                self.close_files()
                 return -1
 
-        self.close_files()
         return 0
 
-    def write_errors(self, step):
-        if step.sobjectname in self.result_files:
-            for record_id, error in step.errors.items():
-                self.result_files[step.sobjectname].writerow(
-                    {
-                        constants.ORIGINAL_ID: str(record_id),
-                        constants.ERROR: error
-                    }
-                )
-
-    def close_files(self):
-        for f in self.result_file_handles.values():
-            f.close()
 
 class LoadStep(Step):
     def __init__(self, sobjectname, field_scope, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
@@ -300,7 +318,6 @@ class LoadStep(Step):
         self.field_scope = field_scope
         self.outside_lookup_behavior = outside_lookup_behavior
         self.lookup_behaviors = {}
-        self.errors = {}
         self.dependent_lookup_records = []
 
         self.context = None
@@ -380,8 +397,9 @@ class LoadStep(Step):
         # Then, populate all direct lookups. Dependent lookups and self-lookups will be populated in a later pass.
         records_to_load = []
         original_ids = []
+        success = True
 
-        reader = self.context.get_input_file(self.sobjectname)
+        reader = self.context.file_store.get_csv(self.sobjectname, FileType.INPUT)
         for record in reader:
             # We need to save off the original record Id because it'll be cleaned from the record before insert.
             # We use the original Id for error reporting.
@@ -407,11 +425,13 @@ class LoadStep(Step):
                 )
                 records_to_load.append(record)
             except AmaxaException as e:
-                self.errors[original_ids[-1]] = str(e)
+                self.context.register_error(self.sobjectname, original_ids[-1], str(e))
+                success = False
             except ValueError as e:
-                self.errors[original_ids[-1]] = 'Bad data in record {}: {}'.format(original_ids[-1], str(e))
+                self.context.register_error(self.sobjectname, original_ids[-1], 'Bad data in record {}: {}'.format(original_ids[-1], str(e)))
+                success = False
 
-        if len(self.errors) > 0:
+        if not success:
             return
 
         job = self.context.bulk.create_insert_job(self.sobjectname, contentType='JSON')
@@ -434,10 +454,14 @@ class LoadStep(Step):
                         SalesforceId(r.id) # note lowercase in result
                     )
                 else:
-                    self.errors[original_ids[i]] = 'Failed to load {} {}: {}'.format(
-                        self.sobjectname, 
+                    self.context.register_error(
+                        self.sobjectname,
                         original_ids[i],
-                        r.error
+                        'Failed to load {} {}: {}'.format(
+                            self.sobjectname, 
+                            original_ids[i],
+                            r.error
+                        )
                     )
 
     def execute_dependent_updates(self):
@@ -445,8 +469,9 @@ class LoadStep(Step):
         records_to_load = []
         original_ids = []
         all_lookups = self.dependent_lookups | self.self_lookups
+        success = True
 
-        if len(all_lookups) > 0:
+        if len(all_lookups) > 0 and len(self.dependent_lookup_records) > 0:
             # Re-check, for each record, whether we have any loading to do.
             # If all of the dependent lookups prove to be dropped outside references, we have no work to do.
             for record in self.dependent_lookup_records:
@@ -458,9 +483,10 @@ class LoadStep(Step):
                         cleaned_record['Id'] = str(self.context.get_new_id(SalesforceId(cleaned_record['Id'])))
                         records_to_load.append(cleaned_record)
                 except AmaxaException as e:
-                    self.errors[record['Id']] = str(e)
+                    self.context.register_error(self.sobjectname, record['Id'], str(e))
+                    success = False
             
-            if len(records_to_load) > 0 and len(self.errors) == 0:
+            if success and len(records_to_load) > 0:
                 job = self.context.bulk.create_update_job(self.sobjectname, contentType='JSON')
                 json_iter = JSONIterator(records_to_load)
                 batch = self.context.bulk.post_batch(job, json_iter)
@@ -469,10 +495,14 @@ class LoadStep(Step):
 
                 for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
                     if not r.success:
-                        self.errors[original_ids[i]] = 'Failed to execute dependent updates for {} {}: {}'.format(
+                        self.context.register_error(
                             self.sobjectname, 
                             original_ids[i],
-                            r.error
+                            'Failed to execute dependent updates for {} {}: {}'.format(
+                                self.sobjectname, 
+                                original_ids[i],
+                                r.error
+                            )
                         )
 
 
@@ -481,8 +511,6 @@ class ExtractOperation(Operation):
         super().__init__(connection)
         self.required_ids = {}
         self.extracted_ids = {}
-        self.output_files = {}
-        self.output_file_handles = {}
         self.mappers = {}
 
     def execute(self):
@@ -492,26 +520,16 @@ class ExtractOperation(Operation):
             s.execute()
             if len(s.errors) > 0:
                 self.logger.error('%s: errors took place during extraction:\n%s', s.sobjectname, '\n'.join(s.errors))
-                self.close_files()
                 return -1
             else:
                 self.logger.info(
                     '%s: extracted %d record%s',
                     s.sobjectname,
                     len(self.get_extracted_ids(s.sobjectname)),
-                    's' if len(self.get_extracted_ids(s.sobjectname)) > 1 else ''
+                    's' if len(self.get_extracted_ids(s.sobjectname)) != 1 else ''
                 )
 
-        self.close_files()
         return 0
-
-    def set_output_file(self, sobjectname, output, f):
-        self.output_files[sobjectname] = output
-        self.output_file_handles[sobjectname] = f
-
-    def close_files(self):
-        for f in self.output_file_handles.values():
-            f.close()
 
     def add_dependency(self, sobjectname, id):
         if sobjectname not in self.required_ids:
@@ -543,7 +561,7 @@ class ExtractOperation(Operation):
         if SalesforceId(record['Id']) not in self.extracted_ids[sobjectname]:
             self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
             self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
-            self.output_files[sobjectname].writerow(
+            self.file_store.get_csv(sobjectname, FileType.OUTPUT).writerow(
                 self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
                 else record
             )
@@ -572,7 +590,6 @@ class ExtractionStep(Step):
         return self.lookup_behaviors.get(f, self.outside_lookup_behavior)
 
     def execute(self):
-        self.scan_fields()
         # If scope if ALL_RECORDS, execute a Bulk API job to extract all records
         # If scope is QUERY, execute a Bulk API job to download a query with where_clause
         # If scope is DESCENDENTS, pull based on objects that look up to any already

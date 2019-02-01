@@ -97,7 +97,7 @@ class test_CLI(unittest.TestCase):
     @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
     def test_main_calls_execute_with_json_input_extract_mode(self, extraction_mock, credential_mock):
         context = Mock()
-        context.execute.return_value = 0
+        context.run.return_value = 0
         credential_mock.return_value = (context, [])
         extraction_mock.return_value = (context, [])
         
@@ -112,7 +112,7 @@ class test_CLI(unittest.TestCase):
         credential_mock.assert_called_once_with(json.loads(credentials_good_json), False)
         extraction_mock.assert_called_once_with(json.loads(extraction_good_json), context)
 
-        extraction_mock.return_value[0].execute.assert_called_once_with()
+        extraction_mock.return_value[0].run.assert_called_once_with()
 
         self.assertEqual(0, return_value)
     
@@ -120,7 +120,7 @@ class test_CLI(unittest.TestCase):
     @unittest.mock.patch('amaxa.__main__.loader.load_load_operation')
     def test_main_calls_execute_with_json_input_load_mode(self, extraction_mock, credential_mock):
         context = Mock()
-        context.execute.return_value = 0
+        context.run.return_value = 0
         credential_mock.return_value = (context, [])
         extraction_mock.return_value = (context, [])
         
@@ -135,7 +135,7 @@ class test_CLI(unittest.TestCase):
         credential_mock.assert_called_once_with(json.loads(credentials_good_json), True)
         extraction_mock.assert_called_once_with(json.loads(extraction_good_json), context)
 
-        extraction_mock.return_value[0].execute.assert_called_once_with()
+        extraction_mock.return_value[0].run.assert_called_once_with()
 
         self.assertEqual(0, return_value)
 
@@ -143,7 +143,7 @@ class test_CLI(unittest.TestCase):
     @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
     def test_main_calls_execute_with_yaml_input(self, extraction_mock, credential_mock):
         context = Mock()
-        context.execute.return_value = 0
+        context.run.return_value = 0
         credential_mock.return_value = (context, [])
         extraction_mock.return_value = (context, [])
         
@@ -158,7 +158,7 @@ class test_CLI(unittest.TestCase):
         credential_mock.assert_called_once_with(yaml.safe_load(credentials_good_yaml), False)
         extraction_mock.assert_called_once_with(yaml.safe_load(extraction_good_yaml), context)
 
-        extraction_mock.return_value[0].execute.assert_called_once_with()
+        extraction_mock.return_value[0].run.assert_called_once_with()
 
         self.assertEqual(0, return_value)
 
@@ -178,7 +178,7 @@ class test_CLI(unittest.TestCase):
 
         credential_mock.assert_called_once_with(yaml.safe_load(credentials_bad), False)
 
-        extraction_mock.return_value[0].execute.assert_not_called()
+        extraction_mock.return_value[0].run.assert_not_called()
 
         self.assertEqual(-1, return_value)
 
@@ -207,7 +207,7 @@ class test_CLI(unittest.TestCase):
     def test_main_returns_error_with_errors_during_extraction(self, extraction_mock, credential_mock):
         context = Mock()
         op = Mock()
-        op.execute = Mock(return_value=-1)
+        op.run = Mock(return_value=-1)
         credential_mock.return_value = (context, [])
         extraction_mock.return_value = (op, [])
         

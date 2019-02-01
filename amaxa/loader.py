@@ -184,8 +184,7 @@ def load_load_operation(incoming, context):
         
         context.add_step(step)
 
-    for step in context.steps:
-        step.scan_fields()
+    context.initialize()
 
     validate_dependent_field_permissions(context, errors)
     validate_lookup_behaviors(context.steps, errors)
@@ -197,8 +196,10 @@ def load_load_operation(incoming, context):
     # Create DictReaders and populate them in the context
     for (s, e) in zip(context.steps, incoming['operation']):
         try:
-            input = csv.DictReader(open(e['file'], 'r'))
-            context.set_input_file(s.sobjectname, input)
+            fh = open(e['file'], 'r')
+            input_file = csv.DictReader(fh)
+            context.file_store.set_file(s.sobjectname, amaxa.FileType.INPUT, fh)
+            context.file_store.set_csv(s.sobjectname, amaxa.FileType.INPUT, input_file)
         except Exception as exp:
             errors.append('Unable to open file {} for reading ({}).'.format(e['file'], exp))
 
@@ -209,7 +210,8 @@ def load_load_operation(incoming, context):
                 fieldnames=[constants.ORIGINAL_ID, constants.NEW_ID, constants.ERROR]
             )
             output.writeheader()
-            context.set_result_file(s.sobjectname, output, f)
+            context.file_store.set_file(s.sobjectname, amaxa.FileType.RESULT, f)
+            context.file_store.set_csv(s.sobjectname, amaxa.FileType.RESULT, output)
         except Exception as exp:
             errors.append('Unable to open file {} for writing ({})'.format(e['result-file'], exp))
 
@@ -225,7 +227,7 @@ def load_load_operation(incoming, context):
         if e['input-validation'] == 'none':
             continue
 
-        input_file = context.get_input_file(s.sobjectname)
+        input_file = context.file_store.get_csv(s.sobjectname, amaxa.FileType.INPUT)
         file_field_set = set(input_file.fieldnames)
         if 'Id' in file_field_set:
             file_field_set.remove('Id')
@@ -417,7 +419,7 @@ def load_extraction_operation(incoming, context):
         context.add_step(step)
 
     for step in context.steps:
-        step.scan_fields()
+        step.initialize()
     validate_lookup_behaviors(context.steps, errors)
 
     if len(errors) > 0:
@@ -435,7 +437,8 @@ def load_extraction_operation(incoming, context):
                 extrasaction='ignore'
             )
             output.writeheader()
-            context.set_output_file(s.sobjectname, output, f)
+            context.file_store.set_file(s.sobjectname, amaxa.FileType.OUTPUT, f)
+            context.file_store.set_csv(s.sobjectname, amaxa.FileType.OUTPUT, output)
         except Exception as exp:
             return (None, ['Unable to open file {} for writing ({}).'.format(e['file'], exp)])
 

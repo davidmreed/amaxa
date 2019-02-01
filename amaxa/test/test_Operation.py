@@ -128,3 +128,29 @@ class test_Operation(unittest.TestCase):
         self.assertEqual('Contact', oc.get_sobject_name_for_id('003000000000000'))
 
         connection.describe.assert_called_once_with()
+
+    def test_run_calls_initialize_and_execute(self):
+        connection = Mock()
+        op = amaxa.Operation(connection)
+        op.initialize = Mock()
+        op.execute = Mock(return_value=0)
+        op.file_store = Mock()
+
+        self.assertEqual(0, op.run())
+        op.initialize.assert_called_once_with()
+        op.execute.assert_called_once_with()
+        op.file_store.close.assert_called_once_with()
+
+    
+    def test_run_logs_exceptions(self):
+        connection = Mock()
+        op = amaxa.Operation(connection)
+        op.initialize = Mock()
+        op.execute = Mock(side_effect=amaxa.AmaxaException('Test'))
+        op.logger = Mock()
+        op.file_store = Mock()
+
+        self.assertEqual(-1, op.run())
+
+        op.logger.error.assert_called_once_with('Unexpected exception Test occurred.')
+        op.file_store.close.assert_called_once_with()

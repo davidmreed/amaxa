@@ -42,7 +42,7 @@ class test_ExtractionStep(unittest.TestCase):
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, [])
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.store_result({ 'Id': '001000000000000', 'Name': 'Picon Fleet Headquarters' })
         oc.store_result.assert_called_once_with('Account', { 'Id': '001000000000000', 'Name': 'Picon Fleet Headquarters' })
@@ -66,7 +66,7 @@ class test_ExtractionStep(unittest.TestCase):
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '001000000000001', 'Name': 'Picon Fleet Headquarters' })
         oc.add_dependency.assert_called_once_with('Account', amaxa.SalesforceId('001000000000001'))
@@ -89,7 +89,7 @@ class test_ExtractionStep(unittest.TestCase):
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'], None, amaxa.SelfLookupBehavior.TRACE_NONE)
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '001000000000001', 'Name': 'Picon Fleet Headquarters' })
         oc.add_dependency.assert_not_called()
@@ -112,7 +112,7 @@ class test_ExtractionStep(unittest.TestCase):
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '006000000000001', 'Name': 'Picon Fleet Headquarters' })
         oc.add_dependency.assert_called_once_with('Opportunity', amaxa.SalesforceId('006000000000001'))
@@ -137,7 +137,7 @@ class test_ExtractionStep(unittest.TestCase):
 
         step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         # Validate that the polymorphic lookup is treated properly when the content is a dependent reference
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '006000000000001', 'Name': 'Kara Thrace' })
@@ -187,7 +187,7 @@ class test_ExtractionStep(unittest.TestCase):
         )
 
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.store_result({'Id': '003000000000001', 'AccountId': '001000000000001'})
         oc.store_result.assert_called_once_with('Contact', {'Id': '003000000000001'})
@@ -221,7 +221,7 @@ class test_ExtractionStep(unittest.TestCase):
         )
 
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.store_result({'Id': '003000000000001', 'AccountId': '001000000000001'})
         self.assertEqual(
@@ -265,7 +265,7 @@ class test_ExtractionStep(unittest.TestCase):
         )
 
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.store_result({'Id': '003000000000001', 'AccountId': '001000000000001'})
         oc.store_result.assert_called_once_with('Contact', {'Id': '003000000000001', 'AccountId': '001000000000001'})
@@ -299,7 +299,7 @@ class test_ExtractionStep(unittest.TestCase):
         )
 
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.store_result({'Id': '003000000000001', 'AccountId': '001000000000001'})
         oc.store_result.assert_called_once_with('Contact', {'Id': '003000000000001'})
@@ -320,7 +320,7 @@ class test_ExtractionStep(unittest.TestCase):
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.perform_id_field_pass = Mock()
         step.perform_lookup_pass('Lookup__c')
@@ -344,7 +344,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         id_set = set()
         # Generate enough fake Ids to require two queries.
@@ -379,7 +379,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.perform_id_field_pass('Lookup__c', set([amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000002')]))
         step.store_result.assert_any_call(connection.query_all('Account')['records'][0])
@@ -399,7 +399,7 @@ class test_ExtractionStep(unittest.TestCase):
 
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.perform_id_field_pass('Lookup__c', set())
 
@@ -425,7 +425,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.QUERY, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.perform_bulk_api_pass('SELECT Id FROM Account')
         bulk_proxy.query.assert_called_once_with('075000000000000AAA', 'SELECT Id FROM Account')
@@ -453,7 +453,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.perform_bulk_api_pass('SELECT Id FROM Account')
         step.store_result.assert_any_call(retval[0])
@@ -489,7 +489,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.store_result = Mock()
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.perform_bulk_api_pass('SELECT Id FROM Account')
         self.assertEqual(500000, step.store_result.call_count)
@@ -515,7 +515,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.QUERY, ['CreatedDate'])
         step.store_result = Mock()
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.perform_bulk_api_pass('SELECT Id, CreatedDate FROM Account')
         step.store_result.assert_called_once_with(
@@ -549,7 +549,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.perform_id_field_pass = Mock()
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.resolve_registered_dependencies()
 
@@ -583,7 +583,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
         step.perform_id_field_pass = Mock()
         oc.add_step(step)
-        step.scan_fields()
+        step.initialize()
 
         step.resolve_registered_dependencies()
         self.assertEqual(
@@ -611,6 +611,7 @@ class test_ExtractionStep(unittest.TestCase):
         step.perform_bulk_api_pass = Mock()
         oc.add_step(step)
 
+        step.initialize()
         step.execute()
 
         step.perform_bulk_api_pass.assert_called_once_with('SELECT Name FROM Account')
@@ -630,6 +631,7 @@ class test_ExtractionStep(unittest.TestCase):
         step.perform_bulk_api_pass = Mock()
         oc.add_step(step)
 
+        step.initialize()
         step.execute()
 
         step.perform_bulk_api_pass.assert_called_once_with('SELECT Name FROM Account WHERE Name != null')
@@ -664,7 +666,8 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.DESCENDENTS, ['Name', 'AccountId', 'Household__c'])
         step.perform_lookup_pass = Mock()
         oc.add_step(step)
-
+        
+        step.initialize()
         step.execute()
 
         step.perform_lookup_pass.assert_has_calls(
@@ -711,8 +714,8 @@ class test_ExtractionStep(unittest.TestCase):
         step.perform_lookup_pass = Mock()
         step.resolve_registered_dependencies = Mock()
         oc.add_step(step)
-        step.scan_fields()
 
+        step.initialize()
         self.assertEqual(set(['ParentId']), step.self_lookups)
 
         step.execute()
@@ -772,6 +775,7 @@ class test_ExtractionStep(unittest.TestCase):
 
         oc.add_step(step)
 
+        step.initialize()
         step.execute()
 
         self.assertEqual(set(['ParentId']), step.self_lookups)
