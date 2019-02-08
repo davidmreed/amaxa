@@ -37,6 +37,10 @@ class OutsideLookupBehavior(StringEnum):
     INCLUDE = 'include'
     ERROR = 'error'
 
+class LoadStage(StringEnum):
+    INSERTS = 'inserts'
+    DEPENDENTS = 'dependents'
+
 class FileType(Enum):
     INPUT = 1
     OUTPUT = 2
@@ -269,6 +273,7 @@ class LoadOperation(Operation):
         self.mappers = {}
         self.global_id_map = {}
         self.success = True
+        self.stage = LoadStage.INSERTS
 
     def register_new_id(self, sobjectname, old_id, new_id):
         self.global_id_map[old_id] = new_id
@@ -293,22 +298,26 @@ class LoadOperation(Operation):
 
     def execute(self):
         self.logger.info('Starting load with sObjects %s', ', '.join(self.get_sobject_list()))
-        for s in self.steps:
-            self.logger.info('%s: starting load', s.sobjectname)
-            s.execute()
+        if self.stage is LoadStage.INSERTS:
+            for s in self.steps:
+                self.logger.info('%s: starting load', s.sobjectname)
+                s.execute()
 
-            # After each step, check whether errors happened and stop the process.
-            if not self.success:
-                self.logger.error('%s: errors took place during load. See results file for details.', s.sobjectname)
-                return -1
-        
-        for s in self.steps:
-            self.logger.info('%s: populating dependent and self-lookups', s.sobjectname)
-            s.execute_dependent_updates()
+                # After each step, check whether errors happened and stop the process.
+                if not self.success:
+                    self.logger.error('%s: errors took place during load. See results file for details.', s.sobjectname)
+                    return -1
+            
+            self.stage = LoadStage.DEPENDENTS
 
-            if not self.success:
-                self.logger.error('%s: errors took place during dependent updates. See results file for details.', s.sobjectname)
-                return -1
+        if self.stage is LoadStage.DEPENDENTS:
+            for s in self.steps:
+                self.logger.info('%s: populating dependent and self-lookups', s.sobjectname)
+                s.execute_dependent_updates()
+
+                if not self.success:
+                    self.logger.error('%s: errors took place during dependent updates. See results file for details.', s.sobjectname)
+                    return -1
 
         return 0
 
@@ -402,6 +411,10 @@ class LoadStep(Step):
 
         reader = self.context.file_store.get_csv(self.sobjectname, FileType.INPUT)
         for record in reader:
+            # We might have resumed this operation. Check to be sure this record hasn't been loaded already.
+            if self.context.get_new_id(SalesforceId(record['Id'])) is not None:
+                continue
+
             # We need to save off the original record Id because it'll be cleaned from the record before insert.
             # We use the original Id for error reporting.
             original_ids.append(record['Id'])

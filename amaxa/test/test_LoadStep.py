@@ -612,3 +612,50 @@ class test_LoadStep(unittest.TestCase):
             ],
             op.register_error.call_args_list
         )
+
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    @patch.object(amaxa, 'JSONIterator')
+    def test_execute_does_not_insert_records_prepopulated_in_id_map(self, json_iterator_proxy, bulk_proxy):
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000' },
+            { 'Name': 'Test 2', 'Id': '001000000000001' },
+            { 'Name': 'Test 3', 'Id': '001000000000002' }
+        ]
+        clean_record_list = [
+            { 'Name': 'Test 2' },
+            { 'Name': 'Test 3' }
+        ]
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' }
+        })
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000005'))
+        op.register_new_id = Mock()
+        op.file_store.records['Account'] = record_list
+        bulk_proxy.get_batch_results = Mock(
+            return_value=[
+                UploadResult('001000000000007', True, True, ''),
+                UploadResult('001000000000008', True, True, '')
+            ]
+        )
+        op.mappers['Account'] = Mock()
+        op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
+
+        l = amaxa.LoadStep('Account', ['Name'])
+        l.context = op
+        l.primitivize = Mock(side_effect=lambda x: x)
+        l.populate_lookups = Mock(side_effect=lambda x, y, z: x)
+
+        l.initialize()
+        l.execute()
+
+        json_iterator_proxy.assert_called_once_with(clean_record_list)
+        op.register_new_id.assert_has_calls(
+            [
+                unittest.mock.call('Account', amaxa.SalesforceId('001000000000001'), amaxa.SalesforceId('001000000000007')),
+                unittest.mock.call('Account', amaxa.SalesforceId('001000000000002'), amaxa.SalesforceId('001000000000008'))
+            ]
+        )

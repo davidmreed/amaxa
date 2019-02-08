@@ -1,8 +1,9 @@
 import unittest
 import json
 import yaml
+import io
 from unittest.mock import Mock
-from .. import loader
+from .. import loader, amaxa
 from ..__main__ import main as main
 
 
@@ -77,6 +78,17 @@ operation:
             all: True
 '''
 
+state_good_yaml = '''
+version: 1
+state:
+    stage: inserts
+    id-map:
+        '001000000000001': '001000000000002'
+        '001000000000003': '001000000000004'
+'''
+
+state_file = io.StringIO()
+
 def select_file(f, *args, **kwargs):
     data = { 
         'credentials-bad.yaml': credentials_bad,
@@ -84,11 +96,15 @@ def select_file(f, *args, **kwargs):
         'extraction-good.yaml': extraction_good_yaml,
         'credentials-good.yaml': credentials_good_yaml,
         'credentials-good.json': credentials_good_json,
-        'extraction-good.json': extraction_good_json
+        'extraction-good.json': extraction_good_json,
+        'state-good.yaml': state_good_yaml,
+        'extraction-good.state.yaml': state_file
     }
-
-    m = unittest.mock.mock_open(read_data=data[f])(f, *args, **kwargs)
-    m.name = f
+    if type(data[f]) is str:
+        m = unittest.mock.mock_open(read_data=data[f])(f, *args, **kwargs)
+        m.name = f
+    else:
+        m = data[f]
     
     return m
 
@@ -208,6 +224,8 @@ class test_CLI(unittest.TestCase):
         context = Mock()
         op = Mock()
         op.run = Mock(return_value=-1)
+        op.stage = amaxa.LoadStage.INSERTS
+        op.global_id_map = {}
         credential_mock.return_value = (context, [])
         extraction_mock.return_value = (op, [])
         
@@ -220,3 +238,64 @@ class test_CLI(unittest.TestCase):
                 return_value = main()
 
         self.assertEqual(-1, return_value)
+
+    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
+    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
+    def test_main_saves_state_on_error(self, extraction_mock, credential_mock):
+        context = Mock()
+        op = Mock()
+        op.run = Mock(return_value=-1)
+        op.stage = amaxa.LoadStage.INSERTS
+        op.global_id_map = { amaxa.SalesforceId('001000000000001'): amaxa.SalesforceId('001000000000002') }
+        credential_mock.return_value = (context, [])
+        extraction_mock.return_value = (op, [])
+        
+        m = Mock(side_effect=select_file)
+        with unittest.mock.patch('builtins.open', m):
+            with unittest.mock.patch(
+                'sys.argv',
+                ['amaxa', '-c', 'credentials-good.yaml', 'extraction-good.yaml']
+            ):
+                return_value = main()
+
+        self.assertEqual(-1, return_value)
+        self.assertLess(0, state_file.tell())
+
+        state_file.seek(0)
+        yaml_state = yaml.load(state_file)
+
+        self.assertIn('state', yaml_state)
+        self.assertIn('id-map', yaml_state['state'])
+        self.assertIn('stage', yaml_state['state'])
+        self.assertEqual(amaxa.LoadStage.INSERTS, yaml_state['state']['stage'])
+        self.assertEqual(
+            { str(k) : str(v) for k, v in op.global_id_map.items() },
+            yaml_state['state']['id-map']
+        )
+
+    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
+    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
+    def test_main_loads_state_with_use_state_option(self, extraction_mock, credential_mock):
+        context = Mock()
+        op = Mock()
+        op.run = Mock(return_value=0)
+        credential_mock.return_value = (context, [])
+        extraction_mock.return_value = (op, [])
+        
+        m = Mock(side_effect=select_file)
+        with unittest.mock.patch('builtins.open', m):
+            with unittest.mock.patch(
+                'sys.argv',
+                ['amaxa', '-c', 'credentials-good.yaml', 'extraction-good.yaml', '--use-state', 'state-good.yaml']
+            ):
+                return_value = main()
+
+        self.assertEqual(0, return_value)
+        self.assertEqual(amaxa.LoadStage.INSERTS, op.stage)
+        self.assertEqual(
+            {
+                amaxa.SalesforceId('001000000000001'): amaxa.SalesforceId('001000000000002'),
+                amaxa.SalesforceId('001000000000003'): amaxa.SalesforceId('001000000000004')
+            },
+            op.global_id_map
+        )

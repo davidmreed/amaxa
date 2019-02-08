@@ -2,7 +2,8 @@ import argparse
 import logging
 import yaml
 import json
-from . import amaxa, loader
+import os.path
+from . import amaxa, loader, state
 
 def main():
     a = argparse.ArgumentParser()
@@ -10,6 +11,7 @@ def main():
     a.add_argument('config', type=argparse.FileType('r'))
     a.add_argument('-c', '--credentials', required=True, dest='credentials', type=argparse.FileType('r'))
     a.add_argument('-l', '--load', action='store_true')
+    a.add_argument('-s', '--use-state', dest='use_state', type=argparse.FileType('r'))
     verbosity_levels = {'quiet': logging.NOTSET, 'errors': logging.ERROR,
                         'normal': logging.INFO, 'verbose': logging.DEBUG}
 
@@ -48,8 +50,20 @@ def main():
     else:
         (ex, errors) = loader.load_extraction_operation(config, context)
 
+    if args.use_state is not None:
+        (ex, errors) = state.load_state(ex, args.use_state)
+
     if ex is not None:
-        return ex.run()
+        ret = ex.run()
+
+        if ret != 0 and len(ex.global_id_map) > 0:
+            # Save the operation state.
+            state_file = open(
+                os.path.splitext(args.config.name)[0] + '.state' + ('.json' if args.config.name.endswith('json') else '.yaml'),
+                'w'
+            )
+            state_file.write(state.save_state(ex, args.config.name.endswith('json')))
+        return ret
     else:
         print('Unable to execute operation due to the following errors:\n {}'.format('\n'.join(errors)))
         return -1

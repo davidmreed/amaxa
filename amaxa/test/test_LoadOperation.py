@@ -105,3 +105,23 @@ class test_LoadOperation(unittest.TestCase):
                 constants.ERROR: 'err'
             }
         )
+
+    def test_execute_resumes_with_dependent_updates_if_stage_set(self):
+        connection = Mock()
+        first_step = Mock(sobjectname = 'Account')
+        second_step = Mock(sobjectname = 'Contact')
+
+        op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
+        op.stage = amaxa.LoadStage.DEPENDENTS
+
+        op.add_step(first_step)
+        op.add_step(second_step)
+
+        self.assertEqual(0, op.execute())
+
+        first_step.execute.assert_not_called()
+        second_step.execute.assert_not_called()
+
+        first_step.execute_dependent_updates.assert_called_once_with()
+        second_step.execute_dependent_updates.assert_called_once_with()
