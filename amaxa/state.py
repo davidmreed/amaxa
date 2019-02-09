@@ -7,7 +7,7 @@ def save_state(operation, json_mode = False):
     output = {
         'version': 1,
         'state': {
-            'stage': operation.stage,
+            'stage': operation.stage.value,
             'id-map': { str(k): str(v) for k, v in operation.global_id_map.items() }
         }
     }
