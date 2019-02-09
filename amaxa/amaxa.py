@@ -440,7 +440,7 @@ class LoadStep(Step):
                 self.context.register_error(self.sobjectname, original_ids[-1], 'Bad data in record {}: {}'.format(original_ids[-1], str(e)))
                 success = False
 
-        if not success:
+        if not success or len(records_to_load) == 0:
             return
 
         job = self.context.bulk.create_insert_job(self.sobjectname, contentType='JSON')
