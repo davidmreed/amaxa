@@ -486,7 +486,7 @@ class test_LoadStep(unittest.TestCase):
         })
         op.register_new_id = Mock()
         op.register_error = Mock()
-        error = 'DUPLICATES_DETECTED'
+        error = [{ 'statusCode': 'DUPLICATES_DETECTED', 'message': 'There are duplicates', 'fields': [], 'extendedErrorDetails': None }]
         bulk_proxy.get_batch_results = Mock(
             return_value=[
                 UploadResult(None, False, False, error),
@@ -502,8 +502,8 @@ class test_LoadStep(unittest.TestCase):
 
         self.assertEqual(
             [
-                unittest.mock.call('Account', record_list[0]['Id'], 'Failed to load {} {}: {}'.format('Account', record_list[0]['Id'], error)),
-                unittest.mock.call('Account', record_list[1]['Id'], 'Failed to load {} {}: {}'.format('Account', record_list[1]['Id'], error))
+                unittest.mock.call('Account', record_list[0]['Id'], l.format_error(error)),
+                unittest.mock.call('Account', record_list[1]['Id'], l.format_error(error))
             ],
             op.register_error.call_args_list
         )
@@ -588,7 +588,7 @@ class test_LoadStep(unittest.TestCase):
         op.register_new_id = Mock()
         op.register_error = Mock()
         op.file_store.records['Account'] = record_list
-        error = 'DUPLICATES_DETECTED'
+        error = [{ 'statusCode': 'DUPLICATES_DETECTED', 'message': 'There are duplicates', 'fields': [], 'extendedErrorDetails': None }]
         bulk_proxy.get_batch_results = Mock(
             return_value=[
                 UploadResult(None, False, False, error),
@@ -607,8 +607,8 @@ class test_LoadStep(unittest.TestCase):
 
         self.assertEqual(
             [
-                unittest.mock.call('Account', record_list[0]['Id'], 'Failed to execute dependent updates for {} {}: {}'.format('Account', record_list[0]['Id'], error)),
-                unittest.mock.call('Account', record_list[1]['Id'], 'Failed to execute dependent updates for {} {}: {}'.format('Account', record_list[1]['Id'], error))
+                unittest.mock.call('Account', record_list[0]['Id'], l.format_error(error)),
+                unittest.mock.call('Account', record_list[1]['Id'], l.format_error(error))
             ],
             op.register_error.call_args_list
         )
@@ -659,3 +659,17 @@ class test_LoadStep(unittest.TestCase):
                 unittest.mock.call('Account', amaxa.SalesforceId('001000000000002'), amaxa.SalesforceId('001000000000008'))
             ]
         )
+
+    def test_format_error_constructs_messages(self):
+        l = amaxa.LoadStep('Account', ['Name'])
+
+        self.assertEqual(
+            'DUPLICATES_DETECTED: There are duplicates.\nOTHER_ERROR: There are non-duplicates. (Name, Id). More info',
+            l.format_error(
+                [
+                    { 'statusCode': 'DUPLICATES_DETECTED', 'message': 'There are duplicates', 'fields': [], 'extendedErrorDetails': None },
+                    { 'statusCode': 'OTHER_ERROR', 'message': 'There are non-duplicates', 'fields': ['Name', 'Id'], 'extendedErrorDetails': 'More info' }
+                ]
+            )
+        )
+        

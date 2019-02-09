@@ -466,12 +466,19 @@ class LoadStep(Step):
                     self.context.register_error(
                         self.sobjectname,
                         original_ids[i],
-                        'Failed to load {} {}: {}'.format(
-                            self.sobjectname, 
-                            original_ids[i],
-                            r.error
-                        )
+                        self.format_error(r.error)
                     )
+
+    def format_error(self, error):
+        return '\n'.join(
+            ['{}: {}.{}{}'.format(
+                e['statusCode'],
+                e['message'],
+                ' ({}).'.format(', '.join(e['fields'])) if len(e['fields']) > 0 else '',
+                ' ' + e['extendedErrorDetails'] if e['extendedErrorDetails'] is not None else ''
+            )
+            for e in error]
+        )
 
     def reset_input_csv(self):
         fh = self.context.file_store.get_file(self.sobjectname, FileType.INPUT)
@@ -522,11 +529,7 @@ class LoadStep(Step):
                         self.context.register_error(
                             self.sobjectname, 
                             original_ids[i],
-                            'Failed to execute dependent updates for {} {}: {}'.format(
-                                self.sobjectname, 
-                                original_ids[i],
-                                r.error
-                            )
+                            self.format_error(r.error)
                         )
 
 
