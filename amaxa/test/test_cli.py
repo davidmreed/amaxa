@@ -267,7 +267,7 @@ class test_CLI(unittest.TestCase):
         self.assertIn('state', yaml_state)
         self.assertIn('id-map', yaml_state['state'])
         self.assertIn('stage', yaml_state['state'])
-        self.assertEqual(amaxa.LoadStage.INSERTS, yaml_state['state']['stage'])
+        self.assertEqual(amaxa.LoadStage.INSERTS.value, yaml_state['state']['stage'])
         self.assertEqual(
             { str(k) : str(v) for k, v in op.global_id_map.items() },
             yaml_state['state']['id-map']
