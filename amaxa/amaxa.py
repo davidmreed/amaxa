@@ -154,7 +154,6 @@ class Operation(object):
             self.file_store.close()
 
     def initialize(self):
-        self.logger.info('Initializing operation')
         for s in self.steps:
             s.initialize()
 
