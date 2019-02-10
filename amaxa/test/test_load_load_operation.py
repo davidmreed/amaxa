@@ -440,6 +440,63 @@ class test_load_load_operation(unittest.TestCase):
         )
         dict_writer.assert_called_once_with()
 
+    @unittest.mock.patch('csv.DictWriter.writeheader')
+    def test_load_load_operation_does_not_truncate_or_write_headers_on_resume(self, dict_writer):
+        context = amaxa.LoadOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'createable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string',
+                    'createable': True
+                },
+                'Id': {
+                    'type': 'string',
+                    'createable': False
+                }
+            }
+        )
+        context.add_dependency = Mock()
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [ 'Name' ],
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_load_operation(ex, context, True)
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.LoadOperation)
+
+        m.assert_has_calls(
+            [
+                unittest.mock.call('Account.csv', 'r'),
+                unittest.mock.call('Account-results.csv', 'a'),
+            ],
+            any_order=True
+        )
+        dict_writer.assert_not_called()
+
     def test_load_load_operation_finds_writeable_field_group(self):
         context = amaxa.LoadOperation(Mock())
         context.connection.describe = Mock(

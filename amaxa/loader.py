@@ -66,7 +66,7 @@ def load_credentials(incoming, load):
     
     return (context, [])
 
-def load_load_operation(incoming, context):
+def load_load_operation(incoming, context, resume = False):
     # Inbound is raw, deserialized structures from JSON or YAML input files.
     # First, validate them against our schema and normalize them.
 
@@ -204,12 +204,13 @@ def load_load_operation(incoming, context):
             errors.append('Unable to open file {} for reading ({}).'.format(e['file'], exp))
 
         try:
-            f = open(e['result-file'], 'w')
+            f = open(e['result-file'], 'w' if not resume else 'a')
             output = csv.DictWriter(
                 f, 
                 fieldnames=[constants.ORIGINAL_ID, constants.NEW_ID, constants.ERROR]
             )
-            output.writeheader()
+            if not resume:
+                output.writeheader()
             context.file_store.set_file(s.sobjectname, amaxa.FileType.RESULT, f)
             context.file_store.set_csv(s.sobjectname, amaxa.FileType.RESULT, output)
         except Exception as exp:

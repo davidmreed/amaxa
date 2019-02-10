@@ -46,7 +46,7 @@ def main():
         config = yaml.safe_load(args.config)
 
     if args.load:
-        (ex, errors) = loader.load_load_operation(config, context)
+        (ex, errors) = loader.load_load_operation(config, context, args.use_state is not None)
     else:
         (ex, errors) = loader.load_extraction_operation(config, context)
 

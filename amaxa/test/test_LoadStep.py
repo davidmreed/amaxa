@@ -699,7 +699,7 @@ class test_LoadStep(unittest.TestCase):
         l = amaxa.LoadStep('Account', ['Name'])
 
         self.assertEqual(
-            'DUPLICATES_DETECTED: There are duplicates.\nOTHER_ERROR: There are non-duplicates. (Name, Id). More info',
+            'DUPLICATES_DETECTED: There are duplicates\nOTHER_ERROR: There are non-duplicates (Name, Id). More info',
             l.format_error(
                 [
                     { 'statusCode': 'DUPLICATES_DETECTED', 'message': 'There are duplicates', 'fields': [], 'extendedErrorDetails': None },

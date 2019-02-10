@@ -470,7 +470,7 @@ class LoadStep(Step):
 
     def format_error(self, error):
         return '\n'.join(
-            ['{}: {}.{}{}'.format(
+            ['{}: {}{}{}'.format(
                 e['statusCode'],
                 e['message'],
                 ' ({}).'.format(', '.join(e['fields'])) if len(e['fields']) > 0 else '',

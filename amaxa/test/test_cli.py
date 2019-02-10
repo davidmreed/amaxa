@@ -149,7 +149,7 @@ class test_CLI(unittest.TestCase):
                 return_value = main()
 
         credential_mock.assert_called_once_with(json.loads(credentials_good_json), True)
-        extraction_mock.assert_called_once_with(json.loads(extraction_good_json), context)
+        extraction_mock.assert_called_once_with(json.loads(extraction_good_json), context, False)
 
         extraction_mock.return_value[0].run.assert_called_once_with()
 
