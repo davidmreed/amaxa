@@ -345,6 +345,64 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertEqual('Task', result.steps[3].sobjectname)
         self.assertEqual(amaxa.ExtractionScope.QUERY, result.steps[3].scope)
 
+    @unittest.mock.patch('csv.DictWriter.writeheader')
+    def test_load_extraction_operation_writes_correct_headers(self, dict_writer):
+        context = amaxa.ExtractOperation(Mock())
+        context.connection.describe = Mock(
+            return_value={
+                'sobjects': [
+                    {
+                        'name': 'Account',
+                        'retrieveable': True,
+                        'queryable': True
+                    }
+                ]
+            }
+        )
+        context.get_field_map = Mock(
+            return_value={ 
+                'Name': {
+                    'type': 'string'
+                },
+                'AccountSite': {
+                    'type': 'string'
+                },
+                'Id': {
+                    'type': 'string'
+                }
+            }
+        )
+        context.add_dependency = Mock()
+
+        ex = {
+            'version': 1,
+            'operation': [
+                { 
+                    'sobject': 'Account',
+                    'fields': [ 'Name', 'Id', 'AccountSite' ],
+                    'extract': { 'all': True }
+                }
+            ]
+        }
+
+        m = unittest.mock.mock_open()
+        with unittest.mock.patch('builtins.open', m):
+            (result, errors) = loader.load_extraction_operation(ex, context)
+            
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
+        m.assert_called_once_with('Account.csv', 'w')
+        csv_file = context.file_store.get_csv('Account', amaxa.FileType.OUTPUT)
+        self.assertIsNotNone(csv_file)
+
+        dict_writer.assert_called_once_with()
+        self.assertEqual(
+            ['Id', 'AccountSite', 'Name'],
+            csv_file.fieldnames
+        )
+
+
     def test_load_extraction_operation_finds_readable_field_group(self):
         context = amaxa.ExtractOperation(Mock())
         context.connection.describe = Mock(

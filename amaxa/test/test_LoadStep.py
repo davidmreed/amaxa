@@ -660,6 +660,41 @@ class test_LoadStep(unittest.TestCase):
             ]
         )
 
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    @patch.object(amaxa, 'JSONIterator')
+    def test_execute_does_not_run_bulk_job_if_all_records_inserted(self, json_iterator_proxy, bulk_proxy):
+        record_list = [
+            { 'Name': 'Test', 'Id': '001000000000000' }
+        ]
+        clean_record_list = [
+            { 'Name': 'Test 2' },
+            { 'Name': 'Test 3' }
+        ]
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' }
+        })
+        op.register_new_id('Account', amaxa.SalesforceId('001000000000000'), amaxa.SalesforceId('001000000000005'))
+        op.register_new_id = Mock()
+        op.file_store.records['Account'] = record_list
+        bulk_proxy.get_batch_results = Mock()
+        op.mappers['Account'] = Mock()
+        op.mappers['Account'].transform_record = Mock(side_effect=lambda x: x)
+
+        l = amaxa.LoadStep('Account', ['Name'])
+        l.context = op
+        l.primitivize = Mock(side_effect=lambda x: x)
+        l.populate_lookups = Mock(side_effect=lambda x, y, z: x)
+
+        l.initialize()
+        l.execute()
+
+        bulk_proxy.create_insert_job.assert_not_called()
+        json_iterator_proxy.assert_not_called()
+
     def test_format_error_constructs_messages(self):
         l = amaxa.LoadStep('Account', ['Name'])
 
