@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='amaxa',
-    version='0.9.2',
+    version='0.9.3',
     description='Load and extract data from multiple Salesforce objects in a single operation, preserving links and network structure.',
     long_description=long_description,
     long_description_content_type='text/markdown',
