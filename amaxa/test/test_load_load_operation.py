@@ -2,6 +2,7 @@ import unittest
 import simple_salesforce
 import io
 from unittest.mock import Mock
+from .MockSimpleSalesforce import MockSimpleSalesforce
 from .. import amaxa, loader
 
 
@@ -49,42 +50,13 @@ class test_load_load_operation(unittest.TestCase):
     def test_load_load_operation_flags_missing_sobjects(self):
         context = Mock()
         context.steps = []
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'createable': False
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                }
-            }
-        )
+        context.connection = MockSimpleSalesforce()
 
         ex = { 
             'version': 1, 
             'operation': [
                 { 
-                    'sobject': 'Account',
-                    'fields': [ 'Name' ],
-                    'extract': { 'all': True }
-                },
-                {
-                    'sobject': 'Contact',
-                    'fields': [ 'Name' ],
-                    'extract': { 'all': True }
-                },
-                {
-                    'sobject': 'Opportunity',
+                    'sobject': 'Object__c',
                     'fields': [ 'Name' ],
                     'extract': { 'all': True }
                 }
@@ -99,44 +71,19 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(
             [
-                'sObject Account does not exist, is not visible, or is not createable.',
-                'sObject Contact does not exist, is not visible, or is not createable.',
-                'sObject Opportunity does not exist, is not visible, or is not createable.'
+                'sObject Object__c does not exist, is not visible, or is not createable.'
             ],
             errors
         )
     def test_validate_load_flags_missing_fields(self):
-        context = Mock()
-        context.steps = []
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'createable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = { 
             'version': 1, 
             'operation': [
                 { 
                     'sobject': 'Account',
-                    'fields': [ 'Name', 'ParentId' ],
+                    'fields': [ 'Name', 'Test__c' ],
                     'extract': { 'all': True }
                 }
             ]
@@ -151,47 +98,20 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(
             [
-                'Field Account.ParentId does not exist, is not writeable, or is not visible.'
+                'Field Account.Test__c does not exist, is not writeable, or is not visible.'
             ],
             errors
         )
 
     def test_validate_load_flags_non_writeable_fields(self):
-        context = Mock()
-        context.steps = []
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'createable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': False
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = { 
             'version': 1, 
             'operation': [
                 { 
                     'sobject': 'Account',
-                    'fields': [ 'Name', 'Industry' ],
+                    'fields': [ 'Name', 'IsDeleted' ],
                     'extract': { 'all': True }
                 }
             ]
@@ -206,41 +126,14 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(
             [
-                'Field Account.Industry does not exist, is not writeable, or is not visible.'
+                'Field Account.IsDeleted does not exist, is not writeable, or is not visible.'
             ],
             errors
         )
 
     def test_validate_load_flags_non_updateable_dependent_fields(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'createable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'ParentId': {
-                    'type': 'reference',
-                    'referenceTo': ['Account'],
-                    'createable': True,
-                    'updateable': False
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
+        context.get_field_map('Account')['ParentId']['updateable'] = False
 
         ex = { 
             'version': 1, 
@@ -268,61 +161,7 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_load_load_operation_creates_valid_steps_with_files(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Contact',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Opportunity',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Task',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'LastName': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'StageName': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Subject': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
         context.add_dependency = Mock()
 
         ex = {
@@ -385,31 +224,7 @@ class test_load_load_operation(unittest.TestCase):
 
     @unittest.mock.patch('csv.DictWriter.writeheader')
     def test_load_load_operation_writes_csv_headers(self, dict_writer):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
         context.add_dependency = Mock()
 
         ex = {
@@ -442,31 +257,7 @@ class test_load_load_operation(unittest.TestCase):
 
     @unittest.mock.patch('csv.DictWriter.writeheader')
     def test_load_load_operation_does_not_truncate_or_write_headers_on_resume(self, dict_writer):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
         context.add_dependency = Mock()
 
         ex = {
@@ -498,35 +289,7 @@ class test_load_load_operation(unittest.TestCase):
         dict_writer.assert_not_called()
 
     def test_load_load_operation_finds_writeable_field_group(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -548,34 +311,13 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsInstance(result, amaxa.LoadOperation)
 
         self.assertEqual(1, len(result.steps))
-        self.assertEqual({'Industry'}, result.steps[0].field_scope)
+        self.assertEqual(
+            set(context.get_filtered_field_map('Account', lambda x: x['createable'])), 
+            result.steps[0].field_scope
+        )
 
     def test_load_load_operation_field_groups_omit_unsupported_types(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Body': {
-                    'type': 'base64',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -597,39 +339,10 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsInstance(result, amaxa.LoadOperation)
 
         self.assertEqual(1, len(result.steps))
-        self.assertEqual({'Name'}, result.steps[0].field_scope)
+        self.assertNotIn('ShippingAddress', result.steps[0].field_scope)
 
     def test_load_load_operation_generates_field_list(self):
-        connection = Mock()
-        context = amaxa.LoadOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -657,36 +370,7 @@ class test_load_load_operation(unittest.TestCase):
         self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
 
     def test_load_load_operation_respects_none_validation_option(self):
-        connection = Mock()
-        context = amaxa.LoadOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -713,36 +397,7 @@ class test_load_load_operation(unittest.TestCase):
         self.assertEqual({'Name', 'Industry'}, result.steps[0].field_scope)
 
     def test_load_load_operation_validates_file_against_field_scope_excess_fields(self):
-        connection = Mock()
-        context = amaxa.LoadOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -776,36 +431,7 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_load_load_operation_validates_file_against_field_scope_missing_fields(self):
-        connection = Mock()
-        context = amaxa.LoadOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -839,36 +465,7 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_load_load_operation_validates_file_against_field_group(self):
-        connection = Mock()
-        context = amaxa.LoadOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -881,7 +478,7 @@ class test_load_load_operation(unittest.TestCase):
             ]
         }
 
-        fieldnames = ['Id', 'Name', 'Industry', 'Description']
+        fieldnames = ['Id', 'Name', 'Industry', 'Test__c']
         account_mock = Mock(side_effect=[io.StringIO(','.join(fieldnames)), io.StringIO()])
         with unittest.mock.patch('builtins.open', account_mock):
             (result, errors) = loader.load_load_operation(ex, context)
@@ -892,43 +489,14 @@ class test_load_load_operation(unittest.TestCase):
                 'Input file for sObject {} contains excess columns over field group \'{}\': {}'.format(
                     'Account',
                     'writeable',
-                    'Description'
+                    'Test__c'
                 )
             ],
             errors
          )
 
     def test_load_load_operation_validates_file_against_field_group_with_strict(self):
-        connection = Mock()
-        context = amaxa.LoadOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -950,7 +518,7 @@ class test_load_load_operation(unittest.TestCase):
             [
                 'Input file for sObject {} does not match specified field scope.\nScope: {}\nFile Columns: {}\n'.format(
                     'Account',
-                    ', '.join(sorted(['Name', 'Industry'])),
+                    ', '.join(sorted(context.get_filtered_field_map('Account', lambda f: f['createable'] and f['type'] not in ['location', 'address', 'base64']).keys())),
                     ', '.join(sorted(set(fieldnames) - set(['Id'])))
                 )
             ],
@@ -958,45 +526,16 @@ class test_load_load_operation(unittest.TestCase):
          )
         self.assertIsNone(result)
 
-    def test_load_load_operation_returns_error_base64_fields(self):
-        connection = Mock()
-        context = amaxa.LoadOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True,
-                        'createable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Body': {
-                    'type': 'base64',
-                    'createable': True
-                }
-            }
-        )
+    def test_load_load_operation_returns_error_unsupported_fields(self):
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
             'operation': [
                 { 
-                    'sobject': 'Account',
+                    'sobject': 'Attachment',
                     'fields': [
-                        'Name', 
+                        'Name',
                         'Body'
                     ],
                     'extract': { 'all': True }
@@ -1008,40 +547,12 @@ class test_load_load_operation(unittest.TestCase):
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_load_operation(ex, context)
 
-        self.assertEqual(['Field {}.{} is a base64 field, which is not supported.'.format('Account', 'Body')], errors)
+        self.assertEqual(['Field {}.{} is a base64 field, which is not supported.'.format('Attachment', 'Body')], errors)
         self.assertIsNone(result)
         m.assert_not_called()
 
     def test_load_load_operation_creates_import_mapper(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -1080,39 +591,7 @@ class test_load_load_operation(unittest.TestCase):
         )
 
     def test_load_load_operation_catches_duplicate_columns(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'AccountSite': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -1126,7 +605,7 @@ class test_load_load_operation(unittest.TestCase):
                         },
                         'Industry',
                         {
-                            'field': 'AccountSite',
+                            'field': 'Description',
                             'column': 'Industry'
                         }
                     ],
@@ -1142,40 +621,12 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(
             ['Column Industry is mapped to field Account.Industry, but this column is already mapped.',
-            'Column Industry is mapped to field Account.AccountSite, but this column is already mapped.'],
+            'Column Industry is mapped to field Account.Description, but this column is already mapped.'],
             errors
         )
 
     def test_load_load_operation_catches_duplicate_fields(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -1208,50 +659,7 @@ class test_load_load_operation(unittest.TestCase):
         )
 
     def test_load_load_operation_populates_lookup_behaviors(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Contact',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'ParentId': {
-                    'type': 'reference',
-                    'referenceTo': ['Account'],
-                    'createable': True,
-                    'updateable': True
-                },
-                'Primary_Contact__c': {
-                    'type': 'reference',
-                    'referenceTo': ['Contact'],
-                    'createable': True,
-                    'updateable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -1263,23 +671,20 @@ class test_load_load_operation(unittest.TestCase):
                         {
                             'field': 'ParentId',
                             'self-lookup-behavior': 'trace-none'
-                        },
-                        {
-                            'field': 'Primary_Contact__c',
-                            'outside-lookup-behavior': 'drop-field'
                         }
                     ],
                     'extract': { 'all': True },
                     'input-validation': 'none'
                 },
                 {
-                    'sobject': 'Contact',
+                    'sobject': 'Task',
                     'fields': [
                         {
-                            'field': 'Name'
+                            'field': 'WhoId',
+                            'outside-lookup-behavior': 'drop-field'
                         }
                     ],
-                    'extract': { 'all': True },
+                    'extract': { 'descendents': True },
                     'input-validation': 'none'
                 }
             ]
@@ -1293,40 +698,10 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsInstance(result, amaxa.LoadOperation)
 
         self.assertEqual(amaxa.SelfLookupBehavior.TRACE_NONE, result.steps[0].get_lookup_behavior_for_field('ParentId'))
-        self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[0].get_lookup_behavior_for_field('Primary_Contact__c'))
+        self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[1].get_lookup_behavior_for_field('WhoId'))
 
     def test_load_load_operation_validates_lookup_behaviors_for_self_lookups(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'ParentId': {
-                    'type': 'reference',
-                    'referenceTo': ['Account'],
-                    'createable': True,
-                    'updateable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -1362,63 +737,30 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_load_load_operation_validates_lookup_behaviors_for_dependent_lookups(self):
-        context = amaxa.LoadOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Contact',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Primary_Contact__c': {
-                    'type': 'reference',
-                    'referenceTo': ['Contact'],
-                    'createable': True,
-                    'updateable': True
-                }
-            }
-        )
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
             'operation': [
                 { 
-                    'sobject': 'Account',
+                    'sobject': 'Task',
                     'fields': [
-                        'Name',
                         {
-                            'field': 'Primary_Contact__c',
+                            'field': 'WhatId',
                             'self-lookup-behavior': 'trace-all'
                         }
                     ],
-                    'extract': { 'all': True }
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
                 },
                 { 
-                    'sobject': 'Contact',
-                    'fields': [ 'Name' ],
-                    'extract': { 'all': True }
-                },
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name'
+                    ],
+                    'extract': { 'all': True },
+                    'input-validation': 'none'
+                }
             ]
         }
 
@@ -1430,8 +772,8 @@ class test_load_load_operation(unittest.TestCase):
             [
                 'Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
                     'trace-all',
-                    'Account',
-                    'Primary_Contact__c'
+                    'Task',
+                    'WhatId'
                 )
             ],
             errors
@@ -1440,53 +782,16 @@ class test_load_load_operation(unittest.TestCase):
 
     @unittest.mock.patch('logging.getLogger')
     def test_load_load_operation_warns_lookups_other_objects(self, logger):
-        context = amaxa.LoadOperation(Mock())
+        context = amaxa.LoadOperation(MockSimpleSalesforce())
         amaxa_logger = Mock()
         logger.return_value=amaxa_logger
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Contact',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Test__c',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Parent__c': {
-                    'type': 'reference',
-                    'referenceTo': ['Parent__c'],
-                    'createable': True
-                }
-            }
-        )
 
         ex = {
             'version': 1,
             'operation': [
                 { 
-                    'sobject': 'Test__c',
-                    'fields': [ 'Parent__c' ],
+                    'sobject': 'Account',
+                    'fields': [ 'OwnerId' ],
                     'extract': { 'all': True },
                     'input-validation': 'none'
                 }
@@ -1501,7 +806,7 @@ class test_load_load_operation(unittest.TestCase):
         self.assertIsInstance(result, amaxa.LoadOperation)
         amaxa_logger.warn.assert_called_once_with(
             'Field %s.%s is a reference none of whose targets (%s) are included in the load. Reference handlers will be inactive for references to non-included sObjects.',
-            'Test__c',
-            'Parent__c',
-            ', '.join(['Parent__c'])
+            'Account',
+            'OwnerId',
+            'User'
         )
