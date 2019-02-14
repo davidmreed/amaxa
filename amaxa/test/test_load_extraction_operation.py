@@ -1,6 +1,7 @@
 import unittest
 import simple_salesforce
 from unittest.mock import Mock
+from .MockSimpleSalesforce import MockSimpleSalesforce
 from .. import amaxa, loader
 
 
@@ -58,29 +59,7 @@ class test_load_extraction_operation(unittest.TestCase):
         context.assert_not_called()
 
     def test_load_extraction_operation_returns_error_on_bad_ids(self):
-        context = Mock()
-        context.steps = []
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         (result, errors) = loader.load_extraction_operation(
             {
@@ -103,7 +82,6 @@ class test_load_extraction_operation(unittest.TestCase):
 
         self.assertIsNone(result)
         self.assertEqual(['One or more invalid Id values provided for sObject Account'], errors)
-        context.assert_not_called()
 
     @unittest.mock.patch('simple_salesforce.Salesforce')
     def test_load_extraction_operation_traps_login_exceptions(self, sf_mock):
@@ -127,29 +105,7 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertEqual(['Unable to authenticate to Salesforce: {}'.format(return_exception)], errors)
 
     def test_load_extraction_operation_flags_missing_sobjects(self):
-        context = Mock()
-        context.steps = []
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = { 
             'version': 1, 
@@ -160,12 +116,7 @@ class test_load_extraction_operation(unittest.TestCase):
                     'extract': { 'all': True }
                 },
                 {
-                    'sobject': 'Contact',
-                    'fields': [ 'Name' ],
-                    'extract': { 'all': True }
-                },
-                {
-                    'sobject': 'Opportunity',
+                    'sobject': 'Test__c',
                     'fields': [ 'Name' ],
                     'extract': { 'all': True }
                 }
@@ -179,44 +130,19 @@ class test_load_extraction_operation(unittest.TestCase):
 
         self.assertIsNone(result)
         self.assertEqual(
-            [
-                'sObject Contact does not exist or is not visible.',
-                'sObject Opportunity does not exist or is not visible.'
-            ],
+            [ 'sObject Test__c does not exist or is not visible.' ],
             errors
         )
     
-    def test_validate_extraction_flags_missing_fields(self):
-        context = Mock()
-        context.steps = []
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                }
-            }
-        )
+    def test_load_extraction_operation_flags_missing_fields(self):
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = { 
             'version': 1, 
             'operation': [
                 { 
                     'sobject': 'Account',
-                    'fields': [ 'Name', 'ParentId' ],
+                    'fields': [ 'Name', 'Test__c' ],
                     'extract': { 'all': True }
                 }
             ]
@@ -231,49 +157,13 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(
             [
-                'Field Account.ParentId does not exist or is not visible.'
+                'Field Account.Test__c does not exist or is not visible.'
             ],
             errors
         )
 
     def test_load_extraction_operation_creates_valid_steps_with_files(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Contact',
-                        'retrieveable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Opportunity',
-                        'retrieveable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Task',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
         context.add_dependency = Mock()
 
         ex = {
@@ -303,7 +193,7 @@ class test_load_extraction_operation(unittest.TestCase):
                 },
                 {
                     'sobject': 'Task',
-                    'fields': [ 'Name' ],
+                    'fields': [ 'Id' ],
                     'extract': {
                         'query': 'AccountId != null'
                     }
@@ -315,7 +205,10 @@ class test_load_extraction_operation(unittest.TestCase):
         m = unittest.mock.mock_open()
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_extraction_operation(ex, context)
-            
+
+        self.assertEqual([], errors)
+        self.assertIsInstance(result, amaxa.ExtractOperation)
+
         m.assert_has_calls(
             [
                 unittest.mock.call('Account.csv', 'w'),
@@ -333,8 +226,6 @@ class test_load_extraction_operation(unittest.TestCase):
             ]
         )
 
-        self.assertEqual([], errors)
-        self.assertIsInstance(result, amaxa.ExtractOperation)
         self.assertEqual(4, len(result.steps))
         self.assertEqual('Account', result.steps[0].sobjectname)
         self.assertEqual(amaxa.ExtractionScope.ALL_RECORDS, result.steps[0].scope)
@@ -347,39 +238,14 @@ class test_load_extraction_operation(unittest.TestCase):
 
     @unittest.mock.patch('csv.DictWriter.writeheader')
     def test_load_extraction_operation_writes_correct_headers(self, dict_writer):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'AccountSite': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                }
-            }
-        )
-        context.add_dependency = Mock()
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
             'operation': [
                 { 
                     'sobject': 'Account',
-                    'fields': [ 'Name', 'Id', 'AccountSite' ],
+                    'fields': [ 'Name', 'ParentId', 'Id' ],
                     'extract': { 'all': True }
                 }
             ]
@@ -398,37 +264,13 @@ class test_load_extraction_operation(unittest.TestCase):
 
         dict_writer.assert_called_once_with()
         self.assertEqual(
-            ['Id', 'AccountSite', 'Name'],
+            ['Id', 'Name', 'ParentId'],
             csv_file.fieldnames
         )
 
 
     def test_load_extraction_operation_finds_readable_field_group(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                },
-                'Industry': {
-                    'type': 'string'
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -449,37 +291,13 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertIsInstance(result, amaxa.ExtractOperation)
         m.assert_called_once_with('Account.csv', 'w')
 
-        self.assertEqual({'Name', 'Id', 'Industry'}, result.steps[0].field_scope)
+        self.assertEqual(
+            set(context.get_filtered_field_map('Account', lambda x: x['type'] != 'address')), 
+            result.steps[0].field_scope
+        )
 
     def test_load_extraction_operation_finds_writeable_field_group(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': False
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -501,46 +319,13 @@ class test_load_extraction_operation(unittest.TestCase):
         m.assert_called_once_with('Account.csv', 'w')
 
         self.assertEqual(1, len(result.steps))
-        self.assertEqual({'Name', 'Id'}, result.steps[0].field_scope)
+        self.assertEqual(
+            set(context.get_filtered_field_map('Account', lambda x: x['createable'])) | set(['Id']),
+            result.steps[0].field_scope
+        )
 
     def test_load_extraction_operation_readable_field_group_omits_unsupported_types(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'MailingAddress': {
-                    'type': 'address',
-                    'createable': False
-                },
-                'Geolocation__c': {
-                    'type': 'location',
-                    'createable': False
-                },
-                'Body': {
-                    'type': 'base64',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -562,52 +347,16 @@ class test_load_extraction_operation(unittest.TestCase):
         m.assert_called_once_with('Account.csv', 'w')
 
         self.assertEqual(1, len(result.steps))
-        self.assertEqual({'Id', 'Name'}, result.steps[0].field_scope)
+        self.assertNotIn('BillingAddress', result.steps[0].field_scope)
 
     def test_load_extraction_operation_writeable_field_group_omits_unsupported_types(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'MailingAddress': {
-                    'type': 'address',
-                    'createable': False
-                },
-                'Geolocation__c': {
-                    'type': 'location',
-                    'createable': False
-                },
-                'Body': {
-                    'type': 'base64',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
             'operation': [
                 { 
-                    'sobject': 'Account',
+                    'sobject': 'Attachment',
                     'field-group': 'writeable',
                     'extract': { 'all': True }
                 }
@@ -620,38 +369,13 @@ class test_load_extraction_operation(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.ExtractOperation)
-        m.assert_called_once_with('Account.csv', 'w')
+        m.assert_called_once_with('Attachment.csv', 'w')
 
         self.assertEqual(1, len(result.steps))
-        self.assertEqual({'Id', 'Name'}, result.steps[0].field_scope)
+        self.assertNotIn('Body', result.steps[0].field_scope)
 
     def test_load_extraction_operation_generates_field_list(self):
-        connection = Mock()
-        context = amaxa.ExtractOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                },
-                'Industry': {
-                    'type': 'string'
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -678,31 +402,7 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertEqual({'Name', 'Industry', 'Id'}, result.steps[0].field_scope)
 
     def test_load_extraction_operation_creates_export_mapper(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                },
-                'Industry': {
-                    'type': 'string'
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -740,38 +440,13 @@ class test_load_extraction_operation(unittest.TestCase):
         )
 
     def test_load_extraction_operation_returns_error_base64_fields(self):
-        connection = Mock()
-        context = amaxa.ExtractOperation(connection)
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                },
-                'Body': {
-                    'type': 'base64'
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
             'operation': [
                 { 
-                    'sobject': 'Account',
+                    'sobject': 'Attachment',
                     'fields': [
                         'Name', 
                         'Body'
@@ -785,39 +460,12 @@ class test_load_extraction_operation(unittest.TestCase):
         with unittest.mock.patch('builtins.open', m):
             (result, errors) = loader.load_extraction_operation(ex, context)
 
-        self.assertEqual(['Field {}.{} is a base64 field, which is not supported.'.format('Account', 'Body')], errors)
+        self.assertEqual(['Field {}.{} is a base64 field, which is not supported.'.format('Attachment', 'Body')], errors)
         self.assertIsNone(result)
         m.assert_not_called()
 
     def test_load_extraction_operation_catches_duplicate_columns(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                },
-                'Industry': {
-                    'type': 'string'
-                },
-                'AccountSite': {
-                    'type': 'string'
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -831,7 +479,7 @@ class test_load_extraction_operation(unittest.TestCase):
                         },
                         'Industry',
                         {
-                            'field': 'AccountSite',
+                            'field': 'Description',
                             'column': 'Industry'
                         }
                     ],
@@ -847,39 +495,12 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(
             ['Field Account.Industry is mapped to column Industry, but this column is already mapped.',
-            'Field Account.AccountSite is mapped to column Industry, but this column is already mapped.'],
+            'Field Account.Description is mapped to column Industry, but this column is already mapped.'],
             errors
         )
 
     def test_load_extraction_operation_catches_duplicate_fields(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Industry': {
-                    'type': 'string',
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -912,42 +533,7 @@ class test_load_extraction_operation(unittest.TestCase):
         )
 
     def test_load_extraction_operation_populates_lookup_behaviors(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Contact',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string'
-                },
-                'Id': {
-                    'type': 'string'
-                },
-                'ParentId': {
-                    'type': 'reference',
-                    'referenceTo': ['Account']
-                },
-                'Primary_Contact__c': {
-                    'type': 'reference',
-                    'referenceTo': ['Contact']
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -959,19 +545,16 @@ class test_load_extraction_operation(unittest.TestCase):
                         {
                             'field': 'ParentId',
                             'self-lookup-behavior': 'trace-none'
-                        },
-                        {
-                            'field': 'Primary_Contact__c',
-                            'outside-lookup-behavior': 'drop-field'
                         }
                     ],
                     'extract': { 'all': True }
                 },
                 {
-                    'sobject': 'Contact',
+                    'sobject': 'Task',
                     'fields': [
                         {
-                            'field': 'Name'
+                            'field': 'WhatId',
+                            'outside-lookup-behavior': 'drop-field'
                         }
                     ],
                     'extract': { 'all': True }
@@ -987,39 +570,10 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertIsInstance(result, amaxa.ExtractOperation)
 
         self.assertEqual(amaxa.SelfLookupBehavior.TRACE_NONE, result.steps[0].get_self_lookup_behavior_for_field('ParentId'))
-        self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[0].get_outside_lookup_behavior_for_field('Primary_Contact__c'))
+        self.assertEqual(amaxa.OutsideLookupBehavior.DROP_FIELD, result.steps[1].get_outside_lookup_behavior_for_field('WhatId'))
 
     def test_load_extraction_operation_validates_lookup_behaviors_for_self_lookups(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'ParentId': {
-                    'type': 'reference',
-                    'referenceTo': ['Account'],
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
@@ -1055,62 +609,28 @@ class test_load_extraction_operation(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_load_extraction_operation_validates_lookup_behaviors_for_dependent_lookups(self):
-        context = amaxa.ExtractOperation(Mock())
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Contact',
-                        'retrieveable': True,
-                        'createable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Name': {
-                    'type': 'string',
-                    'createable': True
-                },
-                'Id': {
-                    'type': 'string',
-                    'createable': False
-                },
-                'Primary_Contact__c': {
-                    'type': 'reference',
-                    'referenceTo': ['Contact'],
-                    'createable': True
-                }
-            }
-        )
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
 
         ex = {
             'version': 1,
             'operation': [
                 { 
-                    'sobject': 'Account',
-                    'fields': [
-                        'Name',
+                    'sobject': 'Contact',
+                    'fields': [ 
                         {
-                            'field': 'Primary_Contact__c',
+                            'field': 'AccountId',
                             'self-lookup-behavior': 'trace-all'
                         }
                     ],
                     'extract': { 'all': True }
                 },
                 { 
-                    'sobject': 'Contact',
-                    'fields': [ 'Name' ],
+                    'sobject': 'Account',
+                    'fields': [
+                        'Name'
+                    ],
                     'extract': { 'all': True }
-                },
+                }
             ]
         }
 
@@ -1122,8 +642,8 @@ class test_load_extraction_operation(unittest.TestCase):
             [
                 'Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
                     'trace-all',
-                    'Account',
-                    'Primary_Contact__c'
+                    'Contact',
+                    'AccountId'
                 )
             ],
             errors
@@ -1132,48 +652,16 @@ class test_load_extraction_operation(unittest.TestCase):
 
     @unittest.mock.patch('logging.getLogger')
     def test_load_extraction_operation_warns_lookups_other_objects(self, logger):
-        context = amaxa.ExtractOperation(Mock())
+        context = amaxa.ExtractOperation(MockSimpleSalesforce())
         amaxa_logger = Mock()
         logger.return_value=amaxa_logger
-        context.connection.describe = Mock(
-            return_value={
-                'sobjects': [
-                    {
-                        'name': 'Account',
-                        'retrieveable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Contact',
-                        'retrieveable': True,
-                        'queryable': True
-                    },
-                    {
-                        'name': 'Test__c',
-                        'retrieveable': True,
-                        'queryable': True
-                    }
-                ]
-            }
-        )
-        context.get_field_map = Mock(
-            return_value={ 
-                'Id': {
-                    'type': 'string'
-                },
-                'Parent__c': {
-                    'type': 'reference',
-                    'referenceTo': ['Parent__c']
-                }
-            }
-        )
 
         ex = {
             'version': 1,
             'operation': [
                 { 
-                    'sobject': 'Test__c',
-                    'fields': [ 'Parent__c' ],
+                    'sobject': 'Contact',
+                    'fields': [ 'AccountId' ],
                     'extract': { 'all': True }
                 }
             ]
@@ -1185,9 +673,9 @@ class test_load_extraction_operation(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.ExtractOperation)
-        amaxa_logger.warn.assert_called_once_with(
+        amaxa_logger.warning.assert_called_once_with(
             'Field %s.%s is a reference none of whose targets (%s) are included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
-            'Test__c',
-            'Parent__c',
-            ', '.join(['Parent__c'])
+            'Contact',
+            'AccountId',
+            ', '.join(['Account'])
         )

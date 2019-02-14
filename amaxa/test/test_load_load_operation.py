@@ -804,7 +804,7 @@ class test_load_load_operation(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertIsInstance(result, amaxa.LoadOperation)
-        amaxa_logger.warn.assert_called_once_with(
+        amaxa_logger.warning.assert_called_once_with(
             'Field %s.%s is a reference none of whose targets (%s) are included in the load. Reference handlers will be inactive for references to non-included sObjects.',
             'Account',
             'OwnerId',

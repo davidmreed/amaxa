@@ -150,7 +150,7 @@ def load_load_operation(incoming, context, resume = False):
                 # Ensure that the target objects of this reference
                 # are included in the extraction. If not, show a warning.
                 if not any([ref in all_sobjects for ref in field_map[f]['referenceTo']]):
-                    logging.getLogger('amaxa').warn(
+                    logging.getLogger('amaxa').warning(
                         'Field %s.%s is a reference none of whose targets (%s) are included in the load. Reference handlers will be inactive for references to non-included sObjects.',
                         sobject,
                         f,
@@ -383,7 +383,7 @@ def load_extraction_operation(incoming, context):
                 # Ensure that the target objects of this reference
                 # are included in the extraction. If not, show a warning.
                 if not any([ref in all_sobjects for ref in field_map[f]['referenceTo']]):
-                    logging.getLogger('amaxa').warn(
+                    logging.getLogger('amaxa').warning(
                         'Field %s.%s is a reference none of whose targets (%s) are included in the extraction. Reference handlers will be inactive for references to non-included sObjects.',
                         sobject,
                         f,
