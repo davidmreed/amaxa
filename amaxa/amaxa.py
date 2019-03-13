@@ -41,6 +41,10 @@ class LoadStage(StringEnum):
     INSERTS = 'inserts'
     DEPENDENTS = 'dependents'
 
+class IdType(StringEnum):
+    SALESFORCE_ID = 'salesforce-id'
+    OUTSIDE_ID = 'outside-id'
+
 class FileType(Enum):
     INPUT = 1
     OUTPUT = 2
@@ -87,6 +91,28 @@ class SalesforceId(object):
 
     def __repr__(self):
         return self.id
+
+def OutsideIdMapper(object):
+    def __init__(self):
+        generators = {}
+        id_maps = {}
+
+    def generate_salesforce_id_for_outside_id(sobject, outside_id):
+        def id_generator():
+            i = 0
+            while True:
+                i += 1
+                yield '{s}{:012d}'.format(keyPrefix, i)
+
+        if keyPrefix not in self.generators:
+            self.generators[keyPrefix] = id_generator(keyPrefix)
+        
+        id_map[sobject][outside_id] = self.generators[keyPrefix]()
+
+        return get_salesforce_id_for_outside_id(sobject, outside_id)
+
+    def get_salesforce_id_for_outside_id(sobject, outside_id):
+        return id_map[sobject][outside_id]
 
 def JSONIterator(records):
     def enc(r):
@@ -322,10 +348,11 @@ class LoadOperation(Operation):
 
 
 class LoadStep(Step):
-    def __init__(self, sobjectname, field_scope, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE):
+    def __init__(self, sobjectname, field_scope, outside_lookup_behavior=OutsideLookupBehavior.INCLUDE, id_mode=IdType.SALESFORCE_ID):
         self.sobjectname = sobjectname
         self.field_scope = field_scope
         self.outside_lookup_behavior = outside_lookup_behavior
+        self.id_mode = id_mode
         self.lookup_behaviors = {}
         self.dependent_lookup_records = []
 
@@ -343,7 +370,26 @@ class LoadStep(Step):
 
         b = self.get_lookup_behavior_for_field(lookup)
 
-        mapped_id = self.context.get_new_id(SalesforceId(value))
+        # Determine whether we are mapping Salesforce Ids or outside Ids
+        if self.id_mode is IdType.OUTSIDE_ID:
+            # Find out what the target object is of the field we're looking at.
+            # We do not support polymorphic lookups with synthesized Ids, because we don't
+            # enforce global uniqueness. There must be exactly one target inside the operation.
+            targets = list(
+                filter(
+                    lambda s: s in self.context.get_sobject_list(),
+                    self.context.get_field_map(self.sobjectname)[lookup]['referenceTo']
+                )
+            )
+
+            if len(targets) > 0:
+                raise AmaxaException('Polymorphic lookups are not supported with non-Salesforce Ids.') #FIXME check at the loader level
+
+            record_id = self.context.id_mapper.get_salesforce_id_for_outside_id(targets[0], value)
+        else:
+            record_id = value
+
+        mapped_id = self.context.get_new_id(SalesforceId(record_id))
 
         if mapped_id is not None:
             return str(mapped_id)
@@ -400,6 +446,18 @@ class LoadStep(Step):
 
         return { k: record[k] for k in record if k in all_lookups or k == 'Id' }
 
+    def get_record_id(self, record):
+        # If we're using OUTSIDE_IDS mode, first convert this record's outside Id to a synthetic Salesforce Id
+        if self.id_mode is IdType.OUTSIDE_ID:
+            record_id = self.context.id_mapper.generate_salesforce_id_for_outside_id(
+                self.sobjectname,
+                record['Id']
+            )
+        else:
+            record_id = record['Id']
+
+        return record['Id'], SalesforceId(record_id)
+
     def execute(self):
         # Read our incoming file.
         # Apply transformations specified in our configuration file (column name -> field name, for example)
@@ -410,13 +468,16 @@ class LoadStep(Step):
 
         reader = self.context.file_store.get_csv(self.sobjectname, FileType.INPUT)
         for record in reader:
+            original_id, mapped_id = self.get_record_id(record)
+
             # We might have resumed this operation. Check to be sure this record hasn't been loaded already.
-            if self.context.get_new_id(SalesforceId(record['Id'])) is not None:
+            if self.context.get_new_id(mapped_id) is not None:
                 continue
 
             # We need to save off the original record Id because it'll be cleaned from the record before insert.
             # We use the original Id for error reporting.
-            original_ids.append(record['Id'])
+            # Note that we use the original Id supplied in the data, rather than a synthetic Salesforce Id (if applicable)
+            original_ids.append(original_id)
 
             # Then, prep this record for the Bulk API, populate its lookups, apply transforms, and clean dependent lookups
             try:
@@ -458,7 +519,7 @@ class LoadStep(Step):
                 if r.success:
                     self.context.register_new_id(
                         self.sobjectname,
-                        SalesforceId(original_ids[i]),
+                        SalesforceId(original_ids[i]), # FIXME: patch
                         SalesforceId(r.id) # note lowercase in result
                     )
                 else:
@@ -584,16 +645,18 @@ class ExtractOperation(Operation):
         if sobjectname not in self.extracted_ids:
             self.extracted_ids[sobjectname] = set()
 
-        if SalesforceId(record['Id']) not in self.extracted_ids[sobjectname]:
-            self.logger.debug('%s: extracting record %s', sobjectname, SalesforceId(record['Id']))
-            self.extracted_ids[sobjectname].add(SalesforceId(record['Id']))
+        record_id = SalesforceId(record['Id'])
+
+        if record_id not in self.extracted_ids[sobjectname]:
+            self.logger.debug('%s: extracting record %s', sobjectname, record_id)
+            self.extracted_ids[sobjectname].add(record_id)
             self.file_store.get_csv(sobjectname, FileType.OUTPUT).writerow(
                 self.mappers[sobjectname].transform_record(record) if sobjectname in self.mappers
                 else record
             )
 
-        if sobjectname in self.required_ids and SalesforceId(record['Id']) in self.required_ids[sobjectname]:
-            self.required_ids[sobjectname].remove(SalesforceId(record['Id']))
+        if sobjectname in self.required_ids and record_id in self.required_ids[sobjectname]:
+            self.required_ids[sobjectname].remove(record_id)
 
 
 class ExtractionStep(Step):

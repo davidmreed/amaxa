@@ -175,7 +175,8 @@ def load_load_operation(incoming, context, resume = False):
         step = amaxa.LoadStep(
             sobject, 
             field_set, 
-            amaxa.OutsideLookupBehavior.values_dict()[entry['outside-lookup-behavior']]
+            amaxa.OutsideLookupBehavior.values_dict()[entry['outside-lookup-behavior']],
+            amaxa.IdType.values_dict()[entry['load']['id-mode']] if 'load' in entry else amaxa.IdType.SALESFORCE_ID
         )
 
         # Populate expected lookup behaviors
@@ -587,6 +588,17 @@ def get_operation_schema(is_extract = True):
                         'type': 'string',
                         'allowed': amaxa.SelfLookupBehavior.all_values(),
                         'default': 'trace-all'
+                    },
+                    'load': {
+                        'type': 'dict',
+                        'required': False,
+                        'schema': {
+                            'id-type': {
+                                'type': 'string',
+                                'allowed': amaxa.IdType.all_values(),
+                                'default': amaxa.IdType.SALESFORCE_ID.value
+                            }
+                        }
                     },
                     'extract': {
                         'type': 'dict',
