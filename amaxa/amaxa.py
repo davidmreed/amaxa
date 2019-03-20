@@ -717,6 +717,10 @@ class ExtractionStep(Step):
         # references to records above us in the extraction hierarchy, but that weren't extracted already.
         for f in self.descendent_lookups:
             lookup_value = result[f]
+
+            if (lookup_value == None):
+                continue
+
             if len(field_map[f]['referenceTo']) == 1:
                 target_sobject = field_map[f]['referenceTo'][0]
             else:

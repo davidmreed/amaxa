@@ -153,6 +153,13 @@ class test_ExtractionStep(unittest.TestCase):
         oc.add_dependency.reset_mock()
         oc.store_result.reset_mock()
 
+        # Validate that the polymorphic lookup is treated properly when the id is None
+        step.store_result({ 'Id': '001000000000000', 'Lookup__c': None, 'Name': 'Kara Thrace' })
+        oc.add_dependency.assert_not_called()
+        oc.store_result.assert_called_once_with('Contact', { 'Id': '001000000000000', 'Lookup__c': None, 'Name': 'Kara Thrace' })
+        oc.add_dependency.reset_mock()
+        oc.store_result.reset_mock()
+
         # Validate that the polymorphic lookup is treated properly when the content is a off-extraction reference
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '00T000000000001', 'Name': 'Kara Thrace' })
         oc.add_dependency.assert_not_called()
