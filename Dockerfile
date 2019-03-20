@@ -9,6 +9,3 @@ WORKDIR /amaxa
 COPY . /amaxa
 
 RUN pip install amaxa
-
-# TODO: add environmental variables from .envrc directly
-# google "dockerfile .envrc best practice"
