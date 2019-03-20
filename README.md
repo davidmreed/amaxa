@@ -14,6 +14,14 @@ Make sure to invoke within a Python 3.6+ virtual environment or specify Python 3
 
 Amaxa is operating system-agnostic. It has been tested primarily on Linux but is also known to work in a MINGW Windows 7 environment.
 
+Using Amaxa within Docker, execute
+
+    $ docker build -t amaxa:my_local_amaxa .
+   
+To start the container such that you could run Amaxa commands, execute
+
+    $ docker run -it amaxa:my_local_amaxa bash
+
 ### Development
 
 To start working with Amaxa in a virtual environment, clone the Git repository. Then, create a virtual environment for Amaxa and install there:
