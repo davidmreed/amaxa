@@ -3,7 +3,8 @@ import logging
 import yaml
 import json
 import os.path
-from . import amaxa, loader, state
+from .loader import CredentialLoader, ExtractionOperationLoader, LoadOperationLoader, StateLoader
+from . import amaxa
 
 def main():
     a = argparse.ArgumentParser()
@@ -34,10 +35,11 @@ def main():
     else:
         credentials = yaml.safe_load(f)
 
-    (context, errors) = loader.load_credentials(credentials, args.load)
+    credential_loader = CredentialLoader(credentials)
+    credential_loader.load()
 
-    if context is None:
-        print('The supplied credentials were not valid: {}'.format('\n'.join(errors)))
+    if credential_loader.errors:
+        print('The supplied credentials were not valid: {}'.format('\n'.join(credential_loader.errors)))
         return -1
 
     if args.config.name.endswith('json'):
@@ -46,11 +48,17 @@ def main():
         config = yaml.safe_load(args.config)
 
     if args.load:
-        (ex, errors) = loader.load_load_operation(config, context, args.use_state is not None)
+        operation_loader = LoadOperationLoader(config, credential_loader.result, resume=args.use_state is not None)
     else:
-        (ex, errors) = loader.load_extraction_operation(config, context)
+        operation_loader = ExtractionOperationLoader(config, credential_loader.result)
+
+    operation_loader.load()
+    if operation_loader.errors:
+        print('Errors occured during load of the operation: {}'.format('\n'.join(operation_loader.errors)))
+        return -1
 
     if args.use_state is not None:
+        state_loader = StateLoader()
         (ex, errors) = state.load_state(ex, args.use_state)
 
     if ex is not None:
