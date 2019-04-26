@@ -453,18 +453,18 @@ class LoadStep(Step):
 
         self.context.bulk.close_job(job)
 
-        for batch in batches:
+        for batch_index, batch in enumerate(batches):
             for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
                 if r.success:
                     self.context.register_new_id(
                         self.sobjectname,
-                        SalesforceId(original_ids[i]),
+                        SalesforceId(original_ids[i + batch_index * 10000]),
                         SalesforceId(r.id) # note lowercase in result
                     )
                 else:
                     self.context.register_error(
                         self.sobjectname,
-                        original_ids[i],
+                        original_ids[i + batch_index * 10000],
                         self.format_error(r.error)
                     )
 
@@ -528,12 +528,12 @@ class LoadStep(Step):
 
                 self.context.bulk.close_job(job)
 
-                for batch in batches:
+                for batch_index, batch in enumerate(batches):
                     for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
                         if not r.success:
                             self.context.register_error(
                                 self.sobjectname,
-                                original_ids[i],
+                                original_ids[i + batch_index * 10000],
                                 self.format_error(r.error)
                             )
 

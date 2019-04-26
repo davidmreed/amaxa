@@ -454,7 +454,7 @@ class test_LoadStep(unittest.TestCase):
         op.get_result_file = Mock()
         bulk_proxy.get_batch_results = Mock(
             side_effect=[
-                [ UploadResult('00100000{:d}{:06d}'.format(j, i), True, True, '') for i in range(10000) ]
+                [ UploadResult('001000000{:06d}'.format(i + 1 + (j * 10000)), True, True, '') for i in range(10000) ]
                 for j in range(2)
             ]
         )
@@ -469,6 +469,15 @@ class test_LoadStep(unittest.TestCase):
         self.assertEqual(2, bulk_proxy.wait_for_batch.call_count)
         self.assertEqual(2, bulk_proxy.get_batch_results.call_count)
         self.assertEqual(20000, op.register_new_id.call_count)
+
+        # Validate that the correct Ids were mapped
+        # Each Id should be mapped to itself plus one.
+        for index, each_call in enumerate(op.register_new_id.call_args_list):
+            self.assertEqual(
+                unittest.mock.call('Account', amaxa.SalesforceId('001000000{:06d}'.format(index)), amaxa.SalesforceId('001000000{:06d}'.format(index + 1))),
+                each_call
+            )
+
 
     @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
     def test_execute_handles_errors(self, bulk_proxy):
