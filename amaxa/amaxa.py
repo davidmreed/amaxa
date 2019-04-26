@@ -452,7 +452,7 @@ class LoadStep(Step):
             self.context.bulk.wait_for_batch(job, batch)
 
         self.context.bulk.close_job(job)
-        
+
         for batch in batches:
             for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
                 if r.success:
@@ -518,18 +518,24 @@ class LoadStep(Step):
             
             if success and len(records_to_load) > 0:
                 job = self.context.bulk.create_update_job(self.sobjectname, contentType='JSON')
-                json_iter = JSONIterator(records_to_load)
-                batch = self.context.bulk.post_batch(job, json_iter)
-                self.context.bulk.wait_for_batch(job, batch)
+                batches = []
+                for record_batch in BatchIterator(iter(records_to_load)):
+                    json_iter = JSONIterator(record_batch)
+                    batches.append(self.context.bulk.post_batch(job, json_iter))
+
+                for batch in batches:
+                    self.context.bulk.wait_for_batch(job, batch)
+
                 self.context.bulk.close_job(job)
 
-                for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
-                    if not r.success:
-                        self.context.register_error(
-                            self.sobjectname, 
-                            original_ids[i],
-                            self.format_error(r.error)
-                        )
+                for batch in batches:
+                    for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
+                        if not r.success:
+                            self.context.register_error(
+                                self.sobjectname,
+                                original_ids[i],
+                                self.format_error(r.error)
+                            )
 
 
 class ExtractOperation(Operation):
