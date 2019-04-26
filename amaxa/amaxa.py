@@ -723,28 +723,30 @@ class ExtractionStep(Step):
         # references to records above us in the extraction hierarchy, but that weren't extracted already.
         for f in self.descendent_lookups:
             lookup_value = result[f]
-            if len(field_map[f]['referenceTo']) == 1:
-                target_sobject = field_map[f]['referenceTo'][0]
-            else:
-                target_sobject = self.context.get_sobject_name_for_id(lookup_value)
-            
-            if lookup_value not in self.context.get_extracted_ids(target_sobject):
-                # This is a cross-hierarchy reference
-                behavior = self.get_outside_lookup_behavior_for_field(f)
 
-                if behavior is OutsideLookupBehavior.DROP_FIELD:
-                    del result[f]
-                elif behavior is OutsideLookupBehavior.INCLUDE:
-                    continue
-                elif behavior is OutsideLookupBehavior.ERROR:
-                    self.errors.append(
-                        '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.'.format(
-                            self.sobjectname,
-                            result['Id'],
-                            f,
-                            result[f]
+            if lookup_value is not None:
+                if len(field_map[f]['referenceTo']) == 1:
+                    target_sobject = field_map[f]['referenceTo'][0]
+                else:
+                    target_sobject = self.context.get_sobject_name_for_id(lookup_value)
+                
+                if lookup_value not in self.context.get_extracted_ids(target_sobject):
+                    # This is a cross-hierarchy reference
+                    behavior = self.get_outside_lookup_behavior_for_field(f)
+
+                    if behavior is OutsideLookupBehavior.DROP_FIELD:
+                        del result[f]
+                    elif behavior is OutsideLookupBehavior.INCLUDE:
+                        continue
+                    elif behavior is OutsideLookupBehavior.ERROR:
+                        self.errors.append(
+                            '{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.'.format(
+                                self.sobjectname,
+                                result['Id'],
+                                f,
+                                result[f]
+                            )
                         )
-                    )
 
         # Finally, call through to the context to store this result.
         self.context.store_result(self.sobjectname, result)
