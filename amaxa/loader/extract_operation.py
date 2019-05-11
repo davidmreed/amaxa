@@ -1,10 +1,6 @@
 import csv
-import cerberus
-import logging
-from .core_loader import InputType, OperationLoader
+from .core import InputType, OperationLoader
 from .. import amaxa
-from .. import constants
-from .. import transforms
 
 class ExtractionOperationLoader(OperationLoader):
     def __init__(self, in_dict, connection):

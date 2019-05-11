@@ -1,6 +1,6 @@
 import json
 import yaml
-from .core_loader import Loader
+from .core import Loader, InputType
 from .. import amaxa
 
 def save_state(operation, json_mode=False):
@@ -20,7 +20,7 @@ class StateLoader(Loader):
         self.result = operation
 
     def _load(self):
-        self.result.stage = amaxa.LoadStage.values_dict()[state['state']['stage']]
+        self.result.stage = amaxa.LoadStage.values_dict()[self.input['state']['stage']]
         self.result.global_id_map = {
-            amaxa.SalesforceId(k): amaxa.SalesforceId(v) for k, v in state['state']['id-map'].items()
+            amaxa.SalesforceId(k): amaxa.SalesforceId(v) for k, v in self.input['state']['id-map'].items()
         }

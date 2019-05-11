@@ -1,11 +1,11 @@
 import logging
 import simple_salesforce
-from . import core_loader
+from .core import Loader, InputType
 from .. import jwt_auth
 
-class CredentialLoader(core_loader.Loader):
+class CredentialLoader(Loader):
     def __init__(self, in_dict):
-        super().__init__(self, in_dict, core_loader.InputType.CREDENTIALS)
+        super().__init__(self, in_dict, InputType.CREDENTIALS)
 
     def _load(self):
         credentials = self.input['credentials']

@@ -1,5 +1,6 @@
-from .. import amaxa, transforms
-from .core_loader import InputType
+from ... import amaxa, transforms
+from .input_type import InputType
+
 
 def get_available_versions(input_type):
     return SCHEMAS[input_type].keys()
@@ -222,7 +223,7 @@ SCHEMAS = {
                                 'id-type': {
                                     'type': 'string',
                                     'allowed': amaxa.IdType.all_values(),
-                                    'default': amaxa.IdType.SALESFORCE_ID.value
+                                    'default': amaxa.IdType.SALESFORCE_ID
                                 }
                             }
                         },

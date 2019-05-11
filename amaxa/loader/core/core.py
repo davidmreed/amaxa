@@ -1,15 +1,19 @@
-import cerberus
 import collections
 import logging
+import json
+import cerberus
+import yaml
 from . import schemas
-from .. import amaxa
-from .. import transforms
+from ... import amaxa
+from ... import transforms
 
-class InputType(amaxa.StringEnum):
-    CREDENTIALS = 'credentials'
-    LOAD_OPERATION = 'load-operation'
-    EXTRACT_OPERATION = 'extract-operation'
-    STATE = 'state'
+
+def load_file(f):
+    if f.name.endswith('json'):
+        return json.load(f)
+    else:
+        return yaml.safe_load(f)
+
 
 class Loader(object):
     def __init__(self, in_dict, input_type):

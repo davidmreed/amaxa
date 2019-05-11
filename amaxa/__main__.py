@@ -3,7 +3,7 @@ import logging
 import yaml
 import json
 import os.path
-from .loader import CredentialLoader, ExtractionOperationLoader, LoadOperationLoader, StateLoader
+from .loader import CredentialLoader, ExtractionOperationLoader, LoadOperationLoader, StateLoader, load_file, save_state
 from . import amaxa
 
 def main():
@@ -29,26 +29,17 @@ def main():
     credentials = None
 
     # Grab the credential file first. We need it to validate the extraction.
-    f = args.credentials
-    if f.name.endswith('json'):
-        credentials = json.load(f)
-    else:
-        credentials = yaml.safe_load(f)
-
-    credential_loader = CredentialLoader(credentials)
+    credential_loader = CredentialLoader(load_file(args.credentials))
     credential_loader.load()
 
     if credential_loader.errors:
         print('The supplied credentials were not valid: {}'.format('\n'.join(credential_loader.errors)))
         return -1
 
-    if args.config.name.endswith('json'):
-        config = json.load(args.config)
-    else:
-        config = yaml.safe_load(args.config)
+    config = load_file(args.config)
 
     if args.load:
-        operation_loader = LoadOperationLoader(config, credential_loader.result, resume=args.use_state is not None)
+        operation_loader = LoadOperationLoader(config, credential_loader.result, use_state=args.use_state is not None)
     else:
         operation_loader = ExtractionOperationLoader(config, credential_loader.result)
 
@@ -56,24 +47,27 @@ def main():
     if operation_loader.errors:
         print('Errors occured during load of the operation: {}'.format('\n'.join(operation_loader.errors)))
         return -1
+    
+    ex = operation_loader.result
 
-    if args.use_state is not None:
-        state_loader = StateLoader()
-        (ex, errors) = state.load_state(ex, args.use_state)
+    if args.use_state:
+        state_file = load_file(args.use_state)
+        state_loader = StateLoader(state_file, ex)
+        state_loader.load()
+        if state_loader.errors:
+            print('Errors occured during load of the state file: {}'.format('\n'.join(state_loader.errors)))
+            return -1
 
-    if ex is not None:
-        ret = ex.run()
 
-        if ret != 0 and len(ex.global_id_map) > 0:
-            # Save the operation state.
-            state_file = open(
-                os.path.splitext(args.config.name)[0] + '.state' + ('.json' if args.config.name.endswith('json') else '.yaml'),
-                'w'
-            )
-            state_file.write(state.save_state(ex, args.config.name.endswith('json')))
-        return ret
-    else:
-        print('Unable to execute operation due to the following errors:\n {}'.format('\n'.join(errors)))
-        return -1
+    ret = ex.run()
 
-    return 0
+    if ret != 0 and ex.global_id_map:
+        # Save the operation state.
+        json_mode = args.config.name.endswith('json')
+        state_file = open(
+            os.path.splitext(args.config.name)[0] + '.state' + ('.json' if json_mode else '.yaml'),
+            'w'
+        )
+        state_file.write(save_state(ex, json_mode))
+
+    return ret

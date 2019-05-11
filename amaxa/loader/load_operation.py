@@ -1,17 +1,14 @@
-import collections
 import csv
-import logging
-from .core_loader import InputType, OperationLoader
+from .core import InputType, OperationLoader
 from .. import amaxa
 from .. import constants
-from .. import transforms
 
 
 class LoadOperationLoader(OperationLoader):
-    def __init__(self, in_dict, connection, state=None):
+    def __init__(self, in_dict, connection, use_state=False):
         super().__init__(self, in_dict, InputType.LOAD_OPERATION)
         self.connection = connection
-        self.state = state
+        self.use_state = use_state
 
     def _validate(self):
         self._validate_sobjects('createable')
@@ -72,12 +69,12 @@ class LoadOperationLoader(OperationLoader):
                 self.errors.append('Unable to open file {} for reading ({}).'.format(entry['file'], exp))
 
             try:
-                f = open(entry['result-file'], 'w' if not self.state else 'a')
+                f = open(entry['result-file'], 'w' if not self.use_state else 'a')
                 output = csv.DictWriter(
                     f, 
                     fieldnames=[constants.ORIGINAL_ID, constants.NEW_ID, constants.ERROR]
                 )
-                if not self.state:
+                if not self.use_state:
                     output.writeheader()
 
                 self.result.file_store.set_file(step.sobjectname, amaxa.FileType.RESULT, f)
