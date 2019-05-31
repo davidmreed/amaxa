@@ -8,11 +8,11 @@ from ... import amaxa
 from ... import transforms
 
 
-def load_file(f):
-    if f.name.endswith('json'):
-        return json.load(f)
-    else:
-        return yaml.safe_load(f)
+def load_file(file_data):
+    if file_data.name.endswith('json'):
+        return json.load(file_data)
+
+    return yaml.safe_load(file_data)
 
 
 class Loader(object):
@@ -22,33 +22,38 @@ class Loader(object):
         self.errors = []
         self.warnings = []
         self.result = None
+    
+    def _get_validator(self):
+        return cerberus.Validator(schemas.get_schema(self.input_type, self.input['version']))
 
-    def load(self):
+    def _validate_schema(self):
         if 'version' not in self.input:
             self.errors.append('No version number present in schema')
             return
 
         if self.input['version'] not in schemas.get_available_versions(self.input_type):
-            self.errors.append('Credential schema version not present or unsupported')
+            self.errors.append('Schema version for {} not present or unsupported'.format(self.input_type.value))
             return
 
         # Validate schema.
-        v = cerberus.Validator(schemas.get_schema(self.input_type, self.input['version']))
-        self.input = v.validated(self.input)
-        if not v.errors:
-            self.errors.extend(['{}: {}'.format(k, v.errors[k]) for k in v.errors])
-            return
+        validator = self._get_validator()
+        self.input = validator.validated(self.input)
+        if validator.errors:
+            self.errors.extend(['{}: {}'.format(k, validator.errors[k]) for k in validator.errors])
 
-        # Execute the load.
-        self._validate()
-        if self.errors:
-            self.result = None
-            return
-        self._load()
-        self._post_validate()
-        if self.errors:
-            self.result = None
-            return
+    def load(self):
+        steps = [
+            self._validate_schema,
+            self._validate,
+            self._load,
+            self._post_validate
+        ]
+
+        for step in steps:
+            step()
+            if self.errors:
+                self.result = None
+                return
 
     def _load(self):
         pass

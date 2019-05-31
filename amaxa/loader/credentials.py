@@ -5,7 +5,7 @@ from .. import jwt_auth
 
 class CredentialLoader(Loader):
     def __init__(self, in_dict):
-        super().__init__(self, in_dict, InputType.CREDENTIALS)
+        super().__init__(in_dict, InputType.CREDENTIALS)
 
     def _load(self):
         credentials = self.input['credentials']

@@ -28,9 +28,9 @@ class MockSimpleSalesforce(object):
     def describe(self):
         if self._describe is None:
             self._describe = copy.deepcopy(root_describe)
-        
+
         return self._describe
-    
+
     def get_describe(self, sobject):
         if sobject not in self._sobject_describes:
             self._sobject_describes[sobject] = copy.deepcopy(sobject_describes[sobject])
