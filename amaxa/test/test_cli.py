@@ -292,7 +292,7 @@ class test_CLI(unittest.TestCase):
         self.assertLess(0, state_file.tell())
 
         state_file.seek(0)
-        yaml_state = yaml.load(state_file)
+        yaml_state = yaml.safe_load(state_file)
 
         self.assertIn('state', yaml_state)
         self.assertIn('id-map', yaml_state['state'])
