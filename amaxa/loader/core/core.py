@@ -65,7 +65,7 @@ class Loader(object):
         pass
     
     def _initialize(self):
-        self.result.initialize()
+        pass
 
     def _post_load_validate(self):
         pass
@@ -209,3 +209,5 @@ class OperationLoader(Loader):
                         step.sobjectname,
                         f
                     ))
+    def _initialize(self):
+        self.result.initialize()
