@@ -6,8 +6,7 @@ from .. import constants
 
 class LoadOperationLoader(OperationLoader):
     def __init__(self, in_dict, connection, use_state=False):
-        super().__init__(self, in_dict, InputType.LOAD_OPERATION)
-        self.connection = connection
+        super().__init__(in_dict, connection, InputType.LOAD_OPERATION)
         self.use_state = use_state
 
     def _validate(self):
@@ -22,7 +21,9 @@ class LoadOperationLoader(OperationLoader):
         for entry in self.input['operation']:
             sobject = entry['sobject']
 
-            self.result.mappers[sobject] = self._get_data_mapper(entry, 'column', 'field')
+            mapper = self._get_data_mapper(entry, 'column', 'field')
+            if mapper is not None:
+                self.result.mappers[sobject] = mapper
             field_scope = self._get_field_scope(entry)
             if 'load' in entry:
                 id_type = amaxa.IdType.values_dict()[entry['load']['id-mode']]
@@ -38,8 +39,12 @@ class LoadOperationLoader(OperationLoader):
 
             self._populate_lookup_behaviors(step, entry)
             self.result.add_step(step)
+    
+    def _post_load_validate(self):
+        self._validate_field_permissions('createable')
 
-        self.result.initialize()
+    def _initialize(self):
+        super()._initialize()
         self._open_files()
 
     def _get_field_scope(self, entry):
@@ -65,7 +70,7 @@ class LoadOperationLoader(OperationLoader):
                 input_file = csv.DictReader(file_handle)
                 self.result.file_store.set_file(step.sobjectname, amaxa.FileType.INPUT, file_handle)
                 self.result.file_store.set_csv(step.sobjectname, amaxa.FileType.INPUT, input_file)
-            except Exception as exp:
+            except IOError as exp:
                 self.errors.append('Unable to open file {} for reading ({}).'.format(entry['file'], exp))
 
             try:
@@ -79,15 +84,13 @@ class LoadOperationLoader(OperationLoader):
 
                 self.result.file_store.set_file(step.sobjectname, amaxa.FileType.RESULT, f)
                 self.result.file_store.set_csv(step.sobjectname, amaxa.FileType.RESULT, output)
-            except Exception as exp:
+            except IOError as exp:
                 self.errors.append('Unable to open file {} for writing ({})'.format(entry['result-file'], exp))
 
-    def _post_validate(self):
-        self._validate_field_permissions('createable')
+    def _post_initialize_validate(self):
         self._validate_dependent_field_permissions()
         self._validate_lookup_behaviors()
         self._validate_input_file_columns()
-
 
     def _validate_dependent_field_permissions(self):
         # Validate that dependent lookups are updateable.

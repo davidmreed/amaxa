@@ -3,6 +3,7 @@ import logging
 import json
 import cerberus
 import yaml
+import simple_salesforce
 from . import schemas
 from ... import amaxa
 from ... import transforms
@@ -22,7 +23,7 @@ class Loader(object):
         self.errors = []
         self.warnings = []
         self.result = None
-    
+
     def _get_validator(self):
         return cerberus.Validator(schemas.get_schema(self.input_type, self.input['version']))
 
@@ -46,7 +47,9 @@ class Loader(object):
             self._validate_schema,
             self._validate,
             self._load,
-            self._post_validate
+            self._post_load_validate,
+            self._initialize,
+            self._post_initialize_validate
         ]
 
         for step in steps:
@@ -60,14 +63,20 @@ class Loader(object):
 
     def _validate(self):
         pass
+    
+    def _initialize(self):
+        self.result.initialize()
 
-    def _post_validate(self):
+    def _post_load_validate(self):
+        pass
+
+    def _post_initialize_validate(self):
         pass
 
 
 class OperationLoader(Loader):
     def __init__(self, in_dict, connection, op_type):
-        super().__init__(self, in_dict, op_type)
+        super().__init__(in_dict, op_type)
         self.connection = connection
 
     def _validate_field_mapping(self):
@@ -82,14 +91,14 @@ class OperationLoader(Loader):
                 duplicate_fields = list(filter(lambda f: field_counter[f] > 1, field_counter.keys()))
                 duplicate_columns = list(filter(lambda f: f is not None and column_counter[f] > 1, field_counter.keys()))
 
-                if not duplicate_fields:
+                if duplicate_fields:
                     self.errors.append(
                         '{}: One or more fields is specified multiple times: {}'.format(
                             entry['sobject'],
                             ', '.join(duplicate_fields)
                         )
                     )
-                if not duplicate_columns:
+                if duplicate_columns:
                     self.errors.append(
                         '{}: One or more columns is specified multiple times: {}'.format(
                             entry['sobject'],
@@ -110,7 +119,7 @@ class OperationLoader(Loader):
 
                     if 'transforms' in f:
                         field_name = f[source] if source in f else f[dest]
-                        mapper.field_transforms[f[field_name]] = \
+                        mapper.field_transforms[field_name] = \
                             [getattr(transforms, t) for t in f['transforms']]
 
             return mapper
@@ -176,7 +185,12 @@ class OperationLoader(Loader):
                     )
 
     def _validate_sobjects(self, permission):
-        global_describe = {entry['name']: entry for entry in self.connection.describe()["sobjects"]}
+        try:
+            global_describe = {entry['name']: entry for entry in self.connection.describe()["sobjects"]}
+        except simple_salesforce.SalesforceAuthenticationFailed as e:
+            self.errors.append('Unable to authenticate to Salesforce: {}'.format(e))
+            return
+
         for entry in self.input['operation']:
             sobject = entry['sobject']
 

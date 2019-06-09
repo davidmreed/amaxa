@@ -27,8 +27,8 @@ class ExtractionOperationLoader(OperationLoader):
             if 'ids' in to_extract:
                 # Register the required IDs in the context
                 try:
-                    for id in to_extract.get('ids'):
-                        self.result.add_dependency(sobject, amaxa.SalesforceId(id))
+                    for record_id in to_extract.get('ids'):
+                        self.result.add_dependency(sobject, amaxa.SalesforceId(record_id))
                 except ValueError:
                     self.errors.append(
                         'One or more invalid Id values provided for sObject {}'.format(sobject))
@@ -68,9 +68,9 @@ class ExtractionOperationLoader(OperationLoader):
                 lam = lambda f: f['createable'] and f['type'] not in ['location', 'address', 'base64']
 
             return set(self.result.get_filtered_field_map(entry['sobject'], lam).keys())
-        else:
-            # Build the field scope, taking flat lists and maps into account.
-            return {f if isinstance(f, str) else f['field'] for f in entry['fields']}
+
+        # Build the field scope, taking flat lists and maps into account.
+        return {f if isinstance(f, str) else f['field'] for f in entry['fields']}
 
     def _open_files(self):
         # Open all of the output files
@@ -91,7 +91,7 @@ class ExtractionOperationLoader(OperationLoader):
                 output.writeheader()
                 self.result.file_store.set_file(step.sobjectname, amaxa.FileType.OUTPUT, file_handle)
                 self.result.file_store.set_csv(step.sobjectname, amaxa.FileType.OUTPUT, output)
-            except Exception as exp:
+            except IOError as exp:
                 self.errors.append(
                     'Unable to open file {} for writing ({}).'.format(entry['file'], exp)
                 )

@@ -1,7 +1,7 @@
 import unittest
-from ..loader import core
 from unittest.mock import Mock
 from io import StringIO
+from ..loader import core
 
 
 class test_Loader(unittest.TestCase):
