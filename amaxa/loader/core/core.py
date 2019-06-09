@@ -152,10 +152,10 @@ class OperationLoader(Loader):
             for field in step.field_scope:
                 if field not in field_map or (permission is not None and not field_map[field][permission]):
                     self.errors.append(
-                        'Field {}.{} does not exist or does not have the correct CRUD permission ({}).'.format(
+                        'Field {}.{} does not exist or does not have the correct CRUD permission{}.'.format(
                             step.sobjectname,
                             field,
-                            permission
+                            ' (' + permission + ')' if permission else ''
                         )
                     )
                 elif field_map[field]['type'] == 'reference':
@@ -197,3 +197,15 @@ class OperationLoader(Loader):
             if sobject not in global_describe or not global_describe[sobject][permission]:
                 self.errors.append(
                     'sObject {} does not exist or does not have the correct permission ({})'.format(sobject, permission))
+
+    def _validate_lookup_behaviors(self):
+        # Validate that lookup behaviors are associated with lookups of the correct type (outside or self)
+        for step in self.result.steps:
+            for f in step.lookup_behaviors:
+                if (f in step.dependent_lookups and step.lookup_behaviors[f] not in amaxa.OutsideLookupBehavior) \
+                    or (f in step.self_lookups and step.lookup_behaviors[f] not in amaxa.SelfLookupBehavior):
+                    self.errors.append('Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
+                        step.lookup_behaviors[f].value,
+                        step.sobjectname,
+                        f
+                    ))

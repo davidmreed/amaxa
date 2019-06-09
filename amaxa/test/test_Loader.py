@@ -18,6 +18,26 @@ class test_Loader(unittest.TestCase):
             loader_test.errors,
         )
 
+    def test_validate_schema(self):
+        loader_test = core.Loader(
+            {
+                'version': 1,
+                'operation': [
+                    { 
+                        'sobject': 'Account',
+                        'fields': [ 'Name', 'ParentId' ],
+                        'extract': { 'all': True }
+                    }
+                ]
+            },
+            core.InputType.EXTRACT_OPERATION
+        )
+
+        loader_test._validate_schema()
+
+        self.assertEqual([], loader_test.errors)
+        self.assertEqual('Account.csv', loader_test.input['operation'][0]['file'])
+
     def test_load_stops_after_errors(self):
         loader_test = core.Loader({"version": 999}, core.InputType.CREDENTIALS)
         loader_test._validate_schema = Mock()

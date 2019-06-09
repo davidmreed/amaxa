@@ -100,19 +100,6 @@ class LoadOperationLoader(OperationLoader):
                 if not field_map[f]['updateable']:
                     self.errors.append('Field {}.{} is a dependent lookup, but is not updateable.'.format(step.sobjectname, f))
 
-
-    def _validate_lookup_behaviors(self):
-        # Validate that lookup behaviors are associated with lookups of the correct type (outside or self)
-        for step in self.result.steps:
-            for f in step.lookup_behaviors:
-                if (f in step.dependent_lookups and step.lookup_behaviors[f] not in amaxa.OutsideLookupBehavior) \
-                    or (f in step.self_lookups and step.lookup_behaviors[f] not in amaxa.SelfLookupBehavior):
-                    self.errors.append('Lookup behavior \'{}\' specified for field {}.{} is not valid for this lookup type.'.format(
-                        step.lookup_behaviors[f].value,
-                        step.sobjectname,
-                        f
-                    ))
-
     def _validate_input_file_columns(self):
         # Validate the column sets in the input files.
         # For each file, if validation is active, check as follows.

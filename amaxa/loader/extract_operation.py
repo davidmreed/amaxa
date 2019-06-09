@@ -4,11 +4,15 @@ from .. import amaxa
 
 class ExtractionOperationLoader(OperationLoader):
     def __init__(self, in_dict, connection):
-        super().__init__(self, in_dict, connection, InputType.EXTRACT_OPERATION)
+        super().__init__(in_dict, connection, InputType.EXTRACT_OPERATION)
 
     def _validate(self):
         self._validate_sobjects('queryable')
         self._validate_field_mapping()
+
+    def _initialize(self):
+        super()._initialize()
+        self._open_files()
 
     def _load(self):
         # Create the core operation
@@ -18,7 +22,9 @@ class ExtractionOperationLoader(OperationLoader):
         for entry in self.input['operation']:
             sobject = entry['sobject']
 
-            self.result.mappers[sobject] = self._get_data_mapper(entry, 'field', 'column')
+            mapper = self._get_data_mapper(entry, 'field', 'column')
+            if mapper is not None:
+                self.result.mappers[sobject] = mapper
 
             # Determine the type of extraction
             query = None
@@ -56,6 +62,12 @@ class ExtractionOperationLoader(OperationLoader):
 
             self._populate_lookup_behaviors(step, entry)
             self.result.add_step(step)
+    
+    def _post_load_validate(self):
+        self._validate_field_permissions()
+
+    def _post_initialize_validate(self):
+        self._validate_lookup_behaviors()
 
     def _get_field_scope(self, entry):
         # Use the 'field-group' or 'field' items to derive the field scope
