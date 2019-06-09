@@ -7,7 +7,7 @@ from .. import loader, amaxa
 from ..__main__ import main as main
 
 
-credentials_good_yaml = '''
+CREDENTIALS_GOOD_YAML = '''
 version: 1
 credentials:
     username: 'test@example.com'
@@ -16,7 +16,7 @@ credentials:
     sandbox: True
 '''
 
-credentials_good_json = '''
+CREDENTIALS_GOOD_JSON = '''
 {
     "version": 1,
     "credentials": {
@@ -28,7 +28,7 @@ credentials_good_json = '''
 }
 '''
 
-credentials_bad = '''
+CREDENTIALS_BAD = '''
 credentials:
     username: 'test@example.com'
     password: 'blah'
@@ -36,7 +36,7 @@ credentials:
     sandbox: True
 '''
 
-extraction_good_yaml = '''
+EXTRACTION_GOOD_YAML = '''
 version: 1
 operation:
     - 
@@ -48,7 +48,7 @@ operation:
         extract: 
             all: True
 '''
-extraction_good_json = '''
+EXTRACTION_GOOD_JSON = '''
 {
     "version": 1,
     "extraction": [
@@ -66,7 +66,7 @@ extraction_good_json = '''
     ]
 }
 '''
-extraction_bad = '''
+EXTRACTION_BAD = '''
 operation:
     - 
         sobject: Account
@@ -78,7 +78,7 @@ operation:
             all: True
 '''
 
-state_good_yaml = '''
+STATE_GOOD_YAML = '''
 version: 1
 state:
     stage: inserts
@@ -91,13 +91,13 @@ state_file = io.StringIO()
 
 def select_file(f, *args, **kwargs):
     data = { 
-        'credentials-bad.yaml': credentials_bad,
-        'extraction-bad.yaml': extraction_bad,
-        'extraction-good.yaml': extraction_good_yaml,
-        'credentials-good.yaml': credentials_good_yaml,
-        'credentials-good.json': credentials_good_json,
-        'extraction-good.json': extraction_good_json,
-        'state-good.yaml': state_good_yaml,
+        'credentials-bad.yaml': CREDENTIALS_BAD,
+        'extraction-bad.yaml': EXTRACTION_BAD,
+        'extraction-good.yaml': EXTRACTION_GOOD_YAML,
+        'credentials-good.yaml': CREDENTIALS_GOOD_YAML,
+        'credentials-good.json': CREDENTIALS_GOOD_JSON,
+        'extraction-good.json': EXTRACTION_GOOD_JSON,
+        'state-good.yaml': STATE_GOOD_YAML,
         'extraction-good.state.yaml': state_file
     }
     if type(data[f]) is str:
@@ -109,13 +109,17 @@ def select_file(f, *args, **kwargs):
     return m
 
 class test_CLI(unittest.TestCase):
-    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
-    def test_main_calls_execute_with_json_input_extract_mode(self, extraction_mock, credential_mock):
+    @unittest.mock.patch('amaxa.__main__.CredentialLoader')
+    @unittest.mock.patch('amaxa.__main__.ExtractionOperationLoader')
+    def test_main_calls_execute_with_json_input_extract_mode(self, operation_mock, credential_mock):
         context = Mock()
         context.run.return_value = 0
-        credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (context, [])
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = context
+        credential_mock.return_value.errors = []
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = context
+        operation_mock.return_value.errors = []
         
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
@@ -125,20 +129,24 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(json.loads(credentials_good_json), False)
-        extraction_mock.assert_called_once_with(json.loads(extraction_good_json), context)
+        credential_mock.assert_called_once_with(json.loads(CREDENTIALS_GOOD_JSON))
+        operation_mock.assert_called_once_with(json.loads(EXTRACTION_GOOD_JSON), context)
 
-        extraction_mock.return_value[0].run.assert_called_once_with()
+        context.run.assert_called_once_with()
 
         self.assertEqual(0, return_value)
     
-    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_load_operation')
-    def test_main_calls_execute_with_json_input_load_mode(self, extraction_mock, credential_mock):
+    @unittest.mock.patch('amaxa.__main__.CredentialLoader')
+    @unittest.mock.patch('amaxa.__main__.LoadOperationLoader')
+    def test_main_calls_execute_with_json_input_load_mode(self, operation_mock, credential_mock):
         context = Mock()
         context.run.return_value = 0
-        credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (context, [])
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = context
+        credential_mock.return_value.errors = []
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = context
+        operation_mock.return_value.errors = []
         
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
@@ -148,21 +156,25 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(json.loads(credentials_good_json), True)
-        extraction_mock.assert_called_once_with(json.loads(extraction_good_json), context, False)
+        credential_mock.assert_called_once_with(json.loads(CREDENTIALS_GOOD_JSON))
+        operation_mock.assert_called_once_with(json.loads(EXTRACTION_GOOD_JSON), context, use_state=False)
 
-        extraction_mock.return_value[0].run.assert_called_once_with()
+        context.run.assert_called_once_with()
 
         self.assertEqual(0, return_value)
 
-    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
-    def test_main_calls_execute_with_yaml_input(self, extraction_mock, credential_mock):
+    @unittest.mock.patch('amaxa.__main__.CredentialLoader')
+    @unittest.mock.patch('amaxa.__main__.ExtractionOperationLoader')
+    def test_main_calls_execute_with_yaml_input(self, operation_mock, credential_mock):
         context = Mock()
         context.run.return_value = 0
-        credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (context, [])
-        
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = context
+        credential_mock.return_value.errors = []
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = context
+        operation_mock.return_value.errors = []
+
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
             with unittest.mock.patch(
@@ -171,18 +183,23 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(yaml.safe_load(credentials_good_yaml), False)
-        extraction_mock.assert_called_once_with(yaml.safe_load(extraction_good_yaml), context)
+        credential_mock.assert_called_once_with(yaml.safe_load(CREDENTIALS_GOOD_YAML))
+        operation_mock.assert_called_once_with(yaml.safe_load(EXTRACTION_GOOD_YAML), context)
 
-        extraction_mock.return_value[0].run.assert_called_once_with()
+        context.run.assert_called_once_with()
 
         self.assertEqual(0, return_value)
 
-    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
-    def test_main_returns_error_with_bad_credentials(self, extraction_mock, credential_mock):
-        credential_mock.return_value = (None, ['Test error occured.'])
-        extraction_mock.return_value = (Mock(), [])
+    @unittest.mock.patch('amaxa.__main__.CredentialLoader')
+    @unittest.mock.patch('amaxa.__main__.ExtractionOperationLoader')
+    def test_main_returns_error_with_bad_credentials(self, operation_mock, credential_mock):
+        context = Mock()
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = None
+        credential_mock.return_value.errors = ['Test error occured.']
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = context
+        operation_mock.return_value.errors = []
         
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
@@ -192,19 +209,22 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(yaml.safe_load(credentials_bad), False)
-
-        extraction_mock.return_value[0].run.assert_not_called()
+        credential_mock.assert_called_once_with(yaml.safe_load(CREDENTIALS_BAD))
+        context.run.assert_not_called()
 
         self.assertEqual(-1, return_value)
 
-    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
-    def test_main_returns_error_with_bad_extraction(self, extraction_mock, credential_mock):
+    @unittest.mock.patch('amaxa.__main__.CredentialLoader')
+    @unittest.mock.patch('amaxa.__main__.ExtractionOperationLoader')
+    def test_main_returns_error_with_bad_extraction(self, operation_mock, credential_mock):
         context = Mock()
-        credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (None, ['Test error occured.'])
-        
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = context
+        credential_mock.return_value.errors = []
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = None
+        operation_mock.return_value.errors = ['Test error occured.']
+
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
             with unittest.mock.patch(
@@ -213,22 +233,27 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(yaml.safe_load(credentials_good_yaml), False)
-        extraction_mock.assert_called_once_with(yaml.safe_load(extraction_bad), context)
+        credential_mock.assert_called_once_with(yaml.safe_load(CREDENTIALS_GOOD_YAML))
+        operation_mock.assert_called_once_with(yaml.safe_load(EXTRACTION_BAD), context)
 
         self.assertEqual(-1, return_value)
     
-    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
-    def test_main_returns_error_with_errors_during_extraction(self, extraction_mock, credential_mock):
+    @unittest.mock.patch('amaxa.__main__.CredentialLoader')
+    @unittest.mock.patch('amaxa.__main__.ExtractionOperationLoader')
+    def test_main_returns_error_with_errors_during_extraction(self, operation_mock, credential_mock):
         context = Mock()
         op = Mock()
         op.run = Mock(return_value=-1)
         op.stage = amaxa.LoadStage.INSERTS
         op.global_id_map = {}
-        credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (op, [])
-        
+
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = context
+        credential_mock.return_value.errors = []
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = op
+        operation_mock.return_value.errors = []
+
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
             with unittest.mock.patch(
@@ -239,17 +264,22 @@ class test_CLI(unittest.TestCase):
 
         self.assertEqual(-1, return_value)
 
-    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
-    def test_main_saves_state_on_error(self, extraction_mock, credential_mock):
+    @unittest.mock.patch('amaxa.__main__.CredentialLoader')
+    @unittest.mock.patch('amaxa.__main__.ExtractionOperationLoader')
+    def test_main_saves_state_on_error(self, operation_mock, credential_mock):
         context = Mock()
         op = Mock()
         op.run = Mock(return_value=-1)
         op.stage = amaxa.LoadStage.INSERTS
         op.global_id_map = { amaxa.SalesforceId('001000000000001'): amaxa.SalesforceId('001000000000002') }
-        credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (op, [])
-        
+
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = context
+        credential_mock.return_value.errors = []
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = op
+        operation_mock.return_value.errors = []
+
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
             with unittest.mock.patch(
@@ -273,15 +303,20 @@ class test_CLI(unittest.TestCase):
             yaml_state['state']['id-map']
         )
 
-    @unittest.mock.patch('amaxa.__main__.loader.load_credentials')
-    @unittest.mock.patch('amaxa.__main__.loader.load_extraction_operation')
-    def test_main_loads_state_with_use_state_option(self, extraction_mock, credential_mock):
+    @unittest.mock.patch('amaxa.__main__.CredentialLoader')
+    @unittest.mock.patch('amaxa.__main__.ExtractionOperationLoader')
+    def test_main_loads_state_with_use_state_option(self, operation_mock, credential_mock):
         context = Mock()
         op = Mock()
         op.run = Mock(return_value=0)
-        credential_mock.return_value = (context, [])
-        extraction_mock.return_value = (op, [])
-        
+
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = context
+        credential_mock.return_value.errors = []
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = op
+        operation_mock.return_value.errors = []
+
         m = Mock(side_effect=select_file)
         with unittest.mock.patch('builtins.open', m):
             with unittest.mock.patch(

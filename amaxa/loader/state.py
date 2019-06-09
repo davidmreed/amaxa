@@ -16,7 +16,7 @@ def save_state(operation, json_mode=False):
 
 class StateLoader(Loader):
     def __init__(self, in_dict, operation):
-        super().__init__(self, in_dict, InputType.STATE)
+        super().__init__(in_dict, InputType.STATE)
         self.result = operation
 
     def _load(self):

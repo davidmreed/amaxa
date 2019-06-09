@@ -58,7 +58,6 @@ def main():
             print('Errors occured during load of the state file: {}'.format('\n'.join(state_loader.errors)))
             return -1
 
-
     ret = ex.run()
 
     if ret != 0 and ex.global_id_map:
