@@ -71,6 +71,29 @@ class test_ExtractionStep(unittest.TestCase):
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '001000000000001', 'Name': 'Picon Fleet Headquarters' })
         oc.add_dependency.assert_called_once_with('Account', amaxa.SalesforceId('001000000000001'))
 
+    def test_store_result_handles_empty_self_lookup_fields(self):
+        connection = Mock()
+
+        oc = amaxa.ExtractOperation(connection)
+
+        oc.store_result = Mock()
+        oc.add_dependency = Mock()
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Account']
+            }
+        })
+        oc.get_sobject_list = Mock(return_value=['Account'])
+
+        step = amaxa.ExtractionStep('Account', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        oc.add_step(step)
+        step.initialize()
+
+        step.store_result({ 'Id': '001000000000000', 'Lookup__c': None, 'Name': 'Picon Fleet Headquarters' })
+        oc.add_dependency.assert_not_called()
+
     def test_store_result_respects_self_lookup_options(self):
         connection = Mock()
 
@@ -157,6 +180,46 @@ class test_ExtractionStep(unittest.TestCase):
         step.store_result({ 'Id': '001000000000000', 'Lookup__c': '00T000000000001', 'Name': 'Kara Thrace' })
         oc.add_dependency.assert_not_called()
         oc.store_result.assert_called_once_with('Contact', { 'Id': '001000000000000', 'Lookup__c': '00T000000000001', 'Name': 'Kara Thrace' })
+
+    def test_store_result_handles_empty_lookup_values(self):
+        connection = Mock()
+
+        oc = amaxa.ExtractOperation(connection)
+
+        oc.store_result = Mock()
+        oc.add_dependency = Mock()
+        oc.get_extracted_ids = Mock()
+        oc.get_field_map = Mock(return_value={
+            'Lookup__c': {
+                'name': 'Lookup__c',
+                'type': 'reference',
+                'referenceTo': ['Opportunity', 'Account', 'Task']
+            }
+        })
+        oc.get_sobject_list = Mock(return_value=['Account', 'Contact', 'Opportunity'])
+        oc.get_sobject_name_for_id = Mock()
+
+        step = amaxa.ExtractionStep('Contact', amaxa.ExtractionScope.ALL_RECORDS, ['Lookup__c'])
+        oc.add_step(step)
+        step.initialize()
+
+        # Validate that the polymorphic lookup is treated properly when the content is a dependent reference
+        step.dependent_lookups = ['Lookup__c']
+        step.descendent_lookups = []
+        step.self_lookups = []
+        step.store_result({ 'Id': '001000000000000', 'Lookup__c': None, 'Name': 'Kara Thrace' })
+        oc.add_dependency.assert_not_called()
+        oc.get_sobject_name_for_id.assert_not_called()
+        oc.get_extracted_ids.assert_not_called()
+
+        # Validate that the polymorphic lookup is treated properly when the content is a descendent reference
+        step.dependent_lookups = []
+        step.descendent_lookups = ['Lookup__c']
+        step.self_lookups = []
+        step.store_result({ 'Id': '001000000000000', 'Lookup__c': None, 'Name': 'Kara Thrace' })
+        oc.add_dependency.assert_not_called()
+        oc.get_sobject_name_for_id.assert_not_called()
+        oc.get_extracted_ids.assert_not_called()
 
     def test_store_result_respects_outside_lookup_behavior_drop_field(self):
         connection = Mock()

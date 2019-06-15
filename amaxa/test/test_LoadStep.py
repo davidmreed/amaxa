@@ -454,7 +454,7 @@ class test_LoadStep(unittest.TestCase):
         op.get_result_file = Mock()
         bulk_proxy.get_batch_results = Mock(
             side_effect=[
-                [ UploadResult('00100000{:d}{:06d}'.format(j, i), True, True, '') for i in range(10000) ]
+                [ UploadResult('001000000{:06d}'.format(i + 1 + (j * 10000)), True, True, '') for i in range(10000) ]
                 for j in range(2)
             ]
         )
@@ -469,6 +469,15 @@ class test_LoadStep(unittest.TestCase):
         self.assertEqual(2, bulk_proxy.wait_for_batch.call_count)
         self.assertEqual(2, bulk_proxy.get_batch_results.call_count)
         self.assertEqual(20000, op.register_new_id.call_count)
+
+        # Validate that the correct Ids were mapped
+        # Each Id should be mapped to itself plus one.
+        for index, each_call in enumerate(op.register_new_id.call_args_list):
+            self.assertEqual(
+                unittest.mock.call('Account', amaxa.SalesforceId('001000000{:06d}'.format(index)), amaxa.SalesforceId('001000000{:06d}'.format(index + 1))),
+                each_call
+            )
+
 
     @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
     def test_execute_handles_errors(self, bulk_proxy):
@@ -561,6 +570,41 @@ class test_LoadStep(unittest.TestCase):
             bulk_proxy.create_update_job.return_value, 
             json_iterator_proxy.return_value
         )
+
+    @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
+    def test_execute_dependent_updates_handles_high_volume_lookups(self, bulk_proxy):
+        record_list = [{'Id': '001000000{:06d}'.format(i), 'Name': 'Account {:06d}'.format(i), 'Lookup__c': '00100000000000a'}
+        for i in range(20000)]
+
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
+        op.get_field_map = Mock(return_value={
+            'Name': { 'type': 'string '},
+            'Id': { 'type': 'string' },
+            'Lookup__c': { 'type': 'string' }
+        })
+
+        op.register_new_id('Account', amaxa.SalesforceId('00100000000000a'), amaxa.SalesforceId('00100000000000b'))
+
+        op.file_store.records['Account'] = record_list
+        bulk_proxy.get_batch_results = Mock(
+            return_value=[
+                UploadResult('001000000{:06d}'.format(i), True, True, '') for i in range(20000)
+            ]
+        )
+
+        l = amaxa.LoadStep('Account', ['Name', 'Lookup__c'])
+        l.context = op
+
+        l.initialize()
+        l.self_lookups = set(['Lookup__c'])
+        l.dependent_lookup_records = record_list
+        l.execute_dependent_updates()
+
+        self.assertEqual(2, bulk_proxy.post_batch.call_count)
+        self.assertEqual(2, bulk_proxy.wait_for_batch.call_count)
+        self.assertEqual(2, bulk_proxy.get_batch_results.call_count)
 
     @patch('amaxa.LoadOperation.bulk', new_callable=PropertyMock())
     def test_execute_dependent_updates_handles_errors(self, bulk_proxy):

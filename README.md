@@ -94,7 +94,7 @@ Lastly, if you establish authentication outside Amaxa (with Salesforce DX, for e
     version: 1
     credentials:
         access-token: '.....'
-        instance-url: 'test.salesforce.com
+        instance-url: 'https://test.salesforce.com
 
 ## Defining Operations
 
