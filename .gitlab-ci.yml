@@ -31,7 +31,7 @@ test:
     - source assets/scripts/prep-scratch-org.sh
     - sfdx force:apex:execute -f assets/scripts/UpdateUser.apex -u scratch
     - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa
-    - codecov
+    - coveralls
   after_script:
     - sfdx force:org:delete -u scratch -p
     - rm assets/server.key
