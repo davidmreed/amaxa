@@ -2,6 +2,7 @@ import io
 from .. import amaxa
 from unittest.mock import Mock
 
+
 class MockFileStore(object):
     def __init__(self):
         self.mocks = {}
@@ -20,8 +21,8 @@ class MockFileStore(object):
 
         if not (sobject, ftype) in self.mocks:
             self.mocks[(sobject, ftype)] = Mock()
-        
+
         return self.mocks[(sobject, ftype)]
-    
+
     def set_csv(self, sobject, ftype, new_csv):
         pass

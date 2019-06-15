@@ -1,3 +1,3 @@
-ORIGINAL_ID = 'Original Id'
-NEW_ID = 'New Id'
-ERROR = 'Error'
+ORIGINAL_ID = "Original Id"
+NEW_ID = "New Id"
+ERROR = "Error"

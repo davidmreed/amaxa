@@ -1,5 +1,5 @@
 pytest
-pytest-cov 
-codecov 
+pytest-cov
+codecov
 wheel
 setuptools

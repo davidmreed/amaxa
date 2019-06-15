@@ -4,15 +4,15 @@ from unittest.mock import Mock, MagicMock, PropertyMock, patch
 from functools import reduce
 from .. import amaxa
 
+
 class test_iterators(unittest.TestCase):
     def test_JSONIterator(self):
-        records = ['Test', 'Test2']
+        records = ["Test", "Test2"]
 
-        s = reduce(lambda x, y: x + y, amaxa.JSONIterator(records), b'')
+        s = reduce(lambda x, y: x + y, amaxa.JSONIterator(records), b"")
 
         self.assertEqual(
-            b'[' + b','.join([json.dumps(r).encode('utf-8') for r in records]) + b']',
-            s
+            b"[" + b",".join([json.dumps(r).encode("utf-8") for r in records]) + b"]", s
         )
 
     def test_BatchIterator(self):

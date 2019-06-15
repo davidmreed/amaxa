@@ -1,4 +1,4 @@
-__all__ = ['strip', 'lowercase', 'uppercase']
+__all__ = ["strip", "lowercase", "uppercase"]
 
 strip = lambda x: x.strip()
 lowercase = lambda x: x.lower()
