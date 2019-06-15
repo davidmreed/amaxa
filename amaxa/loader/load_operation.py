@@ -25,16 +25,11 @@ class LoadOperationLoader(OperationLoader):
             if mapper is not None:
                 self.result.mappers[sobject] = mapper
             field_scope = self._get_field_scope(entry)
-            if 'load' in entry:
-                id_type = amaxa.IdType.values_dict()[entry['load']['id-mode']]
-            else:
-                id_type = amaxa.IdType.SALESFORCE_ID
 
             step = amaxa.LoadStep(
                 sobject,
                 field_scope,
-                amaxa.OutsideLookupBehavior.values_dict()[entry['outside-lookup-behavior']],
-                id_type
+                amaxa.OutsideLookupBehavior.values_dict()[entry['outside-lookup-behavior']]
             )
 
             self._populate_lookup_behaviors(step, entry)
