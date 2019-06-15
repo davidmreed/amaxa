@@ -1,10 +1,10 @@
-import unittest
+import io
 import json
 import yaml
-import io
+import unittest
+import amaxa
 from unittest.mock import Mock
-from .. import loader, amaxa
-from ..__main__ import main as main
+from ..__main__ import main
 
 
 CREDENTIALS_GOOD_YAML = '''
