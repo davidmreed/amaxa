@@ -9,6 +9,12 @@ class CredentialLoader(Loader):
         super().__init__(in_dict, InputType.CREDENTIALS)
 
     def _load(self):
+        if self.input["version"] == 1:
+            self._load_v1()
+        else:
+            self._load_v2()
+
+    def _load_v1(self):
         credentials = self.input["credentials"]
 
         # Determine what type of credentials we have
@@ -68,6 +74,60 @@ class CredentialLoader(Loader):
             )
         else:
             self.errors.append("A set of valid credentials was not provided.")
+
+    def _load_v2(self):
+        credentials = self.input["credentials"]
+
+        # Determine what type of credentials we have
+        sandbox = credentials["sandbox"]
+        if "username" in credentials:
+            # User + password, optional Security Token
+            credentials = credentials["username"]
+            self.result = simple_salesforce.Salesforce(
+                username=credentials["username"],
+                password=credentials["password"],
+                security_token=credentials.get("security-token", ""),
+                organizationId=credentials.get("organization-id", ""),
+                sandbox=sandbox,
+            )
+
+            logging.getLogger("amaxa").debug(
+                "Authenticating to Salesforce with user name and password"
+            )
+        elif "jwt" in credentials:
+            credentials = credentials["jwt"]
+            if "keyfile" in credentials:
+                # JWT authentication with external keyfile
+                with open(credentials["keyfile"], "r") as jwt_file:
+                    key = jwt_file.read()
+
+                logging.getLogger("amaxa").debug(
+                    "Authenticating to Salesforce with external JWT key"
+                )
+            else:
+                # JWT authentication with key provided inline.
+                key = credentials["key"]
+
+            try:
+                self.result = jwt_auth.jwt_login(
+                    credentials["consumer-key"],
+                    credentials["username"],
+                    key,
+                    sandbox,
+                )
+            except simple_salesforce.exceptions.SalesforceAuthenticationFailed as ex:
+                self.errors.append(
+                    "Failed to authenticate with JWT: {}".format(ex.message)
+                )
+        elif "token" in credentials:
+            credentials = credentials["token"]
+            self.result = simple_salesforce.Salesforce(
+                instance_url=credentials["instance-url"],
+                session_id=credentials["access-token"],
+            )
+            logging.getLogger("amaxa").debug(
+                "Authenticating to Salesforce with access token"
+            )
 
     def _post_validate(self):
         try:

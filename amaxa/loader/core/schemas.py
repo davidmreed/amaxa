@@ -1,5 +1,6 @@
 from ... import amaxa, transforms
 from .input_type import InputType
+import os
 
 
 def get_available_versions(input_type):
@@ -8,6 +9,17 @@ def get_available_versions(input_type):
 
 def get_schema(input_type, version):
     return SCHEMAS[input_type][version]
+
+
+def _env_or_string(params):
+    ret = {
+        "type": ["string", "dict"],
+        "schema": {"env": {"type": "string", "required": True}},
+        "coerce": lambda v: v if isinstance(v, str) else os.environ.get(v["env"]),
+    }
+    ret.update(params)
+
+    return ret
 
 
 SCHEMAS = {
@@ -114,7 +126,72 @@ SCHEMAS = {
                     },
                 },
             },
-        }
+        },
+        2: {
+            "version": {"type": "integer", "required": True, "allowed": [2]},
+            "credentials": {
+                "type": "dict",
+                "required": True,
+                "schema": {
+                    "sandbox": {"type": "boolean", "default": False},
+                    "username": {
+                        "type": "dict",
+                        "excludes": ["token", "jwt"],
+                        "required": True,
+                        "schema": {
+                            "username": _env_or_string({
+                                "required": True,
+                            }),
+                            "password": _env_or_string({
+                                "required": True,
+                            }),
+                            "security-token": _env_or_string({
+                                "required": True,
+                                "excludes": "organization-id",
+                            }),
+                            "organization-id": _env_or_string({
+                                "required": True,
+                                "excludes": "security-token",
+                            }),
+                        },
+                    },
+                    "token": {
+                        "type": "dict",
+                        "excludes": ["username", "jwt"],
+                        "required": True,
+                        "schema": {
+                            "instance-url": _env_or_string({
+                                "required": True,
+                            }),
+                            "access-token": _env_or_string({
+                                "required": True,
+                            }),
+                        },
+                    },
+                    "jwt": {
+                        "type": "dict",
+                        "excludes": ["token", "username"],
+                        "required": True,
+                        "schema": {
+                            "username": _env_or_string({
+                                "required": True,
+                            }),
+                            "keyfile": _env_or_string({
+                                "required": True,
+                                "excludes": "key",
+                            }),
+                            "key": _env_or_string({
+                                "required": True,
+                                "excludes": "keyfile",
+                            }),
+                            "consumer-key": _env_or_string({
+                                "required": True,
+                            }),
+                        },
+                    },
+                },
+            },
+        },
     },
     InputType.LOAD_OPERATION: {
         1: {

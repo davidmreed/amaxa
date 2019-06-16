@@ -44,6 +44,11 @@ class Loader(object):
 
         # Validate schema.
         validator = self._get_validator()
+        print(self.input)
+        if "token" in self.input["credentials"]:
+            print(self.input["credentials"]["token"])
+            print(type(self.input["credentials"]["token"]))
+
         self.input = validator.validated(self.input)
         if validator.errors:
             self.errors.extend(
