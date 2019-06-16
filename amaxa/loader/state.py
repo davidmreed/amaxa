@@ -1,6 +1,7 @@
 import json
 import yaml
-from .core import Loader, InputType
+from .input_type import InputType
+from .core import Loader
 from .. import amaxa
 
 

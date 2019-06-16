@@ -1,4 +1,4 @@
-from ... import amaxa, transforms
+from .. import amaxa, transforms
 from .input_type import InputType
 import os
 

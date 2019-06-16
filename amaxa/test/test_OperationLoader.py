@@ -1,8 +1,8 @@
 import unittest
 import amaxa
 from unittest.mock import Mock
-from io import StringIO
 from ..loader import core
+from ..loader.input_type import InputType
 from .MockSimpleSalesforce import MockSimpleSalesforce
 
 
@@ -23,7 +23,7 @@ class test_OperationLoader(unittest.TestCase):
             ],
         }
 
-        context = core.OperationLoader(ex, None, core.InputType.EXTRACT_OPERATION)
+        context = core.OperationLoader(ex, None, InputType.EXTRACT_OPERATION)
         context._validate_field_mapping()
 
         self.assertEqual(
@@ -45,7 +45,7 @@ class test_OperationLoader(unittest.TestCase):
                 }
             ],
         }
-        context = core.OperationLoader(ex, None, core.InputType.EXTRACT_OPERATION)
+        context = core.OperationLoader(ex, None, InputType.EXTRACT_OPERATION)
         context._validate_field_mapping()
 
         self.assertEqual(
@@ -68,7 +68,7 @@ class test_OperationLoader(unittest.TestCase):
             "input-validation": "none",
         }
 
-        context = core.OperationLoader({}, None, core.InputType.EXTRACT_OPERATION)
+        context = core.OperationLoader({}, None, InputType.EXTRACT_OPERATION)
         mapper = context._get_data_mapper(ex, "column", "field")
 
         self.assertEqual({"Account Name": "Name"}, mapper.field_name_mapping)
@@ -94,7 +94,7 @@ class test_OperationLoader(unittest.TestCase):
             "input-validation": "none",
         }
 
-        context = core.OperationLoader({}, None, core.InputType.LOAD_OPERATION)
+        context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
         mapper = context._get_data_mapper(ex, "field", "column")
 
         self.assertEqual({"Name": "Account Name"}, mapper.field_name_mapping)
@@ -118,7 +118,7 @@ class test_OperationLoader(unittest.TestCase):
         }
 
         context = core.OperationLoader(
-            ex, MockSimpleSalesforce(), core.InputType.LOAD_OPERATION
+            ex, MockSimpleSalesforce(), InputType.LOAD_OPERATION
         )
         context._validate_sobjects("createable")
 
@@ -130,7 +130,7 @@ class test_OperationLoader(unittest.TestCase):
         )
 
     def test_validate_field_permissions_flags_fields(self):
-        context = core.OperationLoader({}, None, core.InputType.LOAD_OPERATION)
+        context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
         context.result = amaxa.Operation(MockSimpleSalesforce())
         context.result.steps = [Mock()]
         context.result.steps[0].sobjectname = "Account"

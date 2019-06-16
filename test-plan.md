@@ -6,9 +6,10 @@ Each released version of Amaxa is tested both via automated unit tests and is ma
 
  1. Install the new version of Amaxa.
 
- 1. Create a new scratch org using Amaxa's supplied script:
+ 1. Create a new scratch org and populate its credentials into environment variables using Amaxa's supplied script:
 
-        source assets/scripts/prep-scratch-org.sh
+        sfdx force:org:create -s -f assets/project-scratch-def.json -a scratch
+        source assets/scripts/get-auth-params.sh
 
  1. Run the Apex script to ensure Marketing User permission:
 
@@ -18,31 +19,19 @@ Each released version of Amaxa is tested both via automated unit tests and is ma
     test processes require access to the Campaign object. An error in that specific component of
     the script is meaningless and does not constitute a test failure.
 
- 1. Extract the Session Id and Instance URL from the environment variables where Amaxa's script places
-    them:
-
-        echo $ACCESS_TOKEN
-        echo $INSTANCE_URL
-
  1. Navigate to the test data folder:
 
         cd assets/test_data_csv
 
-    Open the file `credential.yml` and replace the credentials using the values of the environment
-    variables:
-
-        access-token: ''
-        instance-url: ''
-
  1. Run the load:
 
-        amaxa --load --credentials credentials.yml test.yml
+        amaxa --load --credentials credentials-env.yml test.yml
     
     Validate that it completes without errors.
 
  1. Load the scratch org with `sfdx force:org:open -u scratch`.
 
- 1. Validate the count loaded for each sObject:
+ 1. Validate the count loaded for each sObject using `count()` queries:
 
     - Account
     - Campaign
@@ -53,7 +42,7 @@ Each released version of Amaxa is tested both via automated unit tests and is ma
 
  1. Extract the data back from the org:
 
-        amaxa --credentials credentials.yml test.yml
+        amaxa --credentials credentials-env.yml test.yml
     
     Validate that it completes without errors.
 

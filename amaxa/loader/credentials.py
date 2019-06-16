@@ -1,6 +1,7 @@
 import logging
 import simple_salesforce
-from .core import Loader, InputType
+from .core import Loader
+from .input_type import InputType
 from .. import jwt_auth
 
 

@@ -1,4 +1,4 @@
-from ... import amaxa
+from .. import amaxa
 
 
 class InputType(amaxa.StringEnum):

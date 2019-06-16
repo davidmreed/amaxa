@@ -1,5 +1,6 @@
 import csv
-from .core import InputType, OperationLoader
+from .input_type import InputType
+from .core import OperationLoader
 from .. import amaxa
 
 

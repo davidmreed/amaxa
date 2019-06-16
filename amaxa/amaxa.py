@@ -1,5 +1,4 @@
 import functools
-import simple_salesforce
 import logging
 import json
 import salesforce_bulk

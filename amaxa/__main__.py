@@ -1,9 +1,7 @@
 import argparse
 import logging
-import yaml
-import json
 import os.path
-from .loader import (
+from amaxa.loader import (
     CredentialLoader,
     ExtractionOperationLoader,
     LoadOperationLoader,
@@ -11,7 +9,6 @@ from .loader import (
     load_file,
     save_state,
 )
-from . import amaxa
 
 
 def main():
@@ -47,8 +44,6 @@ def main():
 
     logging.getLogger("amaxa").setLevel(verbosity_levels[args.verbosity])
     logging.getLogger("amaxa").handlers[:] = [logging.StreamHandler()]
-
-    credentials = None
 
     # Grab the credential file first. We need it to validate the extraction.
     credential_loader = CredentialLoader(load_file(args.credentials))
