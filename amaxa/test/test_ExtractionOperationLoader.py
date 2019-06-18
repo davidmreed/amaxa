@@ -3,7 +3,7 @@ import unittest
 import simple_salesforce
 from unittest.mock import Mock
 from .MockSimpleSalesforce import MockSimpleSalesforce
-from .. import amaxa, loader
+from .. import amaxa, loader, constants
 
 
 class test_ExtractionOperationLoader(unittest.TestCase):
@@ -460,3 +460,53 @@ class test_ExtractionOperationLoader(unittest.TestCase):
 
         dict_writer.assert_called_once_with()
         self.assertEqual(["Id", "Name", "ParentId"], csv_file.fieldnames)
+
+    def test_load_extraction_populates_options(self):
+        result = self._run_success_test(
+            {
+                "version": 2,
+                "options": {
+                    "bulk-api-batch-size": 9000,
+                },
+                "operation": [
+                    {
+                        "sobject": "Account",
+                        "fields": [
+                            "Name",
+                        ],
+                        "extract": {"all": True},
+                    },
+                    {
+                        "sobject": "Task",
+                        "options": {
+                            "bulk-api-batch-size": 10000,
+                        },
+                        "fields": [
+                            {"field": "Subject"}
+                        ],
+                        "extract": {"all": True},
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(9000, result.steps[0].get_option("bulk-api-batch-size"))
+        self.assertEqual(10000, result.steps[1].get_option("bulk-api-batch-size"))
+
+    def test_load_extraction_populates_default_options(self):
+        result = self._run_success_test(
+            {
+                "version": 2,
+                "operation": [
+                    {
+                        "sobject": "Account",
+                        "fields": [
+                            "Name"
+                        ],
+                        "extract": {"all": True},
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(constants.OPTION_DEFAULTS["bulk-api-batch-size"], result.steps[0].get_option("bulk-api-batch-size"))

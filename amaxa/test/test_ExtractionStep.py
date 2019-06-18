@@ -1,6 +1,6 @@
 import unittest
 import json
-from unittest.mock import Mock, MagicMock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch
 from salesforce_bulk.util import IteratorBytesIO
 from .. import amaxa
 
@@ -654,6 +654,37 @@ class test_ExtractionStep(unittest.TestCase):
         bulk_proxy.query.assert_called_once_with(
             "075000000000000AAA", "SELECT Id FROM Account"
         )
+
+    @patch("amaxa.ExtractOperation.bulk", new_callable=PropertyMock())
+    @patch.object(amaxa, "sleep")
+    def test_perform_bulk_api_pass_waits_as_configured(self, time_proxy, bulk_proxy):
+        connection = Mock()
+        oc = amaxa.ExtractOperation(connection)
+        oc.get_field_map = Mock(
+            return_value={
+                "Lookup__c": {
+                    "name": "Lookup__c",
+                    "type": "reference",
+                    "referenceTo": ["Account"],
+                }
+            }
+        )
+        retval = [{"Id": "001000000000001"}, {"Id": "001000000000002"}]
+        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
+        bulk_proxy.create_query_job = Mock(return_value="075000000000000AAA")
+        bulk_proxy.get_all_results_for_query_batch = Mock(
+            return_value=[IteratorBytesIO([json.dumps(retval).encode("utf-8")])]
+        )
+        step = amaxa.ExtractionStep(
+            "Account", amaxa.ExtractionScope.QUERY, ["Lookup__c"],
+            options={"bulk-api-poll-interval": 20}
+        )
+        step.store_result = Mock()
+        oc.add_step(step)
+        step.initialize()
+
+        step.perform_bulk_api_pass("SELECT Id FROM Account")
+        time_proxy.assert_called_once_with(20)
 
     @patch("amaxa.ExtractOperation.bulk", new_callable=PropertyMock())
     def test_perform_bulk_api_pass_stores_results(self, bulk_proxy):

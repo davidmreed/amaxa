@@ -20,6 +20,8 @@ class ExtractionOperationLoader(OperationLoader):
         # Create the core operation
         self.result = amaxa.ExtractOperation(self.connection)
 
+        options = self.input.get("options") or {}
+
         # Create the steps and data mappers
         for entry in self.input["operation"]:
             sobject = entry["sobject"]
@@ -58,6 +60,10 @@ class ExtractionOperationLoader(OperationLoader):
             field_scope = self._get_field_scope(entry)
             field_scope.add("Id")
 
+            # Options dictionary
+            step_opts = options.copy()
+            step_opts.update(entry.get("options", {}))
+
             step = amaxa.ExtractionStep(
                 sobject,
                 scope,
@@ -67,6 +73,7 @@ class ExtractionOperationLoader(OperationLoader):
                 amaxa.OutsideLookupBehavior.values_dict()[
                     entry["outside-lookup-behavior"]
                 ],
+                options=step_opts
             )
 
             self._populate_lookup_behaviors(step, entry)

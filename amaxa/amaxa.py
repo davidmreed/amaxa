@@ -229,6 +229,10 @@ class Step(object):
         self.sobjectname = sobjectname
         self.field_scope = field_scope
         self.context = None
+        self.options = {}
+
+    def get_option(self, opt):
+        return self.options.get(opt) or constants.OPTION_DEFAULTS[opt]
 
     def get_field_list(self):
         return ", ".join(self.field_scope)
@@ -359,12 +363,14 @@ class LoadStep(Step):
         sobjectname,
         field_scope,
         outside_lookup_behavior=OutsideLookupBehavior.INCLUDE,
+        options=None
     ):
         self.sobjectname = sobjectname
         self.field_scope = field_scope
         self.outside_lookup_behavior = outside_lookup_behavior
         self.lookup_behaviors = {}
         self.dependent_lookup_records = []
+        self.options = options or {}
 
         self.context = None
 
@@ -493,12 +499,17 @@ class LoadStep(Step):
 
         job = self.context.bulk.create_insert_job(self.sobjectname, contentType="JSON")
         batches = []
-        for record_batch in BatchIterator(iter(records_to_load)):
+        for record_batch in BatchIterator(iter(records_to_load), n=self.get_option("bulk-api-batch-size")):
             json_iter = JSONIterator(record_batch)
             batches.append(self.context.bulk.post_batch(job, json_iter))
 
         for batch in batches:
-            self.context.bulk.wait_for_batch(job, batch)
+            self.context.bulk.wait_for_batch(
+                job,
+                batch,
+                timeout=self.get_option("bulk-api-timeout"),
+                sleep_interval=self.get_option("bulk-api-poll-interval")
+            )
 
         self.context.bulk.close_job(job)
 
@@ -586,12 +597,17 @@ class LoadStep(Step):
                     self.sobjectname, contentType="JSON"
                 )
                 batches = []
-                for record_batch in BatchIterator(iter(records_to_load)):
+                for record_batch in BatchIterator(iter(records_to_load), n=self.get_option("bulk-api-batch-size")):
                     json_iter = JSONIterator(record_batch)
                     batches.append(self.context.bulk.post_batch(job, json_iter))
 
                 for batch in batches:
-                    self.context.bulk.wait_for_batch(job, batch)
+                    self.context.bulk.wait_for_batch(
+                        job,
+                        batch,
+                        timeout=self.get_option("bulk-api-timeout"),
+                        sleep_interval=self.get_option("bulk-api-poll-interval")
+                    )
 
                 self.context.bulk.close_job(job)
 
@@ -700,6 +716,7 @@ class ExtractionStep(Step):
         where_clause=None,
         self_lookup_behavior=SelfLookupBehavior.TRACE_ALL,
         outside_lookup_behavior=OutsideLookupBehavior.INCLUDE,
+        options=None
     ):
         super().__init__(sobjectname, field_scope)
         self.scope = scope
@@ -708,6 +725,7 @@ class ExtractionStep(Step):
         self.outside_lookup_behavior = outside_lookup_behavior
         self.lookup_behaviors = {}
         self.errors = []
+        self.options = options or {}
 
     def set_lookup_behavior_for_field(self, f, behavior):
         self.lookup_behaviors[f] = behavior
@@ -888,7 +906,7 @@ class ExtractionStep(Step):
         bulk.close_job(job)
 
         while not bulk.is_batch_done(batch):
-            sleep(5)
+            sleep(self.get_option("bulk-api-poll-interval"))
 
         # The JSON Bulk API returns DateTime values as epoch seconds, instead of ISO 8601-format strings.
         # If we have DateTime fields in our field set, postprocess the result before we store it.

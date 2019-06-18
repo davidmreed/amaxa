@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock, MagicMock, PropertyMock, patch
+from unittest.mock import Mock
 from .. import amaxa
 
 

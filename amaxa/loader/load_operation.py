@@ -18,14 +18,21 @@ class LoadOperationLoader(OperationLoader):
         # Create the core operation
         self.result = amaxa.LoadOperation(self.connection)
 
+        options = self.input.get("options") or {}
+
         # Create the steps and data mappers
         for entry in self.input["operation"]:
             sobject = entry["sobject"]
 
+            # Mapper
             mapper = self._get_data_mapper(entry, "column", "field")
             if mapper is not None:
                 self.result.mappers[sobject] = mapper
+            # Field scope
             field_scope = self._get_field_scope(entry)
+            # Options dictionary
+            step_opts = options.copy()
+            step_opts.update(entry.get("options", {}))
 
             step = amaxa.LoadStep(
                 sobject,
@@ -33,6 +40,7 @@ class LoadOperationLoader(OperationLoader):
                 amaxa.OutsideLookupBehavior.values_dict()[
                     entry["outside-lookup-behavior"]
                 ],
+                options=step_opts
             )
 
             self._populate_lookup_behaviors(step, entry)

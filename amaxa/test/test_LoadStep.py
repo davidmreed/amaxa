@@ -1,9 +1,8 @@
 import unittest
-import json
-from unittest.mock import Mock, MagicMock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch
 from salesforce_bulk import UploadResult
 from .MockFileStore import MockFileStore
-from .. import amaxa
+from .. import amaxa, constants
 
 
 class test_LoadStep(unittest.TestCase):
@@ -811,7 +810,6 @@ class test_LoadStep(unittest.TestCase):
         self, json_iterator_proxy, bulk_proxy
     ):
         record_list = [{"Name": "Test", "Id": "001000000000000"}]
-        clean_record_list = [{"Name": "Test 2"}, {"Name": "Test 3"}]
         connection = Mock()
         op = amaxa.LoadOperation(connection)
         op.file_store = MockFileStore()
@@ -841,11 +839,11 @@ class test_LoadStep(unittest.TestCase):
         json_iterator_proxy.assert_not_called()
 
     def test_format_error_constructs_messages(self):
-        l = amaxa.LoadStep("Account", ["Name"])
+        step = amaxa.LoadStep("Account", ["Name"])
 
         self.assertEqual(
             "DUPLICATES_DETECTED: There are duplicates\nOTHER_ERROR: There are non-duplicates (Name, Id). More info",
-            l.format_error(
+            step.format_error(
                 [
                     {
                         "statusCode": "DUPLICATES_DETECTED",
@@ -861,4 +859,130 @@ class test_LoadStep(unittest.TestCase):
                     },
                 ]
             ),
+        )
+
+    def test_get_option_set(self):
+        step = amaxa.LoadStep("Account", ["Name"], options={"bulk-api-batch-size": 1})
+
+        self.assertEqual(1, step.get_option("bulk-api-batch-size"))
+
+    def test_get_option_default(self):
+        step = amaxa.LoadStep("Account", ["Name"], options={})
+
+        self.assertEqual(constants.OPTION_DEFAULTS["bulk-api-batch-size"], step.get_option("bulk-api-batch-size"))
+
+    @patch("amaxa.LoadOperation.bulk", new_callable=PropertyMock())
+    @patch.object(amaxa, "BatchIterator")
+    def test_execute_uses_bulk_api_options(
+        self, batch_iterator_proxy, bulk_proxy
+    ):
+        record_list = [
+            {"Name": "Test", "Id": "001000000000000"},
+            {"Name": "Test 2", "Id": "001000000000001"},
+        ]
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
+        op.get_field_map = Mock(
+            return_value={"Name": {"type": "string "}, "Id": {"type": "string"}}
+        )
+        op.register_new_id = Mock()
+        op.file_store.records["Account"] = record_list
+        bulk_proxy.get_batch_results = Mock(
+            return_value=[
+                UploadResult("001000000000002", True, True, ""),
+                UploadResult("001000000000003", True, True, ""),
+            ]
+        )
+        batch_iterator_proxy.side_effect = [[{}]]
+
+        step = amaxa.LoadStep("Account", ["Name"], options={
+            "bulk-api-poll-interval": 10,
+            "bulk-api-timeout": 600,
+            "bulk-api-batch-size": 5000
+        })
+        step.context = op
+        step.primitivize = Mock(side_effect=lambda x: x)
+        step.populate_lookups = Mock(side_effect=lambda x, y, z: x)
+
+        step.initialize()
+        step.execute()
+
+        self.assertEqual(batch_iterator_proxy.call_count, 1)
+        self.assertEqual(batch_iterator_proxy.call_args[1]['n'], 5000)
+        bulk_proxy.get_batch_results.assert_called_once()
+        bulk_proxy.wait_for_batch.assert_called_once_with(
+            bulk_proxy.create_insert_job.return_value,
+            bulk_proxy.post_batch.return_value,
+            timeout=600,
+            sleep_interval=10
+        )
+
+    @patch("amaxa.LoadOperation.bulk", new_callable=PropertyMock())
+    @patch.object(amaxa, "BatchIterator")
+    def test_execute_dependent_updates_uses_bulk_api_options(
+        self, batch_iterator_proxy, bulk_proxy
+    ):
+        record_list = [
+            {"Name": "Test", "Id": "001000000000000", "Lookup__c": "001000000000001"},
+            {"Name": "Test 2", "Id": "001000000000001", "Lookup__c": "001000000000000"},
+        ]
+        cleaned_record_list = [
+            {"Id": "001000000000000", "Lookup__c": "001000000000001"},
+            {"Id": "001000000000001", "Lookup__c": "001000000000000"},
+        ]
+
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.file_store = MockFileStore()
+        op.get_field_map = Mock(
+            return_value={
+                "Name": {"type": "string "},
+                "Id": {"type": "string"},
+                "Lookup__c": {"type": "string"},
+            }
+        )
+
+        op.register_new_id(
+            "Account",
+            amaxa.SalesforceId("001000000000000"),
+            amaxa.SalesforceId("001000000000002"),
+        )
+        op.register_new_id(
+            "Account",
+            amaxa.SalesforceId("001000000000001"),
+            amaxa.SalesforceId("001000000000003"),
+        )
+
+        op.register_new_id = Mock()
+        op.register_error = Mock()
+        op.file_store.records["Account"] = record_list
+        bulk_proxy.get_batch_results = Mock(
+            return_value=[
+                UploadResult("001000000000002", True, True, ""),
+                UploadResult("001000000000003", True, True, ""),
+            ]
+        )
+        batch_iterator_proxy.side_effect = [[{}]]
+
+        l = amaxa.LoadStep("Account", ["Name", "Lookup__c"], options={
+            "bulk-api-poll-interval": 10,
+            "bulk-api-timeout": 600,
+            "bulk-api-batch-size": 5000
+        })
+        l.context = op
+
+        l.initialize()
+        l.self_lookups = set(["Lookup__c"])
+        l.dependent_lookup_records = cleaned_record_list
+        l.execute_dependent_updates()
+
+        self.assertEqual(batch_iterator_proxy.call_count, 1)
+        self.assertEqual(batch_iterator_proxy.call_args[1]['n'], 5000)
+        bulk_proxy.get_batch_results.assert_called_once()
+        bulk_proxy.wait_for_batch.assert_called_once_with(
+            bulk_proxy.create_update_job.return_value,
+            bulk_proxy.post_batch.return_value,
+            timeout=600,
+            sleep_interval=10
         )

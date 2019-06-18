@@ -3,7 +3,7 @@ import simple_salesforce
 import io
 from unittest.mock import Mock
 from .MockSimpleSalesforce import MockSimpleSalesforce
-from .. import amaxa, loader
+from .. import amaxa, loader, constants
 
 
 class test_LoadOperationLoader(unittest.TestCase):
@@ -353,7 +353,7 @@ class test_LoadOperationLoader(unittest.TestCase):
             ],
         }
 
-        result = self._run_error_validating_test(
+        self._run_error_validating_test(
             ex,
             [
                 "Lookup behavior '{}' specified for field {}.{} is not valid for this lookup type.".format(
@@ -379,7 +379,7 @@ class test_LoadOperationLoader(unittest.TestCase):
             ],
         }
 
-        result = self._run_success_test(ex)
+        self._run_success_test(ex)
 
         amaxa_logger.warning.assert_called_once_with(
             "Field %s.%s is a reference none of whose targets (%s) are included in the operation. Reference handlers will be inactive for references to non-included sObjects.",
@@ -424,7 +424,7 @@ class test_LoadOperationLoader(unittest.TestCase):
             ],
         }
 
-        result = self._run_error_validating_test(
+        self._run_error_validating_test(
             ex,
             [
                 "Field {}.{} is a dependent lookup, but is not updateable.".format(
@@ -559,3 +559,53 @@ class test_LoadOperationLoader(unittest.TestCase):
             any_order=True,
         )
         dict_writer.assert_not_called()
+
+    def test_LoadOperationLoader_populates_options(self):
+        result = self._run_success_test(
+            {
+                "version": 2,
+                "options": {
+                    "bulk-api-batch-size": 9000,
+                },
+                "operation": [
+                    {
+                        "sobject": "Account",
+                        "fields": [
+                            "Name",
+                        ],
+                        "extract": {"all": True},
+                    },
+                    {
+                        "sobject": "Task",
+                        "options": {
+                            "bulk-api-batch-size": 10000,
+                        },
+                        "fields": [
+                            {"field": "Subject"}
+                        ],
+                        "extract": {"all": True},
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(9000, result.steps[0].get_option("bulk-api-batch-size"))
+        self.assertEqual(10000, result.steps[1].get_option("bulk-api-batch-size"))
+
+    def test_LoadOperationLoader_populates_default_options(self):
+        result = self._run_success_test(
+            {
+                "version": 2,
+                "operation": [
+                    {
+                        "sobject": "Account",
+                        "fields": [
+                            "Name"
+                        ],
+                        "extract": {"all": True},
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(constants.OPTION_DEFAULTS["bulk-api-batch-size"], result.steps[0].get_option("bulk-api-batch-size"))
