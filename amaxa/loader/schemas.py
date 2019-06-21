@@ -29,20 +29,20 @@ OPTIONS_SCHEMA = {
             "type": "integer",
             "default": constants.OPTION_DEFAULTS["bulk-api-batch-size"],
             "max": 10000,
-            "min": 0
+            "min": 0,
         },
         "bulk-api-timeout": {
             "type": "integer",
             "default": constants.OPTION_DEFAULTS["bulk-api-timeout"],
-            "min": 0
+            "min": 0,
         },
         "bulk-api-poll-interval": {
             "type": "integer",
             "default": constants.OPTION_DEFAULTS["bulk-api-poll-interval"],
             "min": 0,
-            "max": 60
-        }
-    }
+            "max": 60,
+        },
+    },
 }
 
 SCHEMAS = {
@@ -162,20 +162,14 @@ SCHEMAS = {
                         "excludes": ["token", "jwt"],
                         "required": True,
                         "schema": {
-                            "username": _env_or_string({
-                                "required": True,
-                            }),
-                            "password": _env_or_string({
-                                "required": True,
-                            }),
-                            "security-token": _env_or_string({
-                                "required": True,
-                                "excludes": "organization-id",
-                            }),
-                            "organization-id": _env_or_string({
-                                "required": True,
-                                "excludes": "security-token",
-                            }),
+                            "username": _env_or_string({"required": True}),
+                            "password": _env_or_string({"required": True}),
+                            "security-token": _env_or_string(
+                                {"required": True, "excludes": "organization-id"}
+                            ),
+                            "organization-id": _env_or_string(
+                                {"required": True, "excludes": "security-token"}
+                            ),
                         },
                     },
                     "token": {
@@ -183,12 +177,8 @@ SCHEMAS = {
                         "excludes": ["username", "jwt"],
                         "required": True,
                         "schema": {
-                            "instance-url": _env_or_string({
-                                "required": True,
-                            }),
-                            "access-token": _env_or_string({
-                                "required": True,
-                            }),
+                            "instance-url": _env_or_string({"required": True}),
+                            "access-token": _env_or_string({"required": True}),
                         },
                     },
                     "jwt": {
@@ -196,20 +186,14 @@ SCHEMAS = {
                         "excludes": ["token", "username"],
                         "required": True,
                         "schema": {
-                            "username": _env_or_string({
-                                "required": True,
-                            }),
-                            "keyfile": _env_or_string({
-                                "required": True,
-                                "excludes": "key",
-                            }),
-                            "key": _env_or_string({
-                                "required": True,
-                                "excludes": "keyfile",
-                            }),
-                            "consumer-key": _env_or_string({
-                                "required": True,
-                            }),
+                            "username": _env_or_string({"required": True}),
+                            "keyfile": _env_or_string(
+                                {"required": True, "excludes": "key"}
+                            ),
+                            "key": _env_or_string(
+                                {"required": True, "excludes": "keyfile"}
+                            ),
+                            "consumer-key": _env_or_string({"required": True}),
                         },
                     },
                 },
@@ -318,7 +302,7 @@ SCHEMAS = {
                     "type": "dict",
                     "schema": {
                         "sobject": {"type": "string", "required": True},
-                        "options":  OPTIONS_SCHEMA,
+                        "options": OPTIONS_SCHEMA,
                         "file": {
                             "type": "string",
                             "default_setter": lambda doc: doc["sobject"] + ".csv",
@@ -402,7 +386,7 @@ SCHEMAS = {
                     },
                 },
             },
-        }
+        },
     },
     InputType.STATE: {
         1: {

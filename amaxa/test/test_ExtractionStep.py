@@ -676,8 +676,10 @@ class test_ExtractionStep(unittest.TestCase):
             return_value=[IteratorBytesIO([json.dumps(retval).encode("utf-8")])]
         )
         step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.QUERY, ["Lookup__c"],
-            options={"bulk-api-poll-interval": 20}
+            "Account",
+            amaxa.ExtractionScope.QUERY,
+            ["Lookup__c"],
+            options={"bulk-api-poll-interval": 20},
         )
         step.store_result = Mock()
         oc.add_step(step)

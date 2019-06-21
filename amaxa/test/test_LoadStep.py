@@ -869,13 +869,14 @@ class test_LoadStep(unittest.TestCase):
     def test_get_option_default(self):
         step = amaxa.LoadStep("Account", ["Name"], options={})
 
-        self.assertEqual(constants.OPTION_DEFAULTS["bulk-api-batch-size"], step.get_option("bulk-api-batch-size"))
+        self.assertEqual(
+            constants.OPTION_DEFAULTS["bulk-api-batch-size"],
+            step.get_option("bulk-api-batch-size"),
+        )
 
     @patch("amaxa.LoadOperation.bulk", new_callable=PropertyMock())
     @patch.object(amaxa, "BatchIterator")
-    def test_execute_uses_bulk_api_options(
-        self, batch_iterator_proxy, bulk_proxy
-    ):
+    def test_execute_uses_bulk_api_options(self, batch_iterator_proxy, bulk_proxy):
         record_list = [
             {"Name": "Test", "Id": "001000000000000"},
             {"Name": "Test 2", "Id": "001000000000001"},
@@ -896,11 +897,15 @@ class test_LoadStep(unittest.TestCase):
         )
         batch_iterator_proxy.side_effect = [[{}]]
 
-        step = amaxa.LoadStep("Account", ["Name"], options={
-            "bulk-api-poll-interval": 10,
-            "bulk-api-timeout": 600,
-            "bulk-api-batch-size": 5000
-        })
+        step = amaxa.LoadStep(
+            "Account",
+            ["Name"],
+            options={
+                "bulk-api-poll-interval": 10,
+                "bulk-api-timeout": 600,
+                "bulk-api-batch-size": 5000,
+            },
+        )
         step.context = op
         step.primitivize = Mock(side_effect=lambda x: x)
         step.populate_lookups = Mock(side_effect=lambda x, y, z: x)
@@ -909,13 +914,13 @@ class test_LoadStep(unittest.TestCase):
         step.execute()
 
         self.assertEqual(batch_iterator_proxy.call_count, 1)
-        self.assertEqual(batch_iterator_proxy.call_args[1]['n'], 5000)
+        self.assertEqual(batch_iterator_proxy.call_args[1]["n"], 5000)
         bulk_proxy.get_batch_results.assert_called_once()
         bulk_proxy.wait_for_batch.assert_called_once_with(
             bulk_proxy.create_insert_job.return_value,
             bulk_proxy.post_batch.return_value,
             timeout=600,
-            sleep_interval=10
+            sleep_interval=10,
         )
 
     @patch("amaxa.LoadOperation.bulk", new_callable=PropertyMock())
@@ -965,11 +970,15 @@ class test_LoadStep(unittest.TestCase):
         )
         batch_iterator_proxy.side_effect = [[{}]]
 
-        l = amaxa.LoadStep("Account", ["Name", "Lookup__c"], options={
-            "bulk-api-poll-interval": 10,
-            "bulk-api-timeout": 600,
-            "bulk-api-batch-size": 5000
-        })
+        l = amaxa.LoadStep(
+            "Account",
+            ["Name", "Lookup__c"],
+            options={
+                "bulk-api-poll-interval": 10,
+                "bulk-api-timeout": 600,
+                "bulk-api-batch-size": 5000,
+            },
+        )
         l.context = op
 
         l.initialize()
@@ -978,11 +987,11 @@ class test_LoadStep(unittest.TestCase):
         l.execute_dependent_updates()
 
         self.assertEqual(batch_iterator_proxy.call_count, 1)
-        self.assertEqual(batch_iterator_proxy.call_args[1]['n'], 5000)
+        self.assertEqual(batch_iterator_proxy.call_args[1]["n"], 5000)
         bulk_proxy.get_batch_results.assert_called_once()
         bulk_proxy.wait_for_batch.assert_called_once_with(
             bulk_proxy.create_update_job.return_value,
             bulk_proxy.post_batch.return_value,
             timeout=600,
-            sleep_interval=10
+            sleep_interval=10,
         )

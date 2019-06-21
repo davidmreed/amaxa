@@ -111,10 +111,7 @@ class CredentialLoader(Loader):
 
             try:
                 self.result = jwt_auth.jwt_login(
-                    credentials["consumer-key"],
-                    credentials["username"],
-                    key,
-                    sandbox,
+                    credentials["consumer-key"], credentials["username"], key, sandbox
                 )
             except simple_salesforce.exceptions.SalesforceAuthenticationFailed as ex:
                 self.errors.append(

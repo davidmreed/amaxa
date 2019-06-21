@@ -249,9 +249,7 @@ class OperationLoader(Loader):
             ):
                 self.errors.append(
                     "sObject {} does not exist or does not "
-                    "have the correct permission ({})".format(
-                        sobject, permission
-                    )
+                    "have the correct permission ({})".format(sobject, permission)
                 )
 
     def _validate_lookup_behaviors(self):

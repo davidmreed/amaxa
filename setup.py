@@ -7,7 +7,7 @@ setup(
     name="amaxa",
     version="0.9.4",
     description="Load and extract data from multiple Salesforce objects in a single "
-                "operation, preserving links and network structure.",
+    "operation, preserving links and network structure.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="David Reed",

@@ -73,7 +73,7 @@ class ExtractionOperationLoader(OperationLoader):
                 amaxa.OutsideLookupBehavior.values_dict()[
                     entry["outside-lookup-behavior"]
                 ],
-                options=step_opts
+                options=step_opts,
             )
 
             self._populate_lookup_behaviors(step, entry)

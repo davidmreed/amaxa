@@ -479,7 +479,7 @@ class test_CredentialLoader(unittest.TestCase):
             {"session_id": "ABCDEF123456", "instance_url": "test.salesforce.com"},
         )
 
-    @patch('os.environ')
+    @patch("os.environ")
     def test_load_credentials_uses_environment_variable(self, environ_mock):
         environ_mock.get = Mock(return_value="ABCDEF123456")
 
@@ -488,9 +488,7 @@ class test_CredentialLoader(unittest.TestCase):
                 "version": 2,
                 "credentials": {
                     "token": {
-                        "access-token": {
-                            "env": "ACCESS_TOKEN",
-                        },
+                        "access-token": {"env": "ACCESS_TOKEN"},
                         "instance-url": "test.salesforce.com",
                     }
                 },

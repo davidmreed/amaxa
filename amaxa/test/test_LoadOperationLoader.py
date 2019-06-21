@@ -564,25 +564,17 @@ class test_LoadOperationLoader(unittest.TestCase):
         result = self._run_success_test(
             {
                 "version": 2,
-                "options": {
-                    "bulk-api-batch-size": 9000,
-                },
+                "options": {"bulk-api-batch-size": 9000},
                 "operation": [
                     {
                         "sobject": "Account",
-                        "fields": [
-                            "Name",
-                        ],
+                        "fields": ["Name"],
                         "extract": {"all": True},
                     },
                     {
                         "sobject": "Task",
-                        "options": {
-                            "bulk-api-batch-size": 10000,
-                        },
-                        "fields": [
-                            {"field": "Subject"}
-                        ],
+                        "options": {"bulk-api-batch-size": 10000},
+                        "fields": [{"field": "Subject"}],
                         "extract": {"all": True},
                     },
                 ],
@@ -597,15 +589,12 @@ class test_LoadOperationLoader(unittest.TestCase):
             {
                 "version": 2,
                 "operation": [
-                    {
-                        "sobject": "Account",
-                        "fields": [
-                            "Name"
-                        ],
-                        "extract": {"all": True},
-                    },
+                    {"sobject": "Account", "fields": ["Name"], "extract": {"all": True}}
                 ],
             }
         )
 
-        self.assertEqual(constants.OPTION_DEFAULTS["bulk-api-batch-size"], result.steps[0].get_option("bulk-api-batch-size"))
+        self.assertEqual(
+            constants.OPTION_DEFAULTS["bulk-api-batch-size"],
+            result.steps[0].get_option("bulk-api-batch-size"),
+        )

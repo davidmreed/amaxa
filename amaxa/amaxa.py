@@ -363,7 +363,7 @@ class LoadStep(Step):
         sobjectname,
         field_scope,
         outside_lookup_behavior=OutsideLookupBehavior.INCLUDE,
-        options=None
+        options=None,
     ):
         self.sobjectname = sobjectname
         self.field_scope = field_scope
@@ -499,7 +499,9 @@ class LoadStep(Step):
 
         job = self.context.bulk.create_insert_job(self.sobjectname, contentType="JSON")
         batches = []
-        for record_batch in BatchIterator(iter(records_to_load), n=self.get_option("bulk-api-batch-size")):
+        for record_batch in BatchIterator(
+            iter(records_to_load), n=self.get_option("bulk-api-batch-size")
+        ):
             json_iter = JSONIterator(record_batch)
             batches.append(self.context.bulk.post_batch(job, json_iter))
 
@@ -508,7 +510,7 @@ class LoadStep(Step):
                 job,
                 batch,
                 timeout=self.get_option("bulk-api-timeout"),
-                sleep_interval=self.get_option("bulk-api-poll-interval")
+                sleep_interval=self.get_option("bulk-api-poll-interval"),
             )
 
         self.context.bulk.close_job(job)
@@ -597,7 +599,9 @@ class LoadStep(Step):
                     self.sobjectname, contentType="JSON"
                 )
                 batches = []
-                for record_batch in BatchIterator(iter(records_to_load), n=self.get_option("bulk-api-batch-size")):
+                for record_batch in BatchIterator(
+                    iter(records_to_load), n=self.get_option("bulk-api-batch-size")
+                ):
                     json_iter = JSONIterator(record_batch)
                     batches.append(self.context.bulk.post_batch(job, json_iter))
 
@@ -606,7 +610,7 @@ class LoadStep(Step):
                         job,
                         batch,
                         timeout=self.get_option("bulk-api-timeout"),
-                        sleep_interval=self.get_option("bulk-api-poll-interval")
+                        sleep_interval=self.get_option("bulk-api-poll-interval"),
                     )
 
                 self.context.bulk.close_job(job)
@@ -716,7 +720,7 @@ class ExtractionStep(Step):
         where_clause=None,
         self_lookup_behavior=SelfLookupBehavior.TRACE_ALL,
         outside_lookup_behavior=OutsideLookupBehavior.INCLUDE,
-        options=None
+        options=None,
     ):
         super().__init__(sobjectname, field_scope)
         self.scope = scope
