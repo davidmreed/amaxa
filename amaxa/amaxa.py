@@ -520,13 +520,19 @@ class LoadStep(Step):
                 if r.success:
                     self.context.register_new_id(
                         self.sobjectname,
-                        SalesforceId(original_ids[i + batch_index * 10000]),
+                        SalesforceId(
+                            original_ids[
+                                i + batch_index * self.get_option("bulk-api-batch-size")
+                            ]
+                        ),
                         SalesforceId(r.id),  # note lowercase in result
                     )
                 else:
                     self.context.register_error(
                         self.sobjectname,
-                        original_ids[i + batch_index * 10000],
+                        original_ids[
+                            i + batch_index * self.get_option("bulk-api-batch-size")
+                        ],
                         self.format_error(r.error),
                     )
 
@@ -622,7 +628,11 @@ class LoadStep(Step):
                         if not r.success:
                             self.context.register_error(
                                 self.sobjectname,
-                                original_ids[i + batch_index * 10000],
+                                original_ids[
+                                    i
+                                    + batch_index
+                                    * self.get_option("bulk-api-batch-size")
+                                ],
                                 self.format_error(r.error),
                             )
 
