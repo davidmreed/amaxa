@@ -4,7 +4,7 @@ import json
 import salesforce_bulk
 import itertools
 import csv
-from . import constants
+from . import constants, api
 from enum import Enum, unique
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
@@ -166,16 +166,6 @@ class Operation(object):
         for s in self.steps:
             s.initialize()
 
-    @property
-    def bulk(self):
-        if self._bulk is None:
-            self._bulk = salesforce_bulk.SalesforceBulk(
-                sessionId=self.connection.session_id,
-                host=urlparse(self.connection.bulk_url).hostname,
-            )
-
-        return self._bulk
-
     def execute(self):
         pass
 
@@ -188,24 +178,18 @@ class Operation(object):
 
     def get_sobject_name_for_id(self, id):
         if self.key_prefix_map is None:
-            global_describe = self.connection.describe()["sobjects"]
+            global_describe = self.connection.get_global_describe()["sobjects"]
             self.key_prefix_map = {
                 sobject["keyPrefix"]: sobject["name"] for sobject in global_describe
             }
 
         return self.key_prefix_map[id[:3]]
 
-    def get_proxy_object(self, sobjectname):
-        if sobjectname not in self.proxy_objects:
-            self.proxy_objects[sobjectname] = getattr(self.connection, sobjectname)
-
-        return self.proxy_objects[sobjectname]
-
     def get_describe(self, sobjectname):
         if sobjectname not in self.describe_info:
-            self.describe_info[sobjectname] = self.get_proxy_object(
+            self.describe_info[sobjectname] = self.connection.get_sobject_describe(
                 sobjectname
-            ).describe()
+            )
             self.field_maps[sobjectname] = {
                 f.get("name"): f for f in self.describe_info[sobjectname].get("fields")
             }
@@ -363,7 +347,7 @@ class LoadStep(Step):
         sobjectname,
         field_scope,
         outside_lookup_behavior=OutsideLookupBehavior.INCLUDE,
-        options=None
+        options=None,
     ):
         self.sobjectname = sobjectname
         self.field_scope = field_scope
@@ -497,60 +481,26 @@ class LoadStep(Step):
         if not success or len(records_to_load) == 0:
             return
 
-        job = self.context.bulk.create_insert_job(self.sobjectname, contentType="JSON")
-        batches = []
-        for record_batch in BatchIterator(iter(records_to_load), n=self.get_option("bulk-api-batch-size")):
-            json_iter = JSONIterator(record_batch)
-            batches.append(self.context.bulk.post_batch(job, json_iter))
-
-        for batch in batches:
-            self.context.bulk.wait_for_batch(
-                job,
-                batch,
-                timeout=self.get_option("bulk-api-timeout"),
-                sleep_interval=self.get_option("bulk-api-poll-interval")
+        for i, r in enumerate(
+            bulk_api_insert(
+                self.context.bulk,
+                self.sobjectname,
+                iter(records_to_load),
+                self.get_option("bulk-api-timeout"),
+                self.get_option("bulk-api-poll-interval"),
+                self.get_option("bulk-api-batch-size"),
             )
-
-        self.context.bulk.close_job(job)
-
-        for batch_index, batch in enumerate(batches):
-            for i, r in enumerate(self.context.bulk.get_batch_results(batch, job)):
-                if r.success:
-                    self.context.register_new_id(
-                        self.sobjectname,
-                        SalesforceId(original_ids[i + batch_index * 10000]),
-                        SalesforceId(r.id),  # note lowercase in result
-                    )
-                else:
-                    self.context.register_error(
-                        self.sobjectname,
-                        original_ids[i + batch_index * 10000],
-                        self.format_error(r.error),
-                    )
-
-    def format_error(self, error):
-        return "\n".join(
-            [
-                "{}: {}{}{}".format(
-                    e["statusCode"],
-                    e["message"],
-                    " ({}).".format(", ".join(e["fields"]))
-                    if len(e["fields"]) > 0
-                    else "",
-                    " " + e["extendedErrorDetails"]
-                    if e["extendedErrorDetails"] is not None
-                    else "",
+        ):
+            if r.success:
+                self.context.register_new_id(
+                    self.sobjectname,
+                    SalesforceId(original_ids[i]),
+                    SalesforceId(r.id),  # note lowercase in result
                 )
-                for e in error
-            ]
-        )
-
-    def reset_input_csv(self):
-        fh = self.context.file_store.get_file(self.sobjectname, FileType.INPUT)
-        fh.seek(0)
-        self.context.file_store.set_csv(
-            self.sobjectname, FileType.INPUT, csv.DictReader(fh)
-        )
+            else:
+                self.context.register_error(
+                    self.sobjectname, original_ids[i], self.format_error(r.error)
+                )
 
     def execute_dependent_updates(self):
         # Populate dependent and self-lookups in a single pass
@@ -593,34 +543,46 @@ class LoadStep(Step):
                     success = False
 
             if success and len(records_to_load) > 0:
-                job = self.context.bulk.create_update_job(
-                    self.sobjectname, contentType="JSON"
-                )
-                batches = []
-                for record_batch in BatchIterator(iter(records_to_load), n=self.get_option("bulk-api-batch-size")):
-                    json_iter = JSONIterator(record_batch)
-                    batches.append(self.context.bulk.post_batch(job, json_iter))
-
-                for batch in batches:
-                    self.context.bulk.wait_for_batch(
-                        job,
-                        batch,
-                        timeout=self.get_option("bulk-api-timeout"),
-                        sleep_interval=self.get_option("bulk-api-poll-interval")
+                for i, r in enumerate(
+                    api.bulk_api_update(
+                        self.context.bulk,
+                        self.sobjectname,
+                        iter(records_to_load),
+                        self.get_option("bulk-api-timeout"),
+                        self.get_option("bulk-api-poll-interval"),
+                        self.get_option("bulk-api-batch-size"),
                     )
+                ):
+                    if not r.success:
+                        self.context.register_error(
+                            self.sobjectname,
+                            original_ids[i],
+                            self.format_error(r.error),
+                        )
 
-                self.context.bulk.close_job(job)
+    def format_error(self, error):
+        return "\n".join(
+            [
+                "{}: {}{}{}".format(
+                    e["statusCode"],
+                    e["message"],
+                    " ({}).".format(", ".join(e["fields"]))
+                    if len(e["fields"]) > 0
+                    else "",
+                    " " + e["extendedErrorDetails"]
+                    if e["extendedErrorDetails"] is not None
+                    else "",
+                )
+                for e in error
+            ]
+        )
 
-                for batch_index, batch in enumerate(batches):
-                    for i, r in enumerate(
-                        self.context.bulk.get_batch_results(batch, job)
-                    ):
-                        if not r.success:
-                            self.context.register_error(
-                                self.sobjectname,
-                                original_ids[i + batch_index * 10000],
-                                self.format_error(r.error),
-                            )
+    def reset_input_csv(self):
+        fh = self.context.file_store.get_file(self.sobjectname, FileType.INPUT)
+        fh.seek(0)
+        self.context.file_store.set_csv(
+            self.sobjectname, FileType.INPUT, csv.DictReader(fh)
+        )
 
 
 class ExtractOperation(Operation):
@@ -716,7 +678,7 @@ class ExtractionStep(Step):
         where_clause=None,
         self_lookup_behavior=SelfLookupBehavior.TRACE_ALL,
         outside_lookup_behavior=OutsideLookupBehavior.INCLUDE,
-        options=None
+        options=None,
     ):
         super().__init__(sobjectname, field_scope)
         self.scope = scope
@@ -890,7 +852,11 @@ class ExtractionStep(Step):
 
     def resolve_registered_dependencies(self):
         pre_deps = self.context.get_dependencies(self.sobjectname).copy()
-        self.perform_id_field_pass("Id", pre_deps)
+        for r in self.context.connection.retrieve_records_by_id(
+            self.sobjectname, pre_deps, self.field_scope
+        ):
+            self.store_result(r)
+
         missing = self.context.get_dependencies(self.sobjectname).intersection(pre_deps)
         if len(missing) > 0:
             self.errors.append(
@@ -900,14 +866,6 @@ class ExtractionStep(Step):
             )
 
     def perform_bulk_api_pass(self, query):
-        bulk = self.context.bulk
-        job = bulk.create_query_job(self.sobjectname, contentType="JSON")
-        batch = bulk.query(job, query)
-        bulk.close_job(job)
-
-        while not bulk.is_batch_done(batch):
-            sleep(self.get_option("bulk-api-poll-interval"))
-
         # The JSON Bulk API returns DateTime values as epoch seconds, instead of ISO 8601-format strings.
         # If we have DateTime fields in our field set, postprocess the result before we store it.
         date_time_fields = [
@@ -916,49 +874,23 @@ class ExtractionStep(Step):
             if self.context.get_field_map(self.sobjectname)[f]["type"] == "datetime"
         ]
 
-        for result in bulk.get_all_results_for_query_batch(batch):
-            result = json.load(result)
-            for rec in result:
-                if len(date_time_fields) > 0:
-                    for f in date_time_fields:
-                        if rec[f] is not None:
-                            # Format the datetime according to Salesforce's particular wants
-                            rec[f] = (
-                                datetime.utcfromtimestamp(0)
-                                + timedelta(milliseconds=rec[f])
-                            ).isoformat(timespec="milliseconds") + "+0000"
-
-                self.store_result(rec)
-
-    def perform_id_field_pass(self, id_field, id_set):
-        query = "SELECT {} FROM {} WHERE {} IN ({})"
-
-        if len(id_set) == 0:
-            return
-
-        ids = id_set.copy()
-        max_len = 4000 - len("WHERE {} IN ()".format(self.get_field_list()))
-
-        while len(ids) > 0:
-            id_list = "'" + str(ids.pop()) + "'"
-
-            # The maximum length of the WHERE clause is 4,000 characters
-            # Account for the length of the WHERE clause skeleton (above)
-            # and iterate until we can't add another Id.
-            while len(id_list) < max_len - 22 and len(ids) > 0:
-                id_list += ", '" + str(ids.pop()) + "'"
-
-            results = self.context.connection.query_all(
-                query.format(self.get_field_list(), self.sobjectname, id_field, id_list)
-            )
-
-            for rec in results.get("records"):
-                self.store_result(rec)
+        for result in self.context.connection.bulk_api_query(
+            self.context.bulk,
+            self.sobjectname,
+            query,
+            date_time_fields,
+            self.get_option("bulk-api-poll-interval"),
+        ):
+            self.store_result(rec)
 
     def perform_lookup_pass(self, field):
-        self.perform_id_field_pass(
-            field, self.context.get_sobject_ids_for_reference(self.sobjectname, field)
-        )
+        id_set = self.context.get_sobject_ids_for_reference(self.sobjectname, field)
+
+        if id_set:
+            for rec in self.context.connection.query_records_by_reference_field(
+                self.sobjectname, self.get_field_list(), field, id_set
+            ):
+                self.store_result(rec)
 
 
 class DataMapper(object):
