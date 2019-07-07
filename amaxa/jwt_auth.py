@@ -35,5 +35,7 @@ def jwt_login(consumer_id, username, private_key, sandbox=False):
         raise SalesforceAuthenticationFailed(body["error"], body["error_description"])
 
     return simple_salesforce.Salesforce(
-        instance_url=body["instance_url"], session_id=body["access_token"]
+        instance_url=body["instance_url"],
+        session_id=body["access_token"],
+        version="46.0",
     )

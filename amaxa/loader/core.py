@@ -234,7 +234,8 @@ class OperationLoader(Loader):
     def _validate_sobjects(self, permission):
         try:
             global_describe = {
-                entry["name"]: entry for entry in self.connection.describe()["sobjects"]
+                entry["name"]: entry
+                for entry in self.connection.get_global_describe()["sobjects"]
             }
         except simple_salesforce.SalesforceAuthenticationFailed as e:
             self.errors.append("Unable to authenticate to Salesforce: {}".format(e))
@@ -249,9 +250,7 @@ class OperationLoader(Loader):
             ):
                 self.errors.append(
                     "sObject {} does not exist or does not "
-                    "have the correct permission ({})".format(
-                        sobject, permission
-                    )
+                    "have the correct permission ({})".format(sobject, permission)
                 )
 
     def _validate_lookup_behaviors(self):

@@ -1,13 +1,39 @@
+import json
 import salesforce_bulk
+import itertools
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
+from time import sleep
+
+
+def JSONIterator(records):
+    def enc(r):
+        return json.dumps(r).encode("utf-8")
+
+    yield b"["
+
+    i = iter(records)
+    yield enc(next(i))
+    for rec in i:
+        yield b"," + enc(rec)
+
+    yield b"]"
+
+
+def BatchIterator(iterator, n=10000):
+    while True:
+        batch = list(itertools.islice(iterator, n))
+        if not batch:
+            return
+
+        yield batch
 
 
 class Connection(object):
     def __init__(self, sf):
         self._sf = sf
         self._bulk = salesforce_bulk.SalesforceBulk(
-            sessionId=self.connection.session_id,
-            host=urlparse(self.connection.bulk_url).hostname,
+            sessionId=self._sf.session_id, host=urlparse(self._sf.bulk_url).hostname
         )
 
     def get_global_describe(self):
@@ -20,13 +46,13 @@ class Connection(object):
         self,
         job,
         sobject,
-        record_iterator,
+        record_list,
         bulk_api_timeout,
         bulk_api_poll_interval,
         bulk_api_batch_size,
     ):
         batches = []
-        for record_batch in BatchIterator(record_iterator, n=bulk_api_batch_size):
+        for record_batch in BatchIterator(iter(record_list), n=bulk_api_batch_size):
             json_iter = JSONIterator(record_batch)
             batches.append(self._bulk.post_batch(job, json_iter))
 
@@ -41,38 +67,38 @@ class Connection(object):
         self._bulk.close_job(job)
 
         for batch in batches:
-            for r in self.context.bulk.get_batch_results(batch, job):
+            for r in self._bulk.get_batch_results(batch, job):
                 yield r
 
     def bulk_api_insert(
         self,
         sobject,
-        record_iterator,
+        record_list,
         bulk_api_timeout,
         bulk_api_poll_interval,
         bulk_api_batch_size,
     ):
-        yield self._bulk_api_insert_update(
-            self._bulk.create_insert_job(self.sobjectname, contentType="JSON"),
+        yield from self._bulk_api_insert_update(
+            self._bulk.create_insert_job(sobject, contentType="JSON"),
             sobject,
-            record_iterator,
+            iter(record_list),
             bulk_api_timeout,
             bulk_api_poll_interval,
             bulk_api_batch_size,
         )
 
     def bulk_api_update(
-        bulk,
+        self,
         sobject,
-        record_iterator,
+        record_list,
         bulk_api_timeout,
         bulk_api_poll_interval,
         bulk_api_batch_size,
     ):
-        yield _bulk_api_insert_update(
-            self._bulk.create_update_job(self.sobjectname, contentType="JSON"),
+        yield from self._bulk_api_insert_update(
+            self._bulk.create_update_job(sobject, contentType="JSON"),
             sobject,
-            record_iterator,
+            iter(record_list),
             bulk_api_timeout,
             bulk_api_poll_interval,
             bulk_api_batch_size,
@@ -90,11 +116,14 @@ class Connection(object):
             result = json.load(result)
             for rec in result:
                 if len(date_time_fields) > 0:
-                    # The JSON Bulk API returns DateTime values as epoch seconds, instead of ISO 8601-format strings.
-                    # If we have DateTime fields in our field set, postprocess the result before we store it.
+                    # The JSON Bulk API returns DateTime values as epoch seconds,
+                    # instead of ISO 8601-format strings.
+                    # If we have DateTime fields in our field set, postprocess
+                    # the result before we store it.
                     for f in date_time_fields:
                         if rec[f] is not None:
-                            # Format the datetime according to Salesforce's particular wants
+                            # Format the datetime according to Salesforce's
+                            # particular wants
                             rec[f] = (
                                 datetime.utcfromtimestamp(0)
                                 + timedelta(milliseconds=rec[f])
@@ -104,10 +133,15 @@ class Connection(object):
 
     def retrieve_records_by_id(self, sobject, record_ids, field_names):
         for id_batch in BatchIterator(iter(record_ids), n=2000):
+            # Make sure Ids are strings
+            string_ids = [
+                str(each_id) if type(each_id) is not str else each_id
+                for each_id in id_batch
+            ]
             for r in self._sf.restful(
                 "composite/sobjects/{}".format(sobject),
                 method="POST",
-                body={"ids": record_ids, "fields": field_names},
+                data=json.dumps({"ids": string_ids, "fields": field_names}),
             ):
                 # None means a record with that Id is not found
                 if r is not None:
@@ -116,14 +150,14 @@ class Connection(object):
     def query_records_by_reference_field(self, sobject, field_list, id_field, id_set):
         query = "SELECT {} FROM {} WHERE {} IN ({})"
 
-        ids = id_set.copy()
         max_len = 4000 - len("WHERE {} IN ()".format(id_field))
         max_ids = (
             max_len // 21
         )  # 18 characters plus two quote marks and a comma, per Id
 
         for id_batch in BatchIterator(iter(id_set), n=max_ids):
+            id_string = ",".join(["'{}'".format(str(each_id)) for each_id in id_batch])
             for r in self._sf.query_all(
-                query.format(field_list, sobject, id_field, id_batch)
+                query.format(field_list, sobject, id_field, id_string)
             )["records"]:
                 yield r

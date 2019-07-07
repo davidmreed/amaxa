@@ -4,8 +4,6 @@ import io
 import csv
 from simple_salesforce import Salesforce
 from unittest.mock import Mock
-from .. import amaxa
-from .. import loader
 from ..__main__ import main as main
 
 
@@ -18,6 +16,7 @@ class test_end_to_end(unittest.TestCase):
         self.connection = Salesforce(
             instance_url=os.environ["INSTANCE_URL"],
             session_id=os.environ["ACCESS_TOKEN"],
+            version="46.0",
         )
 
     def tearDown(self):
@@ -50,13 +49,13 @@ class test_end_to_end(unittest.TestCase):
             extraction = """
                 version: 1
                 operation:
-                    - 
+                    -
                         sobject: Account
-                        fields: 
+                        fields:
                             - Name
                             - Id
                             - ParentId
-                        extract: 
+                        extract:
                             query: "Name = 'Picon Fleet Headquarters'"
                     -
                         sobject: Contact
@@ -112,7 +111,8 @@ class test_end_to_end(unittest.TestCase):
         )
 
     def test_loads_from_command_line(self):
-        # To avoid conflict with extract tests, we load Campaigns, Campaign Members, and Leads.
+        # To avoid conflict with extract tests, we load Campaigns, Campaign Members,
+        # and Leads.
         campaigns = io.StringIO(
             """
 Id,Name,IsActive,ParentId
@@ -153,9 +153,9 @@ Id,CampaignId,LeadId,Status
             load = """
                 version: 1
                 operation:
-                    - 
+                    -
                         sobject: Campaign
-                        fields: 
+                        fields:
                             - Name
                             - ParentId
                             - IsActive

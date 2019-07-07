@@ -2,7 +2,7 @@ import unittest
 import simple_salesforce
 import io
 from unittest.mock import Mock
-from .MockSimpleSalesforce import MockSimpleSalesforce
+from .MockConnection import MockConnection
 from .. import amaxa, loader, constants
 
 
@@ -21,16 +21,18 @@ class test_LoadOperationLoader(unittest.TestCase):
             context._validate_input_file_columns = Mock()
             context.load()
 
-    def _run_error_validating_test(self, ex, error_list, sf_mock=None, input_data=None):
-        context = loader.LoadOperationLoader(ex, sf_mock or MockSimpleSalesforce())
+    def _run_error_validating_test(
+        self, ex, error_list, mock_conn=None, input_data=None
+    ):
+        context = loader.LoadOperationLoader(ex, mock_conn or MockConnection())
 
         self._mock_execute(context, input_data)
 
         self.assertEqual(error_list, context.errors)
         self.assertIsNone(context.result)
 
-    def _run_success_test(self, ex, sf_mock=None, input_data=None):
-        context = loader.LoadOperationLoader(ex, sf_mock or MockSimpleSalesforce())
+    def _run_success_test(self, ex, mock_conn=None, input_data=None):
+        context = loader.LoadOperationLoader(ex, mock_conn or MockConnection())
 
         self._mock_execute(context, input_data)
 
@@ -39,12 +41,12 @@ class test_LoadOperationLoader(unittest.TestCase):
 
         return context.result
 
-    @unittest.mock.patch("simple_salesforce.Salesforce")
-    def test_load_traps_login_exceptions(self, sf_mock):
+    def test_load_traps_login_exceptions(self):
+        mock_conn = Mock()
         return_exception = simple_salesforce.SalesforceAuthenticationFailed(
             500, "Internal Server Error"
         )
-        sf_mock.describe = Mock(side_effect=return_exception)
+        mock_conn.get_global_describe = Mock(side_effect=return_exception)
 
         ex = {
             "version": 1,
@@ -59,7 +61,7 @@ class test_LoadOperationLoader(unittest.TestCase):
         self._run_error_validating_test(
             ex,
             ["Unable to authenticate to Salesforce: {}".format(return_exception)],
-            sf_mock,
+            mock_conn,
         )
 
     def test_LoadOperationLoader_finds_writeable_field_group(self):
@@ -229,7 +231,7 @@ class test_LoadOperationLoader(unittest.TestCase):
 
         fieldnames = ["Id", "Name"]
         context_fieldnames = (
-            amaxa.LoadOperation(MockSimpleSalesforce())
+            amaxa.LoadOperation(MockConnection())
             .get_filtered_field_map(
                 "Account",
                 lambda f: f["createable"]
@@ -408,8 +410,8 @@ class test_LoadOperationLoader(unittest.TestCase):
         )
 
     def test_validate_load_flags_non_updateable_dependent_fields(self):
-        mock_sf = MockSimpleSalesforce()
-        for field in mock_sf.get_describe("Account")["fields"]:
+        mock_conn = MockConnection()
+        for field in mock_conn.get_sobject_describe("Account")["fields"]:
             if field["name"] == "ParentId":
                 field["updateable"] = False
 
@@ -431,11 +433,11 @@ class test_LoadOperationLoader(unittest.TestCase):
                     "Account", "ParentId"
                 )
             ],
-            sf_mock=mock_sf,
+            mock_conn=mock_conn,
         )
 
     def test_LoadOperationLoader_creates_valid_steps_with_files(self):
-        context = amaxa.LoadOperation(MockSimpleSalesforce())
+        context = amaxa.LoadOperation(MockConnection())
         context.add_dependency = Mock()
 
         ex = {
@@ -468,7 +470,7 @@ class test_LoadOperationLoader(unittest.TestCase):
             ],
         }
 
-        context = loader.LoadOperationLoader(ex, MockSimpleSalesforce())
+        context = loader.LoadOperationLoader(ex, MockConnection())
         m = unittest.mock.mock_open()
         with unittest.mock.patch("builtins.open", m):
             context.load()
@@ -510,7 +512,7 @@ class test_LoadOperationLoader(unittest.TestCase):
             ],
         }
 
-        context = loader.LoadOperationLoader(ex, MockSimpleSalesforce())
+        context = loader.LoadOperationLoader(ex, MockConnection())
         m = unittest.mock.mock_open()
         with unittest.mock.patch("builtins.open", m):
             context.load()
@@ -543,7 +545,7 @@ class test_LoadOperationLoader(unittest.TestCase):
             ],
         }
 
-        context = loader.LoadOperationLoader(ex, MockSimpleSalesforce(), True)
+        context = loader.LoadOperationLoader(ex, MockConnection(), True)
         m = unittest.mock.mock_open()
         with unittest.mock.patch("builtins.open", m):
             context.load()
@@ -564,25 +566,17 @@ class test_LoadOperationLoader(unittest.TestCase):
         result = self._run_success_test(
             {
                 "version": 2,
-                "options": {
-                    "bulk-api-batch-size": 9000,
-                },
+                "options": {"bulk-api-batch-size": 9000},
                 "operation": [
                     {
                         "sobject": "Account",
-                        "fields": [
-                            "Name",
-                        ],
+                        "fields": ["Name"],
                         "extract": {"all": True},
                     },
                     {
                         "sobject": "Task",
-                        "options": {
-                            "bulk-api-batch-size": 10000,
-                        },
-                        "fields": [
-                            {"field": "Subject"}
-                        ],
+                        "options": {"bulk-api-batch-size": 10000},
+                        "fields": [{"field": "Subject"}],
                         "extract": {"all": True},
                     },
                 ],
@@ -597,15 +591,12 @@ class test_LoadOperationLoader(unittest.TestCase):
             {
                 "version": 2,
                 "operation": [
-                    {
-                        "sobject": "Account",
-                        "fields": [
-                            "Name"
-                        ],
-                        "extract": {"all": True},
-                    },
+                    {"sobject": "Account", "fields": ["Name"], "extract": {"all": True}}
                 ],
             }
         )
 
-        self.assertEqual(constants.OPTION_DEFAULTS["bulk-api-batch-size"], result.steps[0].get_option("bulk-api-batch-size"))
+        self.assertEqual(
+            constants.OPTION_DEFAULTS["bulk-api-batch-size"],
+            result.steps[0].get_option("bulk-api-batch-size"),
+        )

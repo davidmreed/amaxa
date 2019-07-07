@@ -1,12 +1,8 @@
 import unittest
 import os
-import io
-import csv
 from simple_salesforce import Salesforce
-from unittest.mock import Mock
 from .. import amaxa
-from .. import loader
-from ..__main__ import main as main
+from ..api import Connection
 from .MockFileStore import MockFileStore
 
 
@@ -19,10 +15,11 @@ class test_Integration_Extraction(unittest.TestCase):
         self.connection = Salesforce(
             instance_url=os.environ["INSTANCE_URL"],
             session_id=os.environ["ACCESS_TOKEN"],
+            version="46.0",
         )
 
     def test_all_records_extracts_accounts(self):
-        oc = amaxa.ExtractOperation(self.connection)
+        oc = amaxa.ExtractOperation(Connection(self.connection))
         oc.file_store = MockFileStore()
 
         extraction = amaxa.ExtractionStep(
@@ -41,7 +38,7 @@ class test_Integration_Extraction(unittest.TestCase):
             "Gemenon Gastronomy",
             "Aerilon Agrinomics",
         }
-        oc = amaxa.ExtractOperation(self.connection)
+        oc = amaxa.ExtractOperation(Connection(self.connection))
         oc.file_store = MockFileStore()
 
         rec = self.connection.query(
@@ -70,7 +67,7 @@ class test_Integration_Extraction(unittest.TestCase):
 
     def test_descendents_extracts_object_network(self):
         expected_names = {"Elosha", "Gaius"}
-        oc = amaxa.ExtractOperation(self.connection)
+        oc = amaxa.ExtractOperation(Connection(self.connection))
         oc.file_store = MockFileStore()
 
         rec = self.connection.query(
@@ -114,7 +111,7 @@ class test_Integration_Extraction(unittest.TestCase):
         }
         expected_contact_names = {"Gaius"}
 
-        oc = amaxa.ExtractOperation(self.connection)
+        oc = amaxa.ExtractOperation(Connection(self.connection))
         oc.file_store = MockFileStore()
 
         rec = self.connection.query("SELECT Id FROM Contact WHERE LastName = 'Baltar'")
@@ -154,7 +151,7 @@ class test_Integration_Extraction(unittest.TestCase):
         self.assertEqual(0, len(expected_account_names))
 
     def test_extracts_polymorphic_lookups(self):
-        oc = amaxa.ExtractOperation(self.connection)
+        oc = amaxa.ExtractOperation(Connection(self.connection))
         oc.file_store = MockFileStore()
 
         rec = self.connection.query(
@@ -191,18 +188,22 @@ class test_Integration_Load(unittest.TestCase):
         self.connection = Salesforce(
             instance_url=os.environ["INSTANCE_URL"],
             session_id=os.environ["ACCESS_TOKEN"],
+            version="46.0",
         )
 
     def tearDown(self):
         self.connection.restful(
             "tooling/executeAnonymous",
             {
-                "anonymousBody": "delete [SELECT Id FROM Lead]; delete [SELECT Id FROM Product2]; delete [SELECT Id FROM Campaign];"
+                "anonymousBody": "delete [SELECT Id FROM Lead]; "
+                "delete [SELECT Id FROM Product2]; "
+                "delete [SELECT Id FROM Campaign];"
             },
         )
 
     def test_loads_single_object(self):
-        # To avoid conflict, we load an object (Product2) not used in other load or extract tests.
+        # To avoid conflict, we load an object (Product2) not used in other load
+        # or extract tests.
         records = [
             {
                 "Id": "01t000000000001",
@@ -224,7 +225,7 @@ class test_Integration_Load(unittest.TestCase):
             },
         ]
 
-        op = amaxa.LoadOperation(self.connection)
+        op = amaxa.LoadOperation(Connection(self.connection))
         op.file_store = MockFileStore()
         op.file_store.records["Product2"] = records
 
@@ -318,7 +319,7 @@ class test_Integration_Load(unittest.TestCase):
             },
         ]
 
-        op = amaxa.LoadOperation(self.connection)
+        op = amaxa.LoadOperation(Connection(self.connection))
         op.file_store = MockFileStore()
         op.file_store.records["Campaign"] = campaigns
         op.file_store.records["Lead"] = leads

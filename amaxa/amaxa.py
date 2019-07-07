@@ -1,14 +1,8 @@
 import functools
 import logging
-import json
-import salesforce_bulk
-import itertools
 import csv
-from . import constants, api
+from . import constants
 from enum import Enum, unique
-from datetime import datetime, timedelta
-from urllib.parse import urlparse
-from time import sleep
 
 
 @unique
@@ -93,29 +87,6 @@ class SalesforceId(object):
 
     def __repr__(self):
         return self.id
-
-
-def JSONIterator(records):
-    def enc(r):
-        return json.dumps(r).encode("utf-8")
-
-    yield b"["
-
-    i = iter(records)
-    yield enc(next(i))
-    for rec in i:
-        yield b"," + enc(rec)
-
-    yield b"]"
-
-
-def BatchIterator(iterator, n=10000):
-    while True:
-        batch = list(itertools.islice(iterator, n))
-        if not batch:
-            return
-
-        yield batch
 
 
 class FileStore(object):
@@ -482,10 +453,9 @@ class LoadStep(Step):
             return
 
         for i, r in enumerate(
-            bulk_api_insert(
-                self.context.bulk,
+            self.context.connection.bulk_api_insert(
                 self.sobjectname,
-                iter(records_to_load),
+                records_to_load,
                 self.get_option("bulk-api-timeout"),
                 self.get_option("bulk-api-poll-interval"),
                 self.get_option("bulk-api-batch-size"),
@@ -511,7 +481,8 @@ class LoadStep(Step):
 
         if len(all_lookups) > 0:
             # Re-check, for each record, whether we have any loading to do.
-            # If all of the dependent lookups prove to be dropped outside references, we have no work to do.
+            # If all of the dependent lookups prove to be dropped outside references,
+            # we have no work to do.
             self.reset_input_csv()
             reader = self.context.file_store.get_csv(self.sobjectname, FileType.INPUT)
             for record in reader:
@@ -544,10 +515,9 @@ class LoadStep(Step):
 
             if success and len(records_to_load) > 0:
                 for i, r in enumerate(
-                    api.bulk_api_update(
-                        self.context.bulk,
+                    self.context.connection.bulk_api_update(
                         self.sobjectname,
-                        iter(records_to_load),
+                        records_to_load,
                         self.get_option("bulk-api-timeout"),
                         self.get_option("bulk-api-poll-interval"),
                         self.get_option("bulk-api-batch-size"),
@@ -875,13 +845,12 @@ class ExtractionStep(Step):
         ]
 
         for result in self.context.connection.bulk_api_query(
-            self.context.bulk,
             self.sobjectname,
             query,
             date_time_fields,
             self.get_option("bulk-api-poll-interval"),
         ):
-            self.store_result(rec)
+            self.store_result(result)
 
     def perform_lookup_pass(self, field):
         id_set = self.context.get_sobject_ids_for_reference(self.sobjectname, field)

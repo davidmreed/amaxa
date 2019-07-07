@@ -2,7 +2,7 @@ import logging
 import simple_salesforce
 from .core import Loader
 from .input_type import InputType
-from .. import jwt_auth
+from .. import jwt_auth, api
 
 
 class CredentialLoader(Loader):
@@ -27,6 +27,7 @@ class CredentialLoader(Loader):
                 security_token=credentials.get("security-token", ""),
                 organizationId=credentials.get("organization-id", ""),
                 sandbox=credentials.get("sandbox", False),
+                version="46.0",
             )
 
             logging.getLogger("amaxa").debug(
@@ -69,12 +70,16 @@ class CredentialLoader(Loader):
             self.result = simple_salesforce.Salesforce(
                 instance_url=credentials["instance-url"],
                 session_id=credentials["access-token"],
+                version="46.0",
             )
             logging.getLogger("amaxa").debug(
                 "Authenticating to Salesforce with access token"
             )
         else:
             self.errors.append("A set of valid credentials was not provided.")
+
+        if self.result is not None:
+            self.result = api.Connection(self.result)
 
     def _load_v2(self):
         credentials = self.input["credentials"]
@@ -90,6 +95,7 @@ class CredentialLoader(Loader):
                 security_token=credentials.get("security-token", ""),
                 organizationId=credentials.get("organization-id", ""),
                 sandbox=sandbox,
+                version="46.0",
             )
 
             logging.getLogger("amaxa").debug(
@@ -111,10 +117,7 @@ class CredentialLoader(Loader):
 
             try:
                 self.result = jwt_auth.jwt_login(
-                    credentials["consumer-key"],
-                    credentials["username"],
-                    key,
-                    sandbox,
+                    credentials["consumer-key"], credentials["username"], key, sandbox
                 )
             except simple_salesforce.exceptions.SalesforceAuthenticationFailed as ex:
                 self.errors.append(
@@ -125,14 +128,18 @@ class CredentialLoader(Loader):
             self.result = simple_salesforce.Salesforce(
                 instance_url=credentials["instance-url"],
                 session_id=credentials["access-token"],
+                version="46.0",
             )
             logging.getLogger("amaxa").debug(
                 "Authenticating to Salesforce with access token"
             )
 
+        if self.result is not None:
+            self.result = api.Connection(self.result)
+
     def _post_validate(self):
         try:
-            self.result.describe()
+            self.result.get_global_describe()
         except Exception as e:
             self.errors.append("Unable to authenticate to Salesforce: {}".format(e))
             self.result = None

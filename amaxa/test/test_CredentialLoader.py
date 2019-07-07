@@ -5,34 +5,43 @@ from .. import loader
 
 class test_CredentialLoader(unittest.TestCase):
     def _run_validation_test(self, input_data):
-        with patch("simple_salesforce.Salesforce"):
-            credential_loader = loader.CredentialLoader(input_data)
+        with patch("simple_salesforce.Salesforce") as sf_mock:
+            with patch("salesforce_bulk.SalesforceBulk"):
+                sf_mock.return_value.bulk_url = "https://salesforce.com"
 
-            credential_loader.load()
-            self.assertEqual([], credential_loader.errors)
-            self.assertIsNotNone(credential_loader.result)
+                credential_loader = loader.CredentialLoader(input_data)
+
+                credential_loader.load()
+                self.assertEqual([], credential_loader.errors)
+                self.assertIsNotNone(credential_loader.result)
 
     def _run_failure_test(self, input_data, errors):
-        with patch("simple_salesforce.Salesforce"):
-            credential_loader = loader.CredentialLoader(input_data)
+        with patch("simple_salesforce.Salesforce") as sf_mock:
+            with patch("salesforce_bulk.SalesforceBulk"):
+                sf_mock.return_value.bulk_url = "https://salesforce.com"
 
-            credential_loader.load()
-            if type(errors) is list:
-                self.assertEqual(errors, credential_loader.errors)
-            elif type(errors) is int:
-                self.assertEqual(errors, len(credential_loader.errors))
+                credential_loader = loader.CredentialLoader(input_data)
 
-            self.assertIsNone(credential_loader.result)
+                credential_loader.load()
+                if type(errors) is list:
+                    self.assertEqual(errors, credential_loader.errors)
+                elif type(errors) is int:
+                    self.assertEqual(errors, len(credential_loader.errors))
+
+                self.assertIsNone(credential_loader.result)
 
     def _run_authentication_test(self, input_data, arguments):
         with patch("simple_salesforce.Salesforce") as sf_mock:
-            credential_loader = loader.CredentialLoader(input_data)
+            with patch("salesforce_bulk.SalesforceBulk"):
+                sf_mock.return_value.bulk_url = "https://salesforce.com"
 
-            credential_loader.load()
-            self.assertEqual([], credential_loader.errors)
-            self.assertIsNotNone(credential_loader.result)
+                credential_loader = loader.CredentialLoader(input_data)
 
-            sf_mock.assert_called_once_with(**arguments)
+                credential_loader.load()
+                self.assertEqual([], credential_loader.errors)
+                self.assertIsNotNone(credential_loader.result)
+
+                sf_mock.assert_called_once_with(version="46.0", **arguments)
 
     def test_credential_schema_validates_username_password_v1(self):
         self._run_validation_test(
@@ -59,7 +68,9 @@ class test_CredentialLoader(unittest.TestCase):
         )
 
     def test_credential_schema_validates_jwt_v1(self):
-        with patch("amaxa.jwt_auth.jwt_login"):
+        with patch("amaxa.jwt_auth.jwt_login") as jwt_mock:
+            jwt_mock.return_value.bulk_url = "https://salesforce.com"
+
             self._run_validation_test(
                 {
                     "version": 1,
@@ -72,7 +83,9 @@ class test_CredentialLoader(unittest.TestCase):
             )
 
     def test_credential_schema_validates_jwt_key_file_v1(self):
-        with patch("amaxa.jwt_auth.jwt_login"):
+        with patch("amaxa.jwt_auth.jwt_login") as jwt_mock:
+            jwt_mock.return_value.bulk_url = "https://salesforce.com"
+
             m = unittest.mock.mock_open(read_data="00000")
             with patch("builtins.open", m):
                 self._run_validation_test(
@@ -291,7 +304,9 @@ class test_CredentialLoader(unittest.TestCase):
         )
 
     def test_credential_schema_validates_jwt_v2(self):
-        with patch("amaxa.jwt_auth.jwt_login"):
+        with patch("amaxa.jwt_auth.jwt_login") as jwt_mock:
+            jwt_mock.return_value.bulk_url = "https://salesforce.com"
+
             self._run_validation_test(
                 {
                     "version": 2,
@@ -306,7 +321,9 @@ class test_CredentialLoader(unittest.TestCase):
             )
 
     def test_credential_schema_validates_jwt_key_file_v2(self):
-        with patch("amaxa.jwt_auth.jwt_login"):
+        with patch("amaxa.jwt_auth.jwt_login") as jwt_mock:
+            jwt_mock.return_value.bulk_url = "https://salesforce.com"
+
             m = unittest.mock.mock_open(read_data="00000")
             with patch("builtins.open", m):
                 self._run_validation_test(
@@ -479,7 +496,7 @@ class test_CredentialLoader(unittest.TestCase):
             {"session_id": "ABCDEF123456", "instance_url": "test.salesforce.com"},
         )
 
-    @patch('os.environ')
+    @patch("os.environ")
     def test_load_credentials_uses_environment_variable(self, environ_mock):
         environ_mock.get = Mock(return_value="ABCDEF123456")
 
@@ -488,9 +505,7 @@ class test_CredentialLoader(unittest.TestCase):
                 "version": 2,
                 "credentials": {
                     "token": {
-                        "access-token": {
-                            "env": "ACCESS_TOKEN",
-                        },
+                        "access-token": {"env": "ACCESS_TOKEN"},
                         "instance-url": "test.salesforce.com",
                     }
                 },

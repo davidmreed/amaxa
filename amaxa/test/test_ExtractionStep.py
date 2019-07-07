@@ -1,7 +1,6 @@
 import unittest
-import json
-from unittest.mock import Mock, PropertyMock, patch
-from salesforce_bulk.util import IteratorBytesIO
+from unittest.mock import Mock
+from .MockConnection import MockConnection
 from .. import amaxa
 
 
@@ -489,226 +488,14 @@ class test_ExtractionStep(unittest.TestCase):
         step.store_result({"Id": "003000000000001", "AccountId": "001000000000001"})
         oc.store_result.assert_called_once_with("Contact", {"Id": "003000000000001"})
 
-    def test_perform_lookup_pass_executes_correct_query(self):
-        connection = Mock()
-
-        oc = amaxa.ExtractOperation(connection)
-
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
-        )
-        oc.get_sobject_ids_for_reference = Mock(
-            return_value=set([amaxa.SalesforceId("001000000000000")])
-        )
-
-        step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
-        )
-        oc.add_step(step)
-        step.initialize()
-
-        step.perform_id_field_pass = Mock()
-        step.perform_lookup_pass("Lookup__c")
-
-        oc.get_sobject_ids_for_reference.assert_called_once_with("Account", "Lookup__c")
-        step.perform_id_field_pass.assert_called_once_with(
-            "Lookup__c", set([amaxa.SalesforceId("001000000000000")])
-        )
-
-    def test_perform_id_field_pass_queries_all_records(self):
-        connection = Mock()
-        connection.query_all = Mock(
-            side_effect=lambda x: {"records": [{"Id": "001000000000001"}]}
-        )
-
-        oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
-        )
-
-        step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
-        )
-        step.store_result = Mock()
-        oc.add_step(step)
-        step.initialize()
-
-        id_set = set()
-        # Generate enough fake Ids to require two queries.
-        for i in range(400):
-            new_id = amaxa.SalesforceId("001000000000" + str(i + 1).zfill(3))
-            id_set.add(new_id)
-
-        self.assertEqual(400, len(id_set))
-
-        step.perform_id_field_pass("Lookup__c", id_set)
-
-        self.assertLess(1, len(connection.query_all.call_args_list))
-        total = 0
-        for call in connection.query_all.call_args_list:
-            self.assertLess(len(call[0][0]) - call[0][0].find("WHERE"), 4000)
-            total += call[0][0].count("'001")
-        self.assertEqual(400, total)
-
-    def test_perform_id_field_pass_stores_results(self):
-        connection = Mock()
-        connection.query_all = Mock(
-            side_effect=lambda x: {
-                "records": [{"Id": "001000000000001"}, {"Id": "001000000000002"}]
-            }
-        )
-
-        oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
-        )
-
-        step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
-        )
-        step.store_result = Mock()
-        oc.add_step(step)
-        step.initialize()
-
-        step.perform_id_field_pass(
-            "Lookup__c",
-            set(
-                [
-                    amaxa.SalesforceId("001000000000001"),
-                    amaxa.SalesforceId("001000000000002"),
-                ]
-            ),
-        )
-        step.store_result.assert_any_call(connection.query_all("Account")["records"][0])
-        step.store_result.assert_any_call(connection.query_all("Account")["records"][1])
-
-    def test_perform_id_field_pass_ignores_empty_set(self):
-        connection = Mock()
-
-        oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
-        )
-
-        step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
-        )
-        oc.add_step(step)
-        step.initialize()
-
-        step.perform_id_field_pass("Lookup__c", set())
-
-        connection.query_all.assert_not_called()
-
-    @patch("amaxa.ExtractOperation.bulk", new_callable=PropertyMock())
-    def test_perform_bulk_api_pass_calls_query(self, bulk_proxy):
-        connection = Mock()
-        oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
-        )
+    def test_perform_bulk_api_pass_stores_results(self):
         retval = [{"Id": "001000000000001"}, {"Id": "001000000000002"}]
-        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
-        bulk_proxy.create_query_job = Mock(return_value="075000000000000AAA")
-        bulk_proxy.get_all_results_for_query_batch = Mock(
-            return_value=[IteratorBytesIO([json.dumps(retval).encode("utf-8")])]
-        )
-        step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.QUERY, ["Lookup__c"]
-        )
-        step.store_result = Mock()
-        oc.add_step(step)
-        step.initialize()
-
-        step.perform_bulk_api_pass("SELECT Id FROM Account")
-        bulk_proxy.query.assert_called_once_with(
-            "075000000000000AAA", "SELECT Id FROM Account"
-        )
-
-    @patch("amaxa.ExtractOperation.bulk", new_callable=PropertyMock())
-    @patch.object(amaxa, "sleep")
-    def test_perform_bulk_api_pass_waits_as_configured(self, time_proxy, bulk_proxy):
-        connection = Mock()
-        oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
-        )
-        retval = [{"Id": "001000000000001"}, {"Id": "001000000000002"}]
-        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
-        bulk_proxy.create_query_job = Mock(return_value="075000000000000AAA")
-        bulk_proxy.get_all_results_for_query_batch = Mock(
-            return_value=[IteratorBytesIO([json.dumps(retval).encode("utf-8")])]
-        )
-        step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.QUERY, ["Lookup__c"],
-            options={"bulk-api-poll-interval": 20}
-        )
-        step.store_result = Mock()
-        oc.add_step(step)
-        step.initialize()
-
-        step.perform_bulk_api_pass("SELECT Id FROM Account")
-        time_proxy.assert_called_once_with(20)
-
-    @patch("amaxa.ExtractOperation.bulk", new_callable=PropertyMock())
-    def test_perform_bulk_api_pass_stores_results(self, bulk_proxy):
-        connection = Mock()
+        connection = MockConnection(bulk_query_results=retval)
 
         oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
-        )
-        retval = [{"Id": "001000000000001"}, {"Id": "001000000000002"}]
-        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
-        bulk_proxy.create_query_job = Mock(return_value="075000000000000AAA")
-        bulk_proxy.get_all_results_for_query_batch = Mock(
-            return_value=[IteratorBytesIO([json.dumps(retval).encode("utf-8")])]
-        )
 
         step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
+            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Name"]
         )
         step.store_result = Mock()
         oc.add_step(step)
@@ -717,77 +504,6 @@ class test_ExtractionStep(unittest.TestCase):
         step.perform_bulk_api_pass("SELECT Id FROM Account")
         step.store_result.assert_any_call(retval[0])
         step.store_result.assert_any_call(retval[1])
-
-    @patch("amaxa.ExtractOperation.bulk", new_callable=PropertyMock())
-    def test_perform_bulk_api_pass_stores_high_volume_results(self, bulk_proxy):
-        connection = Mock()
-
-        oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
-        )
-        retval = []
-        for i in range(5):
-            retval.append(
-                [
-                    {
-                        "Id": "00100000{:d}{:06d}".format(i, j),
-                        "Name": "Account {:d}{:06d}".format(i, j),
-                    }
-                    for j in range(100000)
-                ]
-            )
-
-        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
-        bulk_proxy.create_query_job = Mock(return_value="075000000000000AAA")
-        bulk_proxy.get_all_results_for_query_batch = Mock(
-            return_value=[
-                IteratorBytesIO([json.dumps(chunk).encode("utf-8")]) for chunk in retval
-            ]
-        )
-
-        step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
-        )
-        step.store_result = Mock()
-        oc.add_step(step)
-        step.initialize()
-
-        step.perform_bulk_api_pass("SELECT Id FROM Account")
-        self.assertEqual(500000, step.store_result.call_count)
-
-    @patch("amaxa.ExtractOperation.bulk", new_callable=PropertyMock())
-    def test_perform_bulk_api_pass_converts_datetimes(self, bulk_proxy):
-        connection = Mock()
-
-        oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={"CreatedDate": {"name": "CreatedDate", "type": "datetime"}}
-        )
-        retval = [{"Id": "001000000000001", "CreatedDate": 1546659665000}]
-        bulk_proxy.is_batch_done = Mock(side_effect=[False, True])
-        bulk_proxy.create_query_job = Mock(return_value="075000000000000AAA")
-        bulk_proxy.get_all_results_for_query_batch = Mock(
-            return_value=[IteratorBytesIO([json.dumps(retval).encode("utf-8")])]
-        )
-
-        step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.QUERY, ["CreatedDate"]
-        )
-        step.store_result = Mock()
-        oc.add_step(step)
-        step.initialize()
-
-        step.perform_bulk_api_pass("SELECT Id, CreatedDate FROM Account")
-        step.store_result.assert_called_once_with(
-            {"Id": "001000000000001", "CreatedDate": "2019-01-05T03:41:05.000+0000"}
-        )
 
     def test_resolve_registered_dependencies_loads_records(self):
         connection = Mock()
@@ -817,7 +533,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep(
             "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
         )
-        step.perform_id_field_pass = Mock()
+        connection.retrieve_records_by_id = Mock(return_value=[])
         oc.add_step(step)
         step.initialize()
 
@@ -826,14 +542,15 @@ class test_ExtractionStep(unittest.TestCase):
         oc.get_dependencies.assert_has_calls(
             [unittest.mock.call("Account"), unittest.mock.call("Account")]
         )
-        step.perform_id_field_pass.assert_called_once_with(
-            "Id",
+        connection.retrieve_records_by_id.assert_called_once_with(
+            "Account",
             set(
                 [
                     amaxa.SalesforceId("001000000000001"),
                     amaxa.SalesforceId("001000000000002"),
                 ]
             ),
+            ["Lookup__c"],
         )
 
     def test_resolve_registered_dependencies_registers_error_for_missing_ids(self):
@@ -864,7 +581,7 @@ class test_ExtractionStep(unittest.TestCase):
         step = amaxa.ExtractionStep(
             "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
         )
-        step.perform_id_field_pass = Mock()
+        connection.retrieve_records_by_id = Mock(return_value=[])
         oc.add_step(step)
         step.initialize()
 
@@ -900,6 +617,8 @@ class test_ExtractionStep(unittest.TestCase):
 
     def test_execute_with_query_performs_bulk_api_pass(self):
         connection = Mock()
+        connection.bulk_api_query.return_value = []
+        connection.retrieve_records_by_id.return_value = []
 
         oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(return_value={"Name": {"name": "Name", "type": "text"}})
@@ -919,6 +638,7 @@ class test_ExtractionStep(unittest.TestCase):
 
     def test_execute_loads_all_descendents(self):
         connection = Mock()
+        connection.retrieve_records_by_id.return_value = []
 
         oc = amaxa.ExtractOperation(connection)
         oc.get_field_map = Mock(

@@ -3,7 +3,7 @@ import amaxa
 from unittest.mock import Mock
 from ..loader import core
 from ..loader.input_type import InputType
-from .MockSimpleSalesforce import MockSimpleSalesforce
+from .MockConnection import MockConnection
 
 
 class test_OperationLoader(unittest.TestCase):
@@ -108,7 +108,7 @@ class test_OperationLoader(unittest.TestCase):
     def test_validate_sobjects_flags_missing_sobjects(self):
         context = Mock()
         context.steps = []
-        context.connection = MockSimpleSalesforce()
+        context.connection = MockConnection()
 
         ex = {
             "version": 1,
@@ -117,9 +117,7 @@ class test_OperationLoader(unittest.TestCase):
             ],
         }
 
-        context = core.OperationLoader(
-            ex, MockSimpleSalesforce(), InputType.LOAD_OPERATION
-        )
+        context = core.OperationLoader(ex, MockConnection(), InputType.LOAD_OPERATION)
         context._validate_sobjects("createable")
 
         self.assertEqual(
@@ -131,7 +129,7 @@ class test_OperationLoader(unittest.TestCase):
 
     def test_validate_field_permissions_flags_fields(self):
         context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
-        context.result = amaxa.Operation(MockSimpleSalesforce())
+        context.result = amaxa.Operation(MockConnection())
         context.result.steps = [Mock()]
         context.result.steps[0].sobjectname = "Account"
         context.result.steps[0].field_scope = set(["Name", "IsDeleted"])
