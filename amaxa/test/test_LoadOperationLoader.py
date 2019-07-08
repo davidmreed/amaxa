@@ -11,7 +11,12 @@ class test_LoadOperationLoader(unittest.TestCase):
         if input_data is not None:
 
             def open_func(key, status):
-                return io.StringIO(input_data[key])
+                data = input_data[key]
+
+                if type(data) is str:
+                    return io.StringIO(input_data[key])
+                else:
+                    raise data
 
             open_mock = Mock(side_effect=open_func)
             with unittest.mock.patch("builtins.open", open_mock):
@@ -62,6 +67,30 @@ class test_LoadOperationLoader(unittest.TestCase):
             ex,
             ["Unable to authenticate to Salesforce: {}".format(return_exception)],
             mock_conn,
+        )
+
+    def test_LoadOperationLoader_traps_ioerrors(self):
+        ex = {
+            "version": 1,
+            "operation": [
+                {
+                    "sobject": "Account",
+                    "field-group": "writeable",
+                    "extract": {"all": True},
+                }
+            ],
+        }
+
+        self._run_error_validating_test(
+            ex,
+            [
+                "Unable to open file Account.csv for reading ().",
+                "Unable to open file Account-results.csv for writing ()"
+            ],
+            input_data={
+                "Account.csv": IOError(),
+                "Account-results.csv": IOError()
+            }
         )
 
     def test_LoadOperationLoader_finds_writeable_field_group(self):
@@ -119,6 +148,24 @@ class test_LoadOperationLoader(unittest.TestCase):
         result = self._run_success_test(ex)
         self.assertEqual({"Name", "Industry"}, result.steps[0].field_scope)
 
+    def test_LoadOperationLoader_populates_data_mappers(self):
+        ex = {
+            "version": 1,
+            "operation": [
+                {
+                    "sobject": "Account",
+                    "fields": [
+                        {"field": "Name", "column": "Test"}
+                    ],
+                    "extract": {"all": True},
+                    "input-validation": "none",
+                }
+            ],
+        }
+
+        result = self._run_success_test(ex)
+        self.assertIn("Account", result.mappers)
+
     def test_LoadOperationLoader_respects_none_validation_option(self):
         ex = {
             "version": 1,
@@ -166,6 +213,7 @@ class test_LoadOperationLoader(unittest.TestCase):
             input_data={"Account.csv": ",".join(fieldnames), "Account-results.csv": ""},
         )
 
+
     def test_LoadOperationLoader_validates_file_against_field_scope_missing_fields(
         self
     ):
@@ -193,7 +241,53 @@ class test_LoadOperationLoader(unittest.TestCase):
             input_data={"Account.csv": ",".join(fieldnames), "Account-results.csv": ""},
         )
 
-    def test_LoadOperationLoader_validates_file_against_field_group(self):
+    def test_LoadOperationLoader_validates_file_against_field_scope_no_id_field(self):
+        ex = {
+            "version": 1,
+            "operation": [
+                {
+                    "sobject": "Account",
+                    "fields": ["Name", "Industry"],
+                    "extract": {"all": True},
+                }
+            ],
+        }
+
+        fieldnames = ["Name", "Industry"]
+        self._run_success_test(
+            ex,
+            input_data={"Account.csv": ",".join(fieldnames), "Account-results.csv": ""},
+        )
+
+    def test_LoadOperationLoader_validates_file_against_field_group_matching(self):
+        ex = {
+            "version": 1,
+            "operation": [
+                {
+                    "sobject": "Account",
+                    "field-group": "smart",
+                    "extract": {"all": True},
+                }
+            ],
+        }
+
+        context_fieldnames = (
+            amaxa.LoadOperation(MockConnection())
+            .get_filtered_field_map(
+                "Account",
+                lambda f: f["createable"]
+                and f["type"] not in ["location", "address", "base64"],
+            )
+            .keys()
+        )
+
+        fieldnames = context_fieldnames
+        self._run_success_test(
+            ex,
+            input_data={"Account.csv": ",".join(fieldnames), "Account-results.csv": ""},
+        )
+
+    def test_LoadOperationLoader_validates_file_against_field_group_excess_fields(self):
         ex = {
             "version": 1,
             "operation": [
