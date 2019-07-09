@@ -261,6 +261,40 @@ class test_CLI(unittest.TestCase):
         self.assertEqual(-1, return_value)
 
     @unittest.mock.patch("amaxa.__main__.CredentialLoader")
+    @unittest.mock.patch("amaxa.__main__.StateLoader")
+    @unittest.mock.patch("amaxa.__main__.LoadOperationLoader")
+    def test_main_returns_error_with_bad_state_file(
+        self, operation_mock, state_mock, credential_mock
+    ):
+        credential_mock.return_value.errors = []
+        operation_mock.return_value.errors = []
+        state_mock.return_value.result = None
+        state_mock.return_value.errors = ["Test error occured."]
+
+        m = Mock(side_effect=select_file)
+        with unittest.mock.patch("builtins.open", m):
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "amaxa",
+                    "--load",
+                    "-c",
+                    "credentials-good.yaml",
+                    "extraction-good.yaml",
+                    "-s",
+                    "state-good.yaml",
+                ],
+            ):
+                return_value = main()
+
+        credential_mock.assert_called_once_with(yaml.safe_load(CREDENTIALS_GOOD_YAML))
+        state_mock.assert_called_once_with(
+            yaml.safe_load(STATE_GOOD_YAML), operation_mock.return_value.result
+        )
+
+        self.assertEqual(-1, return_value)
+
+    @unittest.mock.patch("amaxa.__main__.CredentialLoader")
     @unittest.mock.patch("amaxa.__main__.ExtractionOperationLoader")
     def test_main_returns_error_with_errors_during_extraction(
         self, operation_mock, credential_mock

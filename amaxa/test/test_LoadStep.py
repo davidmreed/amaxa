@@ -668,14 +668,9 @@ class test_LoadStep(unittest.TestCase):
         )
         op.register_new_id = Mock()
         op.file_store.records["Account"] = record_list
-        op.mappers["Account"] = Mock()
-        op.mappers["Account"].transform_record = Mock(side_effect=lambda x: x)
 
         load_step = amaxa.LoadStep("Account", ["Name"])
         op.add_step(load_step)
-
-        load_step.primitivize = Mock(side_effect=lambda x: x)
-        load_step.populate_lookups = Mock(side_effect=lambda x, y, z: x)
 
         load_step.initialize()
         load_step.execute()

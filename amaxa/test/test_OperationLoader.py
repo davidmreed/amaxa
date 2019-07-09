@@ -105,6 +105,47 @@ class test_OperationLoader(unittest.TestCase):
             ),
         )
 
+    def test_get_data_mapper_creates_mapper_transform_only(self):
+        ex = {
+            "sobject": "Account",
+            "fields": [
+                {"field": "Name", "transforms": ["strip", "lowercase"]},
+                "Industry",
+            ],
+            "extract": {"all": True},
+            "input-validation": "none",
+        }
+
+        context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
+        mapper = context._get_data_mapper(ex, "field", "column")
+
+        self.assertEqual({}, mapper.field_name_mapping)
+        self.assertEqual(
+            {"Name": "university of caprica", "Industry": "Education"},
+            mapper.transform_record(
+                {"Name": "UNIversity of caprica  ", "Industry": "Education"}
+            ),
+        )
+
+    def test_get_data_mapper_creates_mapper_column_only(self):
+        ex = {
+            "sobject": "Account",
+            "fields": [{"field": "Name", "column": "Account Name"}, "Industry"],
+            "extract": {"all": True},
+            "input-validation": "none",
+        }
+
+        context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
+        mapper = context._get_data_mapper(ex, "field", "column")
+
+        self.assertEqual({"Name": "Account Name"}, mapper.field_name_mapping)
+        self.assertEqual(
+            {"Account Name": "UNIversity of caprica", "Industry": "Education"},
+            mapper.transform_record(
+                {"Name": "UNIversity of caprica", "Industry": "Education"}
+            ),
+        )
+
     def test_validate_sobjects_flags_missing_sobjects(self):
         context = Mock()
         context.steps = []

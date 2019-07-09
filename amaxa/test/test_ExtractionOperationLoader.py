@@ -81,12 +81,8 @@ class test_ExtractionOperationLoader(unittest.TestCase):
 
         self._run_error_validating_test(
             ex,
-            [
-                "Unable to open file Account.csv for writing ()."
-            ],
-            file_data={
-                "Account.csv": IOError(),
-            }
+            ["Unable to open file Account.csv for writing ()."],
+            file_data={"Account.csv": IOError()},
         )
 
     def test_ExtractionOperationLoader_returns_error_on_bad_ids(self):
@@ -486,7 +482,9 @@ class test_ExtractionOperationLoader(unittest.TestCase):
         self.assertEqual(["Id", "Name", "ParentId"], csv_file.fieldnames)
 
     @unittest.mock.patch("csv.DictWriter.writeheader")
-    def test_load_extraction_operation_writes_correct_headers_with_mapper(self, dict_writer):
+    def test_load_extraction_operation_writes_correct_headers_with_mapper(
+        self, dict_writer
+    ):
         context = self._run_success_test(
             {
                 "version": 1,
@@ -496,7 +494,7 @@ class test_ExtractionOperationLoader(unittest.TestCase):
                         "fields": [
                             {"field": "Name", "column": "Title"},
                             "ParentId",
-                            "Id"
+                            "Id",
                         ],
                         "extract": {"all": True},
                     }

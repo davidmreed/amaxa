@@ -140,6 +140,6 @@ class CredentialLoader(Loader):
     def _post_validate(self):
         try:
             self.result.get_global_describe()
-        except Exception as e:
+        except simple_salesforce.SalesforceError as e:
             self.errors.append("Unable to authenticate to Salesforce: {}".format(e))
             self.result = None

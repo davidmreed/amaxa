@@ -1,3 +1,4 @@
+import simple_salesforce
 import unittest
 from unittest.mock import patch, Mock
 from .. import loader
@@ -25,7 +26,7 @@ class test_CredentialLoader(unittest.TestCase):
                 credential_loader.load()
                 if type(errors) is list:
                     self.assertEqual(errors, credential_loader.errors)
-                elif type(errors) is int:
+                else:
                     self.assertEqual(errors, len(credential_loader.errors))
 
                 self.assertIsNone(credential_loader.result)
@@ -512,3 +513,20 @@ class test_CredentialLoader(unittest.TestCase):
             },
             {"session_id": "ABCDEF123456", "instance_url": "test.salesforce.com"},
         )
+
+    def test_load_credentials_traps_login_errors(self):
+        credentials = loader.CredentialLoader({})
+
+        side_effect = simple_salesforce.SalesforceError(
+            "https://salesforce.com", 401, "describe", ""
+        )
+        credentials.result = Mock()
+        credentials.result.get_global_describe = Mock(side_effect=side_effect)
+
+        credentials._post_validate()
+
+        self.assertEqual(
+            ["Unable to authenticate to Salesforce: {}".format(side_effect)],
+            credentials.errors,
+        )
+        self.assertIsNone(credentials.result)

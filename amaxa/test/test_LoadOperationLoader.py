@@ -85,12 +85,9 @@ class test_LoadOperationLoader(unittest.TestCase):
             ex,
             [
                 "Unable to open file Account.csv for reading ().",
-                "Unable to open file Account-results.csv for writing ()"
+                "Unable to open file Account-results.csv for writing ()",
             ],
-            input_data={
-                "Account.csv": IOError(),
-                "Account-results.csv": IOError()
-            }
+            input_data={"Account.csv": IOError(), "Account-results.csv": IOError()},
         )
 
     def test_LoadOperationLoader_finds_writeable_field_group(self):
@@ -154,9 +151,7 @@ class test_LoadOperationLoader(unittest.TestCase):
             "operation": [
                 {
                     "sobject": "Account",
-                    "fields": [
-                        {"field": "Name", "column": "Test"}
-                    ],
+                    "fields": [{"field": "Name", "column": "Test"}],
                     "extract": {"all": True},
                     "input-validation": "none",
                 }
@@ -213,7 +208,6 @@ class test_LoadOperationLoader(unittest.TestCase):
             input_data={"Account.csv": ",".join(fieldnames), "Account-results.csv": ""},
         )
 
-
     def test_LoadOperationLoader_validates_file_against_field_scope_missing_fields(
         self
     ):
@@ -263,11 +257,7 @@ class test_LoadOperationLoader(unittest.TestCase):
         ex = {
             "version": 1,
             "operation": [
-                {
-                    "sobject": "Account",
-                    "field-group": "smart",
-                    "extract": {"all": True},
-                }
+                {"sobject": "Account", "field-group": "smart", "extract": {"all": True}}
             ],
         }
 
