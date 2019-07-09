@@ -11,7 +11,12 @@ class test_ExtractionOperationLoader(unittest.TestCase):
         if file_data is not None:
 
             def open_func(key, status):
-                return io.StringIO(file_data[key])
+                data = file_data[key]
+
+                if type(data) is str:
+                    return io.StringIO(file_data[key])
+                else:
+                    raise data
 
             open_mock = Mock(side_effect=open_func)
             with unittest.mock.patch("builtins.open", open_mock):
@@ -60,6 +65,28 @@ class test_ExtractionOperationLoader(unittest.TestCase):
             },
             ["Unable to authenticate to Salesforce: {}".format(return_exception)],
             mock_conn,
+        )
+
+    def test_ExtractionOperationLoader_traps_ioerrors(self):
+        ex = {
+            "version": 1,
+            "operation": [
+                {
+                    "sobject": "Account",
+                    "field-group": "readable",
+                    "extract": {"all": True},
+                }
+            ],
+        }
+
+        self._run_error_validating_test(
+            ex,
+            [
+                "Unable to open file Account.csv for writing ()."
+            ],
+            file_data={
+                "Account.csv": IOError(),
+            }
         )
 
     def test_ExtractionOperationLoader_returns_error_on_bad_ids(self):
@@ -452,12 +479,37 @@ class test_ExtractionOperationLoader(unittest.TestCase):
             file_data={"Account.csv": ""},
         )
 
-        # m.assert_called_once_with('Account.csv', 'w') #FIXME
         csv_file = context.file_store.get_csv("Account", amaxa.FileType.OUTPUT)
         self.assertIsNotNone(csv_file)
 
         dict_writer.assert_called_once_with()
         self.assertEqual(["Id", "Name", "ParentId"], csv_file.fieldnames)
+
+    @unittest.mock.patch("csv.DictWriter.writeheader")
+    def test_load_extraction_operation_writes_correct_headers_with_mapper(self, dict_writer):
+        context = self._run_success_test(
+            {
+                "version": 1,
+                "operation": [
+                    {
+                        "sobject": "Account",
+                        "fields": [
+                            {"field": "Name", "column": "Title"},
+                            "ParentId",
+                            "Id"
+                        ],
+                        "extract": {"all": True},
+                    }
+                ],
+            },
+            file_data={"Account.csv": ""},
+        )
+
+        csv_file = context.file_store.get_csv("Account", amaxa.FileType.OUTPUT)
+        self.assertIsNotNone(csv_file)
+
+        dict_writer.assert_called_once_with()
+        self.assertEqual(["Id", "ParentId", "Title"], csv_file.fieldnames)
 
     def test_load_extraction_populates_options(self):
         result = self._run_success_test(
