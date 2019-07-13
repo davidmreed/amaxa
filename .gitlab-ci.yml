@@ -1,15 +1,40 @@
-image: circleci/python:3.6.4-node
+stages:
+  - test
+  - deploy
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
 
-cache:
-  paths:
-    - .cache/pip
-    - venv/
-    - node_modules/
+test_unit:
+  image: python:3.6-slim
+  stage: test
+  cache:
+    paths:
+      - .cache/pip
+      - venv/
+  before_script:
+    - python -V
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt -r testing-requirements.txt
+  script:
+    - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa amaxa/test
+    - coveralls
+  artifacts:
+    reports:
+      junit: test-reports/junit.xml
+  only: 
+    - branches
 
-test:
+test_org:
+  image: circleci/python:3.6.4-node
+  stage: test
+  cache:
+    paths:
+      - .cache/pip
+      - venv/
+      - node_modules/
   before_script:
     - python -V
     - python -m venv venv
@@ -30,7 +55,7 @@ test:
     - sfdx force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
     - source assets/scripts/prep-scratch-org.sh
     - sfdx force:apex:execute -f assets/scripts/UpdateUser.apex -u scratch
-    - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa
+    - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa amaxa/test_org
     - coveralls
   after_script:
     - sfdx force:org:delete -u scratch -p
@@ -40,3 +65,48 @@ test:
       junit: test-reports/junit.xml
   only: 
     - branches
+
+test_package:
+  image: python:3.6-slim
+  stage: test
+  cache:
+    paths:
+      - .cache/pip
+      - venv/
+  variables:
+    TWINE_USERNAME: $TEST_PYPI_USERNAME
+    TWINE_PASSWORD: $TEST_PYPI_PASSWORD
+  before_script:
+    - python -V
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt twine
+  script:
+    - python setup.py sdist
+    - twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+  only:
+    - branches
+
+deploy_package:
+  stage: deploy
+  when: manual
+  image: python:3.6-slim
+  cache:
+    paths:
+      - .cache/pip
+      - venv/
+  variables:
+    TWINE_USERNAME: $PYPI_PRODUCTION_USERNAME
+    TWINE_PASSWORD: $PYPI_PRODUCTION_PASSWORD
+  before_script:
+    - python -V
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt twine
+  script:
+    - python setup.py sdist
+    - twine upload dist/*
+  only:
+    - tags

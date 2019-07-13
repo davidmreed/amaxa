@@ -3,7 +3,7 @@ import os
 from simple_salesforce import Salesforce
 from .. import amaxa
 from ..api import Connection
-from .MockFileStore import MockFileStore
+from ..test.MockFileStore import MockFileStore
 
 
 @unittest.skipIf(

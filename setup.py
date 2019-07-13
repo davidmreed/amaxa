@@ -1,11 +1,17 @@
+import os
 from setuptools import setup
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+if os.environ.get('CI_COMMIT_TAG'):
+    version = os.environ['CI_COMMIT_TAG']
+else:
+    version = os.environ['CI_JOB_ID']
+
 setup(
     name="amaxa",
-    version="0.9.4",
+    version=version,
     description="Load and extract data from multiple Salesforce objects in a single "
     "operation, preserving links and network structure.",
     long_description=long_description,
