@@ -52,7 +52,6 @@ test_org:
   script:
     - sudo ln -s $(pwd)/node_modules/sfdx-cli/bin/run /usr/local/bin/sfdx;
     - sfdx --version
-    - sfdx plugins --core
     - openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d -md sha256
     - sfdx force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
     - source assets/scripts/prep-scratch-org.sh
@@ -103,6 +102,7 @@ package_test:
     - pip install --upgrade pip
     - pip install -r requirements.txt
     - pip install --index-url https://test.pypi.org/simple/ amaxa
+    - amaxa --help
     - if [ ! -d node_modules/sfdx-cli ]; then
           export SFDX_AUTOUPDATE_DISABLE=true;
           export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true;
@@ -112,7 +112,6 @@ package_test:
   script:
     - sudo ln -s $(pwd)/node_modules/sfdx-cli/bin/run /usr/local/bin/sfdx;
     - sfdx --version
-    - sfdx plugins --core
     - openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d -md sha256
     - sfdx force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
     - sfdx force:org:create -v DevHub -s -f assets/project-scratch-def.json -a scratch

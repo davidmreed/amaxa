@@ -20,7 +20,7 @@ setup(
     author_email="david@ktema.org",
     url="https://gitlab.com/davidmreed/amaxa",
     license="GNU GPLv3",
-    packages=["amaxa"],
+    packages=["amaxa", "amaxa.loader"],
     python_requires=">=3.6",
     install_requires=[
         "pyyaml",
