@@ -101,7 +101,7 @@ package_test:
     - source venv/bin/activate
     - pip install --upgrade pip
     - pip install -r requirements.txt
-    - pip install --index-url https://test.pypi.org/simple/ amaxa
+    - pip install --index-url https://test.pypi.org/simple/ amaxa==$CI_JOB_ID
     - amaxa --help
     - if [ ! -d node_modules/sfdx-cli ]; then
           export SFDX_AUTOUPDATE_DISABLE=true;
@@ -123,6 +123,8 @@ package_test:
   after_script:
     - sfdx force:org:delete -u scratch -p
     - rm assets/server.key
+  only:
+    - branches
 
 deploy_package:
   stage: deploy
