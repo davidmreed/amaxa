@@ -1,5 +1,7 @@
 stages:
-  - test
+  - unit_test
+  - package
+  - package_test
   - deploy
 
 variables:
@@ -7,7 +9,7 @@ variables:
 
 test_unit:
   image: python:3.6-slim
-  stage: test
+  stage: unit_test
   cache:
     paths:
       - .cache/pip
@@ -20,7 +22,7 @@ test_unit:
     - pip install -r requirements.txt -r testing-requirements.txt
   script:
     - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa amaxa/test
-    - coveralls
+    - codecov
   artifacts:
     reports:
       junit: test-reports/junit.xml
@@ -29,7 +31,7 @@ test_unit:
 
 test_org:
   image: circleci/python:3.6.4-node
-  stage: test
+  stage: unit_test
   cache:
     paths:
       - .cache/pip
@@ -56,7 +58,7 @@ test_org:
     - source assets/scripts/prep-scratch-org.sh
     - sfdx force:apex:execute -f assets/scripts/UpdateUser.apex -u scratch
     - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa amaxa/test_org
-    - coveralls
+    - codecov
   after_script:
     - sfdx force:org:delete -u scratch -p
     - rm assets/server.key
@@ -66,9 +68,9 @@ test_org:
   only: 
     - branches
 
-test_package:
+package:
   image: python:3.6-slim
-  stage: test
+  stage: package
   cache:
     paths:
       - .cache/pip
@@ -83,19 +85,50 @@ test_package:
     - pip install --upgrade pip
     - pip install -r requirements.txt twine
   script:
-    - python setup.py sdist
+    - python setup.py sdist bdist_wheel
     - twine upload --repository-url https://test.pypi.org/legacy/ dist/*
   only:
     - branches
+
+package_test:
+  image: circleci/python:3.6.4-node
+  stage: package_test
+  cache:
+    paths:
+      - node_modules/
+  before_script:
+    - python -V
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install --index-url https://test.pypi.org/simple/ amaxa
+    - if [ ! -d node_modules/sfdx-cli ]; then
+          export SFDX_AUTOUPDATE_DISABLE=true;
+          export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true;
+          export SFDX_DOMAIN_RETRY=300;
+          npm install sfdx-cli;
+      fi;
+  script:
+    - sudo ln -s $(pwd)/node_modules/sfdx-cli/bin/run /usr/local/bin/sfdx;
+    - sfdx --version
+    - sfdx plugins --core
+    - openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d -md sha256
+    - sfdx force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
+    - sfdx force:org:create -v DevHub -s -f assets/project-scratch-def.json -a scratch
+    - sfdx force:apex:execute -f assets/scripts/UpdateUser.apex -u scratch
+    - source assets/scripts/get-auth-params.sh
+    - cd assets/test_data_csv
+    - amaxa --load --credentials credentials-env.yml test.yml
+    - amaxa --credentials credentials-env.yml test.yml
+  after_script:
+    - sfdx force:org:delete -u scratch -p
+    - rm assets/server.key
 
 deploy_package:
   stage: deploy
   when: manual
   image: python:3.6-slim
-  cache:
-    paths:
-      - .cache/pip
-      - venv/
   variables:
     TWINE_USERNAME: $PYPI_PRODUCTION_USERNAME
     TWINE_PASSWORD: $PYPI_PRODUCTION_PASSWORD
@@ -106,7 +139,7 @@ deploy_package:
     - pip install --upgrade pip
     - pip install -r requirements.txt twine
   script:
-    - python setup.py sdist
+    - python setup.py bdist_wheel
     - twine upload dist/*
   only:
     - tags
