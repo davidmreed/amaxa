@@ -94,14 +94,17 @@ package_test:
   stage: package_test
   cache:
     paths:
+      - .cache/pip
+      - venv/
       - node_modules/
+    policy: pull
   before_script:
     - python -V
     - python -m venv venv
     - source venv/bin/activate
     - pip install --upgrade pip
     - pip install -r requirements.txt
-    - pip install --index-url https://test.pypi.org/simple/ amaxa==$CI_JOB_ID
+    - pip install --index-url https://test.pypi.org/simple/ amaxa==$CI_PIPELINE_ID
     - amaxa --help
     - if [ ! -d node_modules/sfdx-cli ]; then
           export SFDX_AUTOUPDATE_DISABLE=true;
