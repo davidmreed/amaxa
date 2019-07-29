@@ -339,6 +339,7 @@ class test_CLI(unittest.TestCase):
         operation_mock.return_value = Mock()
         operation_mock.return_value.result = op
         operation_mock.return_value.errors = []
+        state_file.close = Mock()
 
         m = Mock(side_effect=select_file)
         with unittest.mock.patch("builtins.open", m):
@@ -349,10 +350,11 @@ class test_CLI(unittest.TestCase):
                 return_value = main()
 
         self.assertEqual(-1, return_value)
-        self.assertLess(0, state_file.tell())
+        contents = state_file.getvalue()
+        self.assertLess(0, len(contents))
+        state_file.close.assert_called_once_with()
 
-        state_file.seek(0)
-        yaml_state = yaml.safe_load(state_file)
+        yaml_state = yaml.safe_load(io.StringIO(contents))
 
         self.assertIn("state", yaml_state)
         self.assertIn("id-map", yaml_state["state"])
