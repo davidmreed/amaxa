@@ -4,6 +4,7 @@ import itertools
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from time import sleep
+from . import constants
 
 
 def JSONIterator(records):
@@ -33,7 +34,8 @@ class Connection(object):
     def __init__(self, sf):
         self._sf = sf
         self._bulk = salesforce_bulk.SalesforceBulk(
-            sessionId=self._sf.session_id, host=urlparse(self._sf.bulk_url).hostname
+            sessionId=self._sf.session_id, host=urlparse(self._sf.bulk_url).hostname,
+            API_version=constants.API_VERSION
         )
 
     def get_global_describe(self):

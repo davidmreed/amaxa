@@ -2,7 +2,7 @@ import logging
 import simple_salesforce
 from .core import Loader
 from .input_type import InputType
-from .. import jwt_auth, api
+from .. import jwt_auth, api, constants
 
 
 class CredentialLoader(Loader):
@@ -27,7 +27,7 @@ class CredentialLoader(Loader):
                 security_token=credentials.get("security-token", ""),
                 organizationId=credentials.get("organization-id", ""),
                 sandbox=credentials.get("sandbox", False),
-                version="46.0",
+                version=constants.API_VERSION,
             )
 
             logging.getLogger("amaxa").debug(
@@ -70,7 +70,7 @@ class CredentialLoader(Loader):
             self.result = simple_salesforce.Salesforce(
                 instance_url=credentials["instance-url"],
                 session_id=credentials["access-token"],
-                version="46.0",
+                version=constants.API_VERSION,
             )
             logging.getLogger("amaxa").debug(
                 "Authenticating to Salesforce with access token"
@@ -95,7 +95,7 @@ class CredentialLoader(Loader):
                 security_token=credentials.get("security-token", ""),
                 organizationId=credentials.get("organization-id", ""),
                 sandbox=sandbox,
-                version="46.0",
+                version=constants.API_VERSION,
             )
 
             logging.getLogger("amaxa").debug(
@@ -128,7 +128,7 @@ class CredentialLoader(Loader):
             self.result = simple_salesforce.Salesforce(
                 instance_url=credentials["instance-url"],
                 session_id=credentials["access-token"],
-                version="46.0",
+                version=constants.API_VERSION,
             )
             logging.getLogger("amaxa").debug(
                 "Authenticating to Salesforce with access token"

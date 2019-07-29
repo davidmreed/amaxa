@@ -25,8 +25,3 @@ operation:
         field-group: smart
         extract:
             descendents: True
-    - 
-        sobject: Campaign
-        field-group: smart
-        extract:
-            descendents: True

@@ -6,3 +6,4 @@ OPTION_DEFAULTS = {
     "bulk-api-timeout": 1200,
     "bulk-api-batch-size": 10000,
 }
+API_VERSION = "46.0"

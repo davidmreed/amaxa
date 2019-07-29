@@ -94,12 +94,12 @@ def main():
     if ret != 0 and ex.global_id_map:
         # Save the operation state.
         json_mode = args.config.name.endswith("json")
-        state_file = open(
+        with open(
             os.path.splitext(args.config.name)[0]
             + ".state"
             + (".json" if json_mode else ".yaml"),
             "w",
-        )
-        state_file.write(save_state(ex, json_mode))
+        ) as state_file:
+            state_file.write(save_state(ex, json_mode))
 
     return ret

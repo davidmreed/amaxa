@@ -1,6 +1,6 @@
 [run]
 branch = True
-omit = 
+omit =
     amaxa/test/*
 
 [report]
