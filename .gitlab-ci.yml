@@ -84,7 +84,7 @@ build_package:
     - branches
   artifacts:
     paths:
-      dist/*.whl
+      - dist/
 
 upload_package:
   stage: deploy
