@@ -6,8 +6,10 @@ with open("README.md", "r") as fh:
 
 if os.environ.get('CI_COMMIT_TAG'):
     version = os.environ['CI_COMMIT_TAG']
-else:
+elif os.environ.get('CI_PIPELINE_ID'):
     version = os.environ['CI_PIPELINE_ID']
+else:
+    version = '1.0dev'
 
 setup(
     name="amaxa",
