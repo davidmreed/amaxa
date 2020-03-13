@@ -323,7 +323,7 @@ class test_CLI(unittest.TestCase):
         self.assertEqual(-1, return_value)
 
     @unittest.mock.patch("amaxa.__main__.CredentialLoader")
-    @unittest.mock.patch("amaxa.__main__.ExtractionOperationLoader")
+    @unittest.mock.patch("amaxa.__main__.LoadOperationLoader")
     def test_main_saves_state_on_error(self, operation_mock, credential_mock):
         context = Mock()
         op = Mock()
@@ -345,7 +345,7 @@ class test_CLI(unittest.TestCase):
         with unittest.mock.patch("builtins.open", m):
             with unittest.mock.patch(
                 "sys.argv",
-                ["amaxa", "-c", "credentials-good.yaml", "extraction-good.yaml"],
+                ["amaxa", "-c", "credentials-good.yaml", "--load", "extraction-good.yaml"],
             ):
                 return_value = main()
 
@@ -366,7 +366,7 @@ class test_CLI(unittest.TestCase):
         )
 
     @unittest.mock.patch("amaxa.__main__.CredentialLoader")
-    @unittest.mock.patch("amaxa.__main__.ExtractionOperationLoader")
+    @unittest.mock.patch("amaxa.__main__.LoadOperationLoader")
     def test_main_loads_state_with_use_state_option(
         self, operation_mock, credential_mock
     ):
@@ -389,6 +389,7 @@ class test_CLI(unittest.TestCase):
                     "amaxa",
                     "-c",
                     "credentials-good.yaml",
+                    "--load",
                     "extraction-good.yaml",
                     "--use-state",
                     "state-good.yaml",

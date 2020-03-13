@@ -91,7 +91,7 @@ def main():
 
     ret = ex.run()
 
-    if ret != 0 and ex.global_id_map:
+    if args.load and ret != 0 and ex.global_id_map:
         # Save the operation state.
         json_mode = args.config.name.endswith("json")
         with open(

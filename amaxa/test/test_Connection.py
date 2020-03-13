@@ -102,21 +102,18 @@ class test_Connection(unittest.TestCase):
         conn._bulk = Mock()
         conn._bulk_api_insert_update = Mock(return_value=[])
 
-        with patch("builtins.iter") as iter_mock:
-            self.assertEqual([], list(conn.bulk_api_insert("Account", [], 120, 5, 1)))
+        self.assertEqual([], list(conn.bulk_api_insert("Account", [], 120, 5, 1)))
+        
+        conn._bulk.create_insert_job.assert_called_once_with(
+            "Account", contentType="JSON"
+        )
 
-            conn._bulk.create_insert_job.assert_called_once_with(
-                "Account", contentType="JSON"
-            )
-
-            conn._bulk_api_insert_update.assert_called_once_with(
-                conn._bulk.create_insert_job.return_value,
-                "Account",
-                iter_mock.return_value,
-                120,
-                5,
-                1,
-            )
+        conn._bulk_api_insert_update.assert_called_once()
+        assert conn._bulk_api_insert_update.call_args[0][0] == conn._bulk.create_insert_job.return_value
+        assert conn._bulk_api_insert_update.call_args[0][1] == "Account"
+        assert conn._bulk_api_insert_update.call_args[0][3] == 120
+        assert conn._bulk_api_insert_update.call_args[0][4] == 5
+        assert conn._bulk_api_insert_update.call_args[0][5] == 1
 
     def test_bulk_api_update(self):
         sf = Mock()
@@ -126,21 +123,18 @@ class test_Connection(unittest.TestCase):
         conn._bulk = Mock()
         conn._bulk_api_insert_update = Mock(return_value=[])
 
-        with patch("builtins.iter") as iter_mock:
-            self.assertEqual([], list(conn.bulk_api_update("Account", [], 120, 5, 1)))
+        self.assertEqual([], list(conn.bulk_api_update("Account", [], 120, 5, 1)))
 
-            conn._bulk.create_update_job.assert_called_once_with(
-                "Account", contentType="JSON"
-            )
+        conn._bulk.create_update_job.assert_called_once_with(
+            "Account", contentType="JSON"
+        )
 
-            conn._bulk_api_insert_update.assert_called_once_with(
-                conn._bulk.create_update_job.return_value,
-                "Account",
-                iter_mock.return_value,
-                120,
-                5,
-                1,
-            )
+        conn._bulk_api_insert_update.assert_called_once()
+        assert conn._bulk_api_insert_update.call_args[0][0] == conn._bulk.create_update_job.return_value
+        assert conn._bulk_api_insert_update.call_args[0][1] == "Account"
+        assert conn._bulk_api_insert_update.call_args[0][3] == 120
+        assert conn._bulk_api_insert_update.call_args[0][4] == 5
+        assert conn._bulk_api_insert_update.call_args[0][5] == 1
 
     def test_bulk_api_insert_update(self):
         sf = Mock()

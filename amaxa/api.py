@@ -143,7 +143,7 @@ class Connection(object):
             for r in self._sf.restful(
                 "composite/sobjects/{}".format(sobject),
                 method="POST",
-                data=json.dumps({"ids": string_ids, "fields": field_names}),
+                data=json.dumps({"ids": string_ids, "fields": list(field_names)}),
             ):
                 # None means a record with that Id is not found
                 if r is not None:
