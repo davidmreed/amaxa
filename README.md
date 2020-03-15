@@ -56,46 +56,75 @@ To see usage help, execute
 
 ## Supplying Credentials
 
-Credentials are supplied in a YAML or JSON file, as shown here (for username and password)
+> Note: Amaxa configuration files are versioned and are validated at runtime. This documentation is for the current version of the credential file, version 2. Upgrade existing projects with version 1 files to make use of new features.
 
-    version: 1
+Credentials are supplied in a YAML or JSON file, as shown here (for username and password) authentication.
+
+    version: 2
     credentials:
-        username: 'test@example.com'
-        password: 'blah'
-        security-token: '00000'
-        sandbox: True
+        username:
+            username: 'test@example.com'
+            password: 'blah'
+            security-token: '00000'
+            organization-id '00D000000000001'  # This value is optional.
+            sandbox: True
 
 Amaxa also allows JWT authentication, for headless operation:
 
-    version: 1
+    version: 2
     credentials:
-        username: 'test@example.com'
-        consumer-key: 'GOES_HERE'
-        jwt-key: |
-        -----BEGIN RSA PRIVATE KEY-----
-        <snipped>
-        -----END RSA PRIVATE KEY-----
-        sandbox: False
+        jwt:
+            username: 'test@example.com'
+            consumer-key: 'GOES_HERE'
+            key: |
+            -----BEGIN RSA PRIVATE KEY-----
+            <snipped>
+            -----END RSA PRIVATE KEY-----
+            keyfile: server.key
 
-If your JWT key is stored externally in a file, use the key `jwt-file` with the name of that file rather than including the key inline.
+If your JWT key is stored externally in a file, use the key `keyfile` with the name of that file rather than including the key inline.
 
 Lastly, if you establish authentication outside Amaxa (with Salesforce DX, for example), you can directly provide an access token and instance URL.
 
-    version: 1
+    version: 2
     credentials:
-        access-token: '.....'
-        instance-url: 'https://test.salesforce.com
+        token:
+            access-token: '.....'
+            instance-url: 'https://test.salesforce.com
+
+### Sourcing Credentials from Environment Variables
+
+Amaxa can draw any credential parameter other than the type of authentication (`username`, `jwt`, or `token`) from a user-specified environment variable. Specify this by including a dict with the key `env` instead of a literal value for the relevant key. `env` entries and literals can be mixed in any combination. For JWT authentication, for example, specify
+
+    version: 2
+    credentials:
+        jwt:
+            username:
+                env: USERNAME
+            consumer-key:
+                env: CONSUMER_KEY
+            keyfile: server.key
+
+Given this credential file, Amaxa will take its JWT keyfile from `server.key`, and derive the required user name and consumer key from the environment variables `USERNAME` and `CONSUMER_KEY`.
 
 ## Defining Operations
+
+> Note: Amaxa configuration files are versioned and are validated at runtime. This documentation is for the current version of the credential file, version 2. Upgrade existing projects with version 1 files to make use of new features.
 
 Operations run with Amaxa are established by an operation definition file written in either JSON or YAML. The operation definition specifies which sObjects to extract or load in which order, and which fields on each object are desired. Amaxa handles tracing relationships between top-level objects and their children and extracts a set of CSV files to produce a complete, internally consistent data set.
 
 Here's an example of an Amaxa operation definition in YAML.
 
-    version: 1
+    version: 2
+    options:
+        bulk-api-batch-size: 10000
+        bulk-api-timeout: 600
+        bulk-api-poll-interval: 10
     operation:
         -
             sobject: Account
+            options:
+                bulk-api-batch-size: 5000
             fields:
                 - Name
                 - Id
@@ -220,6 +249,16 @@ Junction objects may be selected in several different ways. Suppose we have obje
     Specify C first, with `extract: all: True`. Then list A and B in either order following C, and specify `extract: descendents: True`. In this situation, Amaxa won't find any descendent records for A and B (since they are parents), but it will automatically pull all records associated to the extracted C records as dependencies.
 
 When designing an operation, it's best to think in terms of which objects are primary for the operation, and take advantage of both descendent and dependent record tracing to build the operation sequence accordingly.
+
+### Specifying Options
+
+You can control how Amaxa uses the Bulk API with the `options` key, which can be specified at the top level of the file as well as within each step of the operation. Step-level options take precedence over operation-level options.
+
+The available options are:
+
+- `bulk-api-batch-size`, an integer between 0 and 10,000 (default: 10,000). This is the maximum record count of a batch uploaded by Amaxa. Reduce the batch size if your operations fail due to size errors from the Bulk API, such as `Exceeded max size limit of 10000000` (a limit on the total bytewise size of a batch). Note that the Bulk API batch size is not connected to the batch size used by Salesforce Data Loader when operated in REST API mode and does not impact the size of trigger invocations.
+- `bulk-api-timeout`, an integer greater than 0 (default: 1,200). The length of time, in seconds, to wait for a Bulk API batch to complete. Defaults to 1200 seconds (20 minutes).
+- `bulk-api-poll-interval`, an integer between 0 and 60 (default: 5). The length of time, in seconds, to wait between calls to check the Bulk API's status. Increase if you are running very large jobs and want to minimize API calls and log chatter.
 
 ## Validation
 
