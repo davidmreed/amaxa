@@ -1,5 +1,6 @@
 import unittest
-from .. import amaxa
+
+import amaxa
 
 
 class test_SalesforceId(unittest.TestCase):
@@ -39,8 +40,7 @@ class test_SalesforceId(unittest.TestCase):
 
     def test_raises_valueerror(self):
         with self.assertRaises(ValueError):
-            # pylint: disable=W0612
-            bad_id = amaxa.SalesforceId("test")
+            amaxa.SalesforceId("test")
 
     def test_equals_other_id(self):
         the_id = amaxa.SalesforceId("001000000000000")

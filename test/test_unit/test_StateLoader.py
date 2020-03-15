@@ -1,9 +1,11 @@
-import unittest
 import json
-import yaml
-import amaxa
+import unittest
 from unittest.mock import Mock
-from ..loader import StateLoader, save_state
+
+import yaml
+
+import amaxa
+from amaxa.loader import StateLoader, save_state
 
 EXAMPLE_DICT = {
     "version": 1,

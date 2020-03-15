@@ -1,6 +1,7 @@
-from .. import amaxa, transforms, constants
-from .input_type import InputType
 import os
+
+from .. import amaxa, constants, transforms
+from .input_type import InputType
 
 
 def get_available_versions(input_type):

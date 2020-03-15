@@ -1,5 +1,6 @@
 import unittest
-from .. import transforms
+
+from amaxa import transforms
 
 
 class test_transforms(unittest.TestCase):

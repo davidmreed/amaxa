@@ -1,6 +1,7 @@
+import datetime
+
 import jwt
 import requests
-import datetime
 import simple_salesforce
 from simple_salesforce.exceptions import SalesforceAuthenticationFailed
 

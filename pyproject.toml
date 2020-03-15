@@ -1,0 +1,87 @@
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
+[tool.poetry]
+name = "amaxa"
+version = "0.9.5"
+description = "Load and extract data from multiple Salesforce objects in a single operation, preserving links and network structure."
+license = "BSD-3-Clause"
+authors = ["David Reed <david@ktema.org>"]
+readme = "README.md"
+homepage = "https://gitlab.com/davidmreed/amaxa"
+repository = "https://gitlab.com/davidmreed/amaxa"
+classifiers = [
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+]
+packages = [{ include = "amaxa" }]
+
+[tool.poetry.scripts]
+amaxa = 'amaxa.__main__:main'
+
+
+[tool.poetry.dependencies]
+python = "^3.7"
+simple_salesforce = "^0.75.3"
+salesforce_bulk = "^2.1.0"
+pyyaml = "^5.3"
+cerberus = "^1.3.2"
+requests = "^2.23.0"
+pyjwt = "^1.7.1"
+cryptography = "^2.8"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.4.1"
+pytest-cov = "^2.8.1"
+codecov = "^2.0.16"
+tox = "^3.14.5"
+black = "^19.10b0"
+pre-commit = "^2.2.0"
+flake8 = "^3.7.9"
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py37,py38
+isolated_build = true
+
+[testenv]
+whitelist_externals = poetry
+commands =
+    poetry install -v
+    poetry run pytest --junitxml=test-reports/junit-{envname}.xml --cov-config pytest.ini --cov-append  --cov=amaxa {posargs:test}
+passenv = INSTANCE_URL ACCESS_TOKEN
+"""
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+)
+'''
+
+[tool.autohooks]
+pre-commit = ["autohooks.plugins.isort", "autohooks.plugins.black"]
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88

@@ -1,12 +1,13 @@
 import collections
-import logging
 import json
+import logging
+
 import cerberus
-import yaml
 import simple_salesforce
+import yaml
+
+from .. import amaxa, transforms
 from . import schemas
-from .. import amaxa
-from .. import transforms
 
 
 def load_file(file_data):

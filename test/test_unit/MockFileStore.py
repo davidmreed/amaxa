@@ -1,6 +1,7 @@
 import io
-from .. import amaxa
 from unittest.mock import Mock
+
+import amaxa
 
 
 class MockFileStore(object):

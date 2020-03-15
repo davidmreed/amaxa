@@ -1,8 +1,10 @@
 import logging
+
 import simple_salesforce
+
+from .. import api, constants, jwt_auth
 from .core import Loader
 from .input_type import InputType
-from .. import jwt_auth, api, constants
 
 
 class CredentialLoader(Loader):

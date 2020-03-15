@@ -1,9 +1,13 @@
 import unittest
 from unittest.mock import Mock
+
 from salesforce_bulk import UploadResult
-from .MockFileStore import MockFileStore
+
+import amaxa
+from amaxa import constants
+
 from .MockConnection import MockConnection
-from .. import amaxa, constants
+from .MockFileStore import MockFileStore
 
 
 class test_LoadStep(unittest.TestCase):

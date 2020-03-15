@@ -1,8 +1,8 @@
 version: 1
 operation:
-    - 
+    -
         sobject: Account
         fields:
             - Name
-        extract: 
+        extract:
             all: True

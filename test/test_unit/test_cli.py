@@ -1,11 +1,12 @@
 import io
 import json
-import yaml
 import unittest
-import amaxa
 from unittest.mock import Mock
-from ..__main__ import main
 
+import yaml
+
+import amaxa
+from amaxa.__main__ import main
 
 CREDENTIALS_GOOD_YAML = """
 version: 1
@@ -39,13 +40,13 @@ credentials:
 EXTRACTION_GOOD_YAML = """
 version: 1
 operation:
-    - 
+    -
         sobject: Account
-        fields: 
+        fields:
             - Name
             - Id
             - ParentId
-        extract: 
+        extract:
             all: True
 """
 EXTRACTION_GOOD_JSON = """
@@ -68,13 +69,13 @@ EXTRACTION_GOOD_JSON = """
 """
 EXTRACTION_BAD = """
 operation:
-    - 
+    -
         sobject: Account
-        fields: 
+        fields:
             - Name
             - Id
             - ParentId
-        extract: 
+        extract:
             all: True
 """
 
@@ -345,7 +346,13 @@ class test_CLI(unittest.TestCase):
         with unittest.mock.patch("builtins.open", m):
             with unittest.mock.patch(
                 "sys.argv",
-                ["amaxa", "-c", "credentials-good.yaml", "--load", "extraction-good.yaml"],
+                [
+                    "amaxa",
+                    "-c",
+                    "credentials-good.yaml",
+                    "--load",
+                    "extraction-good.yaml",
+                ],
             ):
                 return_value = main()
 

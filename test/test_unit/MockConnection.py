@@ -1,5 +1,5 @@
-import json
 import copy
+import json
 import os.path
 
 sobject_describes = {}

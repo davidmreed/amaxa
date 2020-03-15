@@ -1,8 +1,9 @@
+import csv
 import functools
 import logging
-import csv
-from . import constants
 from enum import Enum, unique
+
+from . import constants
 
 
 @unique

@@ -26,7 +26,7 @@ Each released version of Amaxa is tested both via automated unit tests and is ma
  1. Run the load:
 
         amaxa --load --credentials credentials-env.yml test.yml
-    
+
     Validate that it completes without errors.
 
  1. Load the scratch org with `sfdx force:org:open -u scratch`.
@@ -43,7 +43,7 @@ Each released version of Amaxa is tested both via automated unit tests and is ma
  1. Extract the data back from the org:
 
         amaxa --credentials credentials-env.yml test.yml
-    
+
     Validate that it completes without errors.
 
  1. Validate the count extracted for each sObject:

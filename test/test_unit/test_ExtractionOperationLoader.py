@@ -1,9 +1,13 @@
 import io
 import unittest
-import simple_salesforce
 from unittest.mock import Mock
+
+import simple_salesforce
+
+import amaxa
+from amaxa import constants, loader
+
 from .MockConnection import MockConnection
-from .. import amaxa, loader, constants
 
 
 class test_ExtractionOperationLoader(unittest.TestCase):
@@ -185,7 +189,7 @@ class test_ExtractionOperationLoader(unittest.TestCase):
         )
 
     def test_load_extraction_operation_readable_field_group_omits_unsupported_types(
-        self
+        self,
     ):
         result = self._run_success_test(
             {
@@ -204,7 +208,7 @@ class test_ExtractionOperationLoader(unittest.TestCase):
         self.assertNotIn("BillingAddress", result.steps[0].field_scope)
 
     def test_load_extraction_operation_writeable_field_group_omits_unsupported_types(
-        self
+        self,
     ):
         result = self._run_success_test(
             {
@@ -347,7 +351,7 @@ class test_ExtractionOperationLoader(unittest.TestCase):
         )
 
     def test_load_extraction_operation_validates_lookup_behaviors_for_self_lookups(
-        self
+        self,
     ):
         self._run_error_validating_test(
             {
@@ -371,7 +375,7 @@ class test_ExtractionOperationLoader(unittest.TestCase):
         )
 
     def test_load_extraction_operation_validates_lookup_behaviors_for_dependent_lookups(
-        self
+        self,
     ):
         self._run_error_validating_test(
             {

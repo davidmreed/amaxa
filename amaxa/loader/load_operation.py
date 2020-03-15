@@ -1,8 +1,8 @@
 import csv
-from .input_type import InputType
+
+from .. import amaxa, constants
 from .core import OperationLoader
-from .. import amaxa
-from .. import constants
+from .input_type import InputType
 
 
 class LoadOperationLoader(OperationLoader):
@@ -60,9 +60,12 @@ class LoadOperationLoader(OperationLoader):
             # Validation clamps acceptable values to 'writeable' or 'smart' by this point.
             # Don't include types we don't process: geolocations, addresses, and base64 fields.
             # Geolocations and addresses are omitted automatically (they aren't writeable)
-            lam = lambda f: f["createable"] and f["type"] != "base64"
+            def include(f):
+                return f["createable"] and f["type"] != "base64"
 
-            return set(self.result.get_filtered_field_map(entry["sobject"], lam).keys())
+            return set(
+                self.result.get_filtered_field_map(entry["sobject"], include).keys()
+            )
         else:
             # Build the field scope, taking flat lists and maps into account.
             return {f if isinstance(f, str) else f["field"] for f in entry["fields"]}

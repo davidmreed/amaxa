@@ -1,7 +1,8 @@
-from .. import amaxa
-from ..api import Connection
-from ..test.MockFileStore import MockFileStore
-from .IntegrationTest import IntegrationTest
+from test.test_org.IntegrationTest import IntegrationTest
+from test.test_unit.MockFileStore import MockFileStore
+
+import amaxa
+from amaxa.api import Connection
 
 
 class test_Integration_Extraction(IntegrationTest):

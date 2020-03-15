@@ -1,9 +1,13 @@
-import unittest
-import simple_salesforce
 import io
+import unittest
 from unittest.mock import Mock
+
+import simple_salesforce
+
+import amaxa
+from amaxa import constants, loader
+
 from .MockConnection import MockConnection
-from .. import amaxa, loader, constants
 
 
 class test_LoadOperationLoader(unittest.TestCase):
@@ -209,7 +213,7 @@ class test_LoadOperationLoader(unittest.TestCase):
         )
 
     def test_LoadOperationLoader_validates_file_against_field_scope_missing_fields(
-        self
+        self,
     ):
         ex = {
             "version": 1,

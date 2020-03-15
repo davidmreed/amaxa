@@ -1,8 +1,9 @@
 import unittest
-from unittest.mock import Mock
 from io import StringIO
-from ..loader import core
-from ..loader.input_type import InputType
+from unittest.mock import Mock
+
+from amaxa.loader import core
+from amaxa.loader.input_type import InputType
 
 
 class test_Loader(unittest.TestCase):

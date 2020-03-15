@@ -1,7 +1,8 @@
-import unittest
 import json
+import unittest
 from functools import reduce
-from ..api import BatchIterator, JSONIterator
+
+from amaxa.api import BatchIterator, JSONIterator
 
 
 class test_iterators(unittest.TestCase):
@@ -15,8 +16,7 @@ class test_iterators(unittest.TestCase):
         )
 
     def test_BatchIterator(self):
-        l = iter(range(20001))
-        b = BatchIterator(l)
+        b = BatchIterator(iter(range(20001)))
 
         self.assertEqual(10000, len(list(next(b))))
         self.assertEqual(10000, len(list(next(b))))

@@ -1,13 +1,13 @@
 version: 1
 operation:
-    - 
+    -
         sobject: Account
         fields:
             - Name
             - ParentId
-        extract: 
+        extract:
             query: "Name IN ('Picon Fleet Headquarters', 'Herakleides of Tauron', 'Aerilon Agrinomics')"
-    - 
+    -
         sobject: Contact
         fields:
             -

@@ -1,8 +1,10 @@
 import json
+
 import yaml
-from .input_type import InputType
-from .core import Loader
+
 from .. import amaxa
+from .core import Loader
+from .input_type import InputType
 
 
 def save_state(operation, json_mode=False):

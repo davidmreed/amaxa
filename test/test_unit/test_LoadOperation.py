@@ -1,7 +1,9 @@
 import unittest
-from unittest.mock import Mock, MagicMock, PropertyMock, patch
-from .. import amaxa
-from .. import constants
+from unittest.mock import Mock
+
+import amaxa
+from amaxa import constants
+
 from .MockFileStore import MockFileStore
 
 

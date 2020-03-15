@@ -1,7 +1,11 @@
-import unittest
 import os
+import unittest
+
 from simple_salesforce import Salesforce
-from simple_salesforce.exceptions import SalesforceResourceNotFound, SalesforceMalformedRequest
+from simple_salesforce.exceptions import (
+    SalesforceMalformedRequest,
+    SalesforceResourceNotFound,
+)
 
 
 @unittest.skipIf(

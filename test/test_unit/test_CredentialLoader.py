@@ -1,7 +1,9 @@
-import simple_salesforce
 import unittest
-from unittest.mock import patch, Mock
-from .. import loader
+from unittest.mock import Mock, patch
+
+import simple_salesforce
+
+from amaxa import loader
 
 
 class test_CredentialLoader(unittest.TestCase):

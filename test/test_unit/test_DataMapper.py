@@ -1,6 +1,7 @@
 import unittest
-from .. import amaxa
-from .. import transforms
+
+import amaxa
+from amaxa import transforms
 
 
 class test_DataMapper(unittest.TestCase):

@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import Mock
-from .. import amaxa
+
+import amaxa
 
 
 class test_Operation(unittest.TestCase):

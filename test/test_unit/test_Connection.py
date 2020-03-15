@@ -1,9 +1,11 @@
 import json
 import unittest
 from unittest.mock import Mock, call, patch
+
 from salesforce_bulk.util import IteratorBytesIO
-from ..api import Connection
-from .. import amaxa
+
+import amaxa
+from amaxa.api import Connection
 
 
 class test_Connection(unittest.TestCase):
@@ -15,7 +17,9 @@ class test_Connection(unittest.TestCase):
         Connection(sf)
 
         bulk_mock.assert_called_once_with(
-            sessionId=sf.session_id, host="salesforce.com", API_version=amaxa.constants.API_VERSION
+            sessionId=sf.session_id,
+            host="salesforce.com",
+            API_version=amaxa.constants.API_VERSION,
         )
 
     def test_get_global_describe_calls_salesforce(self):
@@ -103,13 +107,16 @@ class test_Connection(unittest.TestCase):
         conn._bulk_api_insert_update = Mock(return_value=[])
 
         self.assertEqual([], list(conn.bulk_api_insert("Account", [], 120, 5, 1)))
-        
+
         conn._bulk.create_insert_job.assert_called_once_with(
             "Account", contentType="JSON"
         )
 
         conn._bulk_api_insert_update.assert_called_once()
-        assert conn._bulk_api_insert_update.call_args[0][0] == conn._bulk.create_insert_job.return_value
+        assert (
+            conn._bulk_api_insert_update.call_args[0][0]
+            == conn._bulk.create_insert_job.return_value
+        )
         assert conn._bulk_api_insert_update.call_args[0][1] == "Account"
         assert conn._bulk_api_insert_update.call_args[0][3] == 120
         assert conn._bulk_api_insert_update.call_args[0][4] == 5
@@ -130,7 +137,10 @@ class test_Connection(unittest.TestCase):
         )
 
         conn._bulk_api_insert_update.assert_called_once()
-        assert conn._bulk_api_insert_update.call_args[0][0] == conn._bulk.create_update_job.return_value
+        assert (
+            conn._bulk_api_insert_update.call_args[0][0]
+            == conn._bulk.create_update_job.return_value
+        )
         assert conn._bulk_api_insert_update.call_args[0][1] == "Account"
         assert conn._bulk_api_insert_update.call_args[0][3] == 120
         assert conn._bulk_api_insert_update.call_args[0][4] == 5

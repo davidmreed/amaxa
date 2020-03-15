@@ -4,7 +4,7 @@ This test data suite is a demonstration of using Amaxa to extract a hierarchy, i
 
 The `test.yml` file demonstrates using a query to identify specific records to extract, and shows how Amaxa recurses through the self-reference hierarchy. Note that the specified query pulls top-level Accounts only; Amaxa will automatically pull references. It also demonstrates selecting specific fields for each object and mapping fields to column names.
 
-To try out extracting the sample data set, spin up a Salesforce DX scratch org and load the data with 
+To try out extracting the sample data set, spin up a Salesforce DX scratch org and load the data with
 
     sfdx force:data:tree:import -p assets/test_data_sfdx/Account-Contact-plan.json -u scratch
 

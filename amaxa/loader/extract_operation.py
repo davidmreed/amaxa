@@ -1,7 +1,8 @@
 import csv
-from .input_type import InputType
-from .core import OperationLoader
+
 from .. import amaxa
+from .core import OperationLoader
+from .input_type import InputType
 
 
 class ExtractionOperationLoader(OperationLoader):
@@ -91,15 +92,22 @@ class ExtractionOperationLoader(OperationLoader):
         if "field-group" in entry:
             # Don't include types we don't process: geolocations, addresses, and base64 fields.
             if entry["field-group"] in ["readable", "smart"]:
-                lam = lambda f: f["type"] not in ["location", "address", "base64"]
-            else:
-                lam = lambda f: f["createable"] and f["type"] not in [
-                    "location",
-                    "address",
-                    "base64",
-                ]
 
-            return set(self.result.get_filtered_field_map(entry["sobject"], lam).keys())
+                def include(f):
+                    return f["type"] not in ["location", "address", "base64"]
+
+            else:
+
+                def include(f):
+                    return f["createable"] and f["type"] not in [
+                        "location",
+                        "address",
+                        "base64",
+                    ]
+
+            return set(
+                self.result.get_filtered_field_map(entry["sobject"], include).keys()
+            )
 
         # Build the field scope, taking flat lists and maps into account.
         return {f if isinstance(f, str) else f["field"] for f in entry["fields"]}

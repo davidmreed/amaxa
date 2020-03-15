@@ -1,9 +1,11 @@
-import unittest
 import os
+import unittest
+from test.test_unit.MockFileStore import MockFileStore
+
 from simple_salesforce import Salesforce
-from .. import amaxa
-from ..api import Connection
-from ..test.MockFileStore import MockFileStore
+
+import amaxa
+from amaxa.api import Connection
 
 
 @unittest.skipIf(

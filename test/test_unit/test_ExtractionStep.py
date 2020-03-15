@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import Mock
+
+import amaxa
+
 from .MockConnection import MockConnection
-from .. import amaxa
 
 
 class test_ExtractionStep(unittest.TestCase):

@@ -1,8 +1,10 @@
 import unittest
-import amaxa
 from unittest.mock import Mock
-from ..loader import core
-from ..loader.input_type import InputType
+
+import amaxa
+from amaxa.loader import core
+from amaxa.loader.input_type import InputType
+
 from .MockConnection import MockConnection
 
 

@@ -1,47 +1,57 @@
 stages:
   - test
-  - build
   - deploy
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
 
-test_unit:
-  image: python:3.6-slim
+test-unit:
+  image: circleci/python:3.8
   stage: test
   cache:
     paths:
+      - .tox
       - .cache/pip
       - venv/
+    key:
+      files:
+        - poetry.lock
   before_script:
     - python -V
     - python -m venv venv
-    - source venv/bin/activate
+    - . venv/bin/activate
     - pip install --upgrade pip
-    - pip install -r requirements.txt -r testing-requirements.txt
+    - pip install poetry
+    - poetry install --no-root
   script:
-    - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa amaxa/test
-    - codecov
+    - poetry run pre-commit run --all
+    - tox test/test_unit
+    - codecov -F unit
   artifacts:
     reports:
-      junit: test-reports/junit.xml
-  only: 
+      junit: test-reports/junit-*.xml
+  only:
     - branches
 
-test_org:
-  image: circleci/python:3.6.4-node
+test-integration:
+  image: circleci/python:3.8-node
   stage: test
   cache:
     paths:
+      - .tox
       - .cache/pip
       - venv/
       - node_modules/
+    key:
+      files:
+        - poetry.lock
   before_script:
     - python -V
     - python -m venv venv
-    - source venv/bin/activate
+    - . venv/bin/activate
     - pip install --upgrade pip
-    - pip install -r requirements.txt -r testing-requirements.txt
+    - pip install poetry
+    - poetry install --no-root
     - if [ ! -d node_modules/sfdx-cli ]; then
           export SFDX_AUTOUPDATE_DISABLE=true;
           export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true;
@@ -54,53 +64,31 @@ test_org:
     - openssl aes-256-cbc -k $KEY -in assets/server.key.enc -out assets/server.key -d -md sha256
     - sfdx force:auth:jwt:grant --clientid $CONSUMERKEY --jwtkeyfile assets/server.key --username $USERNAME --setdefaultdevhubusername -a DevHub
     - source assets/scripts/prep-scratch-org.sh
-    - pytest --junitxml=test-reports/junit.xml --cov-config pytest.ini --cov=amaxa amaxa/test_org
-    - codecov
+    - tox test/test_org
+    - codecov -F integration
   after_script:
     - sfdx force:org:delete -u scratch -p
     - rm assets/server.key
   artifacts:
     reports:
-      junit: test-reports/junit.xml
+      junit: test-reports/junit-*.xml
   only:
     - branches
-
-build_package:
-  image: python:3.6-slim
-  stage: build
-  cache:
-    paths:
-      - .cache/pip
-      - venv/
-  before_script:
-    - python -V
-    - python -m venv venv
-    - source venv/bin/activate
-    - pip install --upgrade pip
-    - pip install -r requirements.txt
-  script:
-    - python setup.py bdist_wheel
-  only:
-    - branches
-  artifacts:
-    paths:
-      - dist/
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /org skip/i
 
 upload_package:
   stage: deploy
   when: manual
-  image: python:3.6-slim
-  variables:
-    TWINE_USERNAME: $PYPI_PRODUCTION_USERNAME
-    TWINE_PASSWORD: $PYPI_PRODUCTION_PASSWORD
+  image: python:3.8-slim
   before_script:
     - python -V
     - python -m venv venv
     - source venv/bin/activate
     - pip install --upgrade pip
-    - pip install -r requirements.txt twine
+    - pip install poetry
   script:
-    - python setup.py bdist_wheel
-    - twine upload dist/*
+    - poetry publish --build -u "$PYPI_PRODUCTION_USERNAME" -p "$PYPI_PRODUCTION_PASSWORD"
   only:
     - tags

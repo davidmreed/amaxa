@@ -1,9 +1,11 @@
-import json
-import salesforce_bulk
 import itertools
+import json
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
 from time import sleep
+from urllib.parse import urlparse
+
+import salesforce_bulk
+
 from . import constants
 
 
@@ -34,8 +36,9 @@ class Connection(object):
     def __init__(self, sf):
         self._sf = sf
         self._bulk = salesforce_bulk.SalesforceBulk(
-            sessionId=self._sf.session_id, host=urlparse(self._sf.bulk_url).hostname,
-            API_version=constants.API_VERSION
+            sessionId=self._sf.session_id,
+            host=urlparse(self._sf.bulk_url).hostname,
+            API_version=constants.API_VERSION,
         )
 
     def get_global_describe(self):

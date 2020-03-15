@@ -3,16 +3,17 @@ import os
 import tempfile
 import unittest
 import unittest.mock
-import yaml
 from collections import defaultdict
 from contextlib import contextmanager
 from distutils.dir_util import copy_tree
 
-from .. import amaxa
-import amaxa.loader
-import amaxa.api
+import yaml
 
-from ..__main__ import main as main
+import amaxa
+import amaxa.api
+import amaxa.loader
+from amaxa.__main__ import main as main
+
 from .IntegrationTest import IntegrationTest
 
 
@@ -32,13 +33,16 @@ class test_end_to_end(IntegrationTest):
             copy_tree("assets/test_data_csv", tempdir)
             with cd(tempdir):
                 with unittest.mock.patch(
-                    "sys.argv", ["amaxa", "--load", "-c", "credentials-env.yml", "test.yml"]
+                    "sys.argv",
+                    ["amaxa", "--load", "-c", "credentials-env.yml", "test.yml"],
                 ):
                     self.assertEqual(0, main())
 
                 # Read the data in so we can validate once it's re-extracted.
                 with open("test.yml", "r") as fh:
-                    load_op = amaxa.loader.LoadOperationLoader(yaml.safe_load(fh.read()), amaxa.api.Connection(self.connection))
+                    load_op = amaxa.loader.LoadOperationLoader(
+                        yaml.safe_load(fh.read()), amaxa.api.Connection(self.connection)
+                    )
                     load_op.load()
 
                     sobject_list = [s.sobjectname for s in load_op.result.steps]

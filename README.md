@@ -4,47 +4,37 @@ Amaxa is a new data loader and ETL (extract-transform-load) tool for Salesforce,
 
 Amaxa is designed to replace complex, error-prone workflows that manipulate data exports with `VLOOKUP()` to maintain object relationships.
 
+Amaxa is free and open source software, distributed under the BSD License.
+
 ## Installing, Building, and Testing Amaxa
 
-Using Amaxa requires Python 3.6. To install Amaxa using `pip`, execute
+Amaxa recommends Python 3.7 or 3.8. Python 3.6.1 may work but is not officially supported.
+
+To install Amaxa using `pip`, execute
 
     $ pip install amaxa
 
-Make sure to invoke within a Python 3.6+ virtual environment or specify Python 3.6 or greater as required by your operating system.
+Make sure to invoke within a Python 3.7+ virtual environment or specify Python 3.7 or greater as required by your operating system.
 
-Amaxa is operating system-agnostic. It has been tested primarily on Linux but is also known to work in a MINGW Windows 7 environment.
+Amaxa is operating system-agnostic. It has been tested primarily on Linux. Amaxa has been known to work in some Windows environments (such as MINGW), but is not actively tested on Windows.
 
 ### Development
 
-To start working with Amaxa in a virtual environment, clone the Git repository. Then, create a virtual environment for Amaxa and install there:
+To start working with Amaxa in a virtual environment, clone the Git repository. Amaxa's primary repository is on [GitLab](https://gitlab.com/davidmreed/amaxa), and is mirrored on GitHub.
+
+Then, create a virtual environment for Amaxa and install:
 
     $ cd amaxa
-    $ python3.6 -m venv venv
+    $ python3 -m venv venv
     $ source venv/bin/activate
-    $ pip install -r requirements.txt -r testing-requirements.txt
-    $ python setup.py install
+    $ pip install poetry
+    $ poetry install
 
-You'll then be able to invoke `amaxa` from the command line whenever the virtual environment is active.
+Amaxa uses `poetry` to managed dependencies and `tox` with `pytest` to execute test runs.
 
-Amaxa depends on the following packages to run:
+If a valid Salesforce access token and instance URL are present in the environment variables `INSTANCE_URL` and `ACCESS_TOKEN`, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org (see `.gitlab-ci.yml` for the specific testing process).
 
- - `simple_salesforce`
- - `salesforce-bulk`
- - `pyyaml`
- - `pyjwt`
- - `cryptography`
- - `requests`
- - `cerberus`
-
- For development and testing, you'll also need
-
- - `pytest`
- - `pytest-cov`
- - `codecov`
- - `wheel`
- - `setuptools`
-
-Tests are executed using `pytest`. If a valid Salesforce access token and instance URL are present in the environment variables `INSTANCE_URL` and `ACCESS_TOKEN`, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org (see `.gitlab-ci.yml` for the specific testing process).
+Two scripts are included under `assets/scripts` to assist in integration testing. Execute `prep-scratch-org.sh` to create a scratch org and make it available to Amaxa integration tests. Execute `get-auth-params.sh` if you wish to manually create an org and then expose it to Amaxa; the org's alias must be `amaxa`.
 
 ## Running Amaxa
 
@@ -239,7 +229,7 @@ Both sObjects and `fields` entries are checked before the operation begins. All 
 
 Amaxa will also validate, for load operations, that the specified input data matches the operation definition. For field lists specified with `fields`, the column set in the provided CSV must exactly match the field list (taking any specified `column` mappings into account). For `field-group` specifications, Amaxa allows fields that are part of the field group to be omitted from the CSV, but does not allow any extra fields in the CSV. If the `field-group: smart` choice is provided, Amaxa always validates against the `readable` field group, even on load, but will only attempt to load writeable fields.
 
-You can control validation at the sObject level by specifying the key `input-validation` within each entry. The acceptable values are 
+You can control validation at the sObject level by specifying the key `input-validation` within each entry. The acceptable values are
 
   - `none`, which completely disables validation and is not recommended.
   - `default`, which applies the default semantics above.
@@ -292,9 +282,9 @@ Outside reference behavior can be very useful in situations with complex depende
 
 Because error recovery when loading complex object networks can be challenging and the overall load operation is not atomic, it's strongly recommended that all triggers, workflow rules, processes, validation rules, and lookup field filters be deactivated during an Amaxa load process. It's far easier to prevent errors than to fix them.
 
-Amaxa executes loads in two stages, called *inserts* and *dependents*. In the *inserts* phase, Amaxa loads records of each sObject in sequence. In the *dependents* phase, Amaxa runs updates to populate self-lookups and dependent lookups on the created records. In both phases, Amaxa stops loading data when it receives an error from Salesforce. Since Amaxa uses the Bulk API, the stoppage occurs at the end of the sObject and phase that's currently processing. 
+Amaxa executes loads in two stages, called *inserts* and *dependents*. In the *inserts* phase, Amaxa loads records of each sObject in sequence. In the *dependents* phase, Amaxa runs updates to populate self-lookups and dependent lookups on the created records. In both phases, Amaxa stops loading data when it receives an error from Salesforce. Since Amaxa uses the Bulk API, the stoppage occurs at the end of the sObject and phase that's currently processing.
 
-If Accounts, Contacts, and Opportunities are being loaded, and an error occurs during the insert of Contacts, Amaxa will stop at the end of the Contact insert phase. All successfully loaded Accounts and Contacts remain in Salesforce, but no work is done for the *dependents* phase. If the error occurs during the *dependents* phase, all records of all sObjects have been loaded, but dependent and self-lookups for the errored sObject and all sObjects later in the operation are not populated. 
+If Accounts, Contacts, and Opportunities are being loaded, and an error occurs during the insert of Contacts, Amaxa will stop at the end of the Contact insert phase. All successfully loaded Accounts and Contacts remain in Salesforce, but no work is done for the *dependents* phase. If the error occurs during the *dependents* phase, all records of all sObjects have been loaded, but dependent and self-lookups for the errored sObject and all sObjects later in the operation are not populated.
 
 Details of the errors encountered are shown in the results file for the errored sObject, which by default is `sObjectName-results.csv` but can be overridden in the operation definition.
 
