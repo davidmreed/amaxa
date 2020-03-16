@@ -11,3 +11,4 @@ dist
 *.egg-info
 .sfdx
 .tox
+docs/_build

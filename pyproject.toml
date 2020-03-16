@@ -8,7 +8,7 @@ version = "0.9.5"
 description = "Load and extract data from multiple Salesforce objects in a single operation, preserving links and network structure."
 license = "BSD-3-Clause"
 authors = ["David Reed <david@ktema.org>"]
-readme = "README.md"
+readme = "README.rst"
 homepage = "https://gitlab.com/davidmreed/amaxa"
 repository = "https://gitlab.com/davidmreed/amaxa"
 classifiers = [
@@ -40,6 +40,7 @@ tox = "^3.14.5"
 black = "^19.10b0"
 pre-commit = "^2.2.0"
 flake8 = "^3.7.9"
+sphinx = "^2.4.4"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
