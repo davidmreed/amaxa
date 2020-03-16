@@ -6,6 +6,8 @@ Amaxa is designed to replace complex, error-prone workflows that manipulate data
 
 Amaxa is free and open source software, distributed under the BSD License.
 
+This README documents the development version of Amaxa (as found in the `master` branch). For documentation that covers the latest versions of Amaxa available on PyPI, please view the version of this README found on the [PyPI listing](https://pypi.org/project/amaxa/).
+
 ## Installing, Building, and Testing Amaxa
 
 Amaxa recommends Python 3.7 or 3.8. Python 3.6.1 may work but is not officially supported.
