@@ -8,7 +8,7 @@ Amaxa is a new data loader and ETL (extract-transform-load) tool for Salesforce,
 
 Amaxa is designed to replace complex, error-prone workflows that manipulate data exports with spreadsheet functions like ``VLOOKUP()`` to maintain object relationships.
 
-Amaxa is free and open source software, distributed under the BSD License. Amaxa is by `David Reed <mailto:david@ktema.org>`_, (c) 2019-2020.
+Amaxa is free and open source software, distributed under the BSD License. Amaxa is by `David Reed <https://ktema.org>`_, (c) 2019-2020.
 
 Documentation on `ReadTheDocs <https://amaxa.readthedocs.io>`_ covers the development version of Amaxa (as found in the ``master`` branch). For documentation that covers the latest versions of Amaxa available on PyPI, please view the README found on the `PyPI listing <https://pypi.org/project/amaxa/>`_.
 
