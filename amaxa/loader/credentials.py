@@ -1,4 +1,6 @@
+import json
 import logging
+import subprocess
 
 import simple_salesforce
 
@@ -135,6 +137,32 @@ class CredentialLoader(Loader):
             logging.getLogger("amaxa").debug(
                 "Authenticating to Salesforce with access token"
             )
+        elif "sfdx" in credentials:
+            sfdx_username = credentials["sfdx"]
+
+            result = subprocess.run(
+                ["sfdx", "force:org:display", "--json", "-u", sfdx_username],
+                encoding="utf-8",
+                capture_output=True,
+            )
+
+            try:
+                org_info = json.loads(result.stdout)
+
+                if org_info["status"] == 0:
+                    self.result = simple_salesforce.Salesforce(
+                        instance_url=org_info["result"]["instanceUrl"],
+                        session_id=org_info["result"]["accessToken"],
+                        version=constants.API_VERSION,
+                    )
+                else:
+                    self.errors.append(
+                        f"SFDX failed to provide credentials with return code {org_info['status']}: {org_info['message']}."
+                    )
+            except Exception as e:
+                self.errors.append(
+                    f"SFDX failed to provide credentials with return code {result.returncode}. Exception: {e}"
+                )
 
         if self.result is not None:
             self.result = api.Connection(self.result)

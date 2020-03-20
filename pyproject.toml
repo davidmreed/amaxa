@@ -28,9 +28,9 @@ simple_salesforce = "^0.75.3"
 salesforce_bulk = "^2.1.0"
 pyyaml = "^5.3"
 cerberus = "^1.3.2"
-requests = "^2.23.0"
 pyjwt = "^1.7.1"
 cryptography = "^2.8"
+requests = {version = "^2.23.0", extras = ["security"]}
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.4.1"

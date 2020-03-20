@@ -67,7 +67,7 @@ test-integration:
     - tox test/test_org
     - codecov -F integration
   after_script:
-    - sfdx force:org:delete -u scratch -p
+    - sfdx force:org:delete -u amaxa -p
     - rm assets/server.key
   artifacts:
     reports:

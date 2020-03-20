@@ -160,7 +160,7 @@ SCHEMAS = {
                     "sandbox": {"type": "boolean", "default": False},
                     "username": {
                         "type": "dict",
-                        "excludes": ["token", "jwt"],
+                        "excludes": ["token", "jwt", "sfdx"],
                         "required": True,
                         "schema": {
                             "username": _env_or_string({"required": True}),
@@ -175,7 +175,7 @@ SCHEMAS = {
                     },
                     "token": {
                         "type": "dict",
-                        "excludes": ["username", "jwt"],
+                        "excludes": ["username", "jwt", "sfdx"],
                         "required": True,
                         "schema": {
                             "instance-url": _env_or_string({"required": True}),
@@ -184,7 +184,7 @@ SCHEMAS = {
                     },
                     "jwt": {
                         "type": "dict",
-                        "excludes": ["token", "username"],
+                        "excludes": ["token", "username", "sfdx"],
                         "required": True,
                         "schema": {
                             "username": _env_or_string({"required": True}),
@@ -197,6 +197,9 @@ SCHEMAS = {
                             "consumer-key": _env_or_string({"required": True}),
                         },
                     },
+                    "sfdx": _env_or_string(
+                        {"required": True, "excludes": ["jwt", "token", "username"],}
+                    ),
                 },
             },
         },

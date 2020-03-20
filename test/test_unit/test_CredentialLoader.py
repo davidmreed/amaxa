@@ -306,6 +306,63 @@ class test_CredentialLoader(unittest.TestCase):
             }
         )
 
+    @patch("amaxa.loader.credentials.subprocess")
+    def test_credential_schema_uses_sfdx_v2(self, subprocess_mock):
+        subprocess_mock.run = Mock()
+        subprocess_mock.run.return_value.returncode = 0
+        subprocess_mock.run.return_value.stdout = """{
+  "status": 0,
+  "result": {
+    "accessToken": "00DJ000000XXXXX!XXXXX",
+    "instanceUrl": "https://test-org.cs10.my.salesforce.com/"
+  }
+}"""
+
+        self._run_authentication_test(
+            {"version": 2, "credentials": {"sfdx": "test"},},
+            {
+                "session_id": "00DJ000000XXXXX!XXXXX",
+                "instance_url": "https://test-org.cs10.my.salesforce.com/",
+            },
+        )
+        subprocess_mock.run.assert_called_once_with(
+            ["sfdx", "force:org:display", "--json", "-u", "test"],
+            encoding="utf-8",
+            capture_output=True,
+        )
+
+    @patch("amaxa.loader.credentials.subprocess")
+    def test_credential_schema_returns_error_sfdx_v2(self, subprocess_mock):
+        subprocess_mock.run = Mock()
+        subprocess_mock.run.return_value.returncode = 1
+        subprocess_mock.run.return_value.stdout = """{
+  "status": 1,
+  "name": "NoOrgFound",
+  "message": "No org configuration found for name q"
+  }"""
+
+        self._run_failure_test(
+            {"version": 2, "credentials": {"sfdx": "q"},},
+            [
+                "SFDX failed to provide credentials with return code 1: No org configuration found for name q."
+            ],
+        )
+
+    @patch("amaxa.loader.credentials.subprocess")
+    def test_credential_schema_returns_error_sfdx_without_json_v2(
+        self, subprocess_mock
+    ):
+        subprocess_mock.run = Mock()
+        subprocess_mock.run.return_value.returncode = 1
+        subprocess_mock.run.return_value.stdout = "{}"
+
+        self._run_failure_test(
+            {"version": 2, "credentials": {"sfdx": "test"},},
+            [
+                "SFDX failed to provide credentials with return code 1. Exception: 'status'"
+            ],
+        )
+
     def test_credential_schema_validates_jwt_v2(self):
         with patch("amaxa.jwt_auth.jwt_login") as jwt_mock:
             jwt_mock.return_value.bulk_url = "https://salesforce.com"

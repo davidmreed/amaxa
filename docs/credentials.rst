@@ -3,7 +3,23 @@ Supplying Credentials
 
 .. note:: Amaxa configuration files are versioned and are validated at runtime. This documentation is for the current version of the credential file, version 2. Upgrade existing projects with version 1 files to make use of new features.
 
-Credentials are supplied in a YAML or JSON file, as shown here (for username and password) authentication.
+Credentials are supplied in a YAML or JSON file, with several options available dependening upon how you'd like to authenticate.
+
+SFDX
+****
+
+Amaxa can directly use SFDX authentication.
+
+.. code-block:: yaml
+
+    version: 2
+    credentials:
+        sfdx: org-name
+
+You can supply an org's alias or username. Amaxa will obtain access details from SFDX.
+
+Username and Password
+*********************
 
 .. code-block:: yaml
 
@@ -16,7 +32,10 @@ Credentials are supplied in a YAML or JSON file, as shown here (for username and
             organization-id '00D000000000001'  # This value is optional.
             sandbox: True
 
-Amaxa also allows JWT authentication, for headless operation:
+JWT Authentication
+******************
+
+Amaxa also allows JWT authentication, for fully headless operation:
 
 .. code-block:: yaml
 
@@ -32,6 +51,9 @@ Amaxa also allows JWT authentication, for headless operation:
             keyfile: server.key
 
 If your JWT key is stored externally in a file, use the key ``keyfile`` with the name of that file rather than including the key inline.
+
+Token Authentication
+********************
 
 Lastly, if you establish authentication outside Amaxa (with Salesforce DX, for example), you can directly provide an access token and instance URL.
 
