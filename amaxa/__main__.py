@@ -1,6 +1,8 @@
 import argparse
 import logging
 import os.path
+import sys
+
 from amaxa.loader import (
     CredentialLoader,
     ExtractionOperationLoader,
@@ -103,3 +105,7 @@ def main():
             state_file.write(save_state(ex, json_mode))
 
     return ret
+
+
+if __name__ == "__main__":
+    sys.exit(main())

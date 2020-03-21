@@ -41,6 +41,7 @@ black = "^19.10b0"
 pre-commit = "^2.2.0"
 flake8 = "^3.7.9"
 sphinx = "^2.4.4"
+pyinstaller = "^3.6"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
