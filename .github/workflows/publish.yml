@@ -28,7 +28,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ 'dist/amaxa-' + github.event.release.tagName + '-py3-none-any.whl' }}
+          asset_path: ${{ format('dist/amaxa-{0}-py3-none-any.whl', github.event.release.tagName) }}
           asset_name: Wheel
           asset_content_type: application/zip
       - name: Upload Release Asset - sdist
@@ -37,7 +37,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ 'dist/amaxa-' + github.event.release.tagName + '.tar.gz' }}
+          asset_path: ${{ format('dist/amaxa-{0}.tar.gz', github.event.release.tagName) }}
           asset_name: Sdist
           asset_content_type: application/gzip
       - name: Publish to PyPI
@@ -74,7 +74,7 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./dist/amaxa
-          asset_name: ${{ 'Amaxa (' + matrix.os + ')' }}
+          asset_name: ${{ format('Amaxa ({})', matrix.os) }}
           asset_content_type: application/octet-stream
       - name: Upload Release Asset
         if: startsWith(matrix.os, "windows")
@@ -84,5 +84,5 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./dist/amaxa.exe
-          asset_name: ${{ 'Amaxa (' + matrix.os + ')' }}
+          asset_name: ${{ format('Amaxa ({})', matrix.os) }}
           asset_content_type: application/octet-stream
