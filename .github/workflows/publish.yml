@@ -14,21 +14,20 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: '3.8'
-      - name: Create Virtual Environment
-        run: python -m venv venv && . venv/bin/activate
-      - name: Install Tools
-        run: pip install --upgrade pip && pip install poetry
       - name: Install Dependencies
-        run: poetry install --no-root
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+          poetry install --no-root
       - name: Build Package
-        run: poetry build && poetry run pyinstaller amaxa/__main__.py -n amaxa -F
+        run: poetry build
       - name: Upload Release Asset - Wheel
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ format('dist/amaxa-{0}-py3-none-any.whl', github.event.release.tagName) }}
+          asset_path: ${{ format('dist/amaxa-{0}-py3-none-any.whl', github.event.release.tag_name) }}
           asset_name: Wheel
           asset_content_type: application/zip
       - name: Upload Release Asset - sdist
@@ -37,7 +36,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ format('dist/amaxa-{0}.tar.gz', github.event.release.tagName) }}
+          asset_path: ${{ format('dist/amaxa-{0}.tar.gz', github.event.release.tag_name) }}
           asset_name: Sdist
           asset_content_type: application/gzip
       - name: Publish to PyPI
@@ -58,13 +57,14 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: '3.8'
-      - name: Create Virtual Environment
-        run: python -m venv venv && . venv/bin/activate
-      - name: Install Tools
-        run: pip install --upgrade pip && pip install poetry
       - name: Install Dependencies
-        run: poetry install --no-root
+        shell: Bash
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+          poetry install --no-root
       - name: Build Binary
+        shell: bash
         run: poetry run pyinstaller amaxa/__main__.py -n amaxa -F
       - name: Upload Release Asset
         if: "!startsWith(matrix.os, 'windows')"
@@ -74,7 +74,7 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./dist/amaxa
-          asset_name: ${{ format('Amaxa ({})', matrix.os) }}
+          asset_name: ${{ format('Amaxa ({0})', matrix.os) }}
           asset_content_type: application/octet-stream
       - name: Upload Release Asset
         if: startsWith(matrix.os, 'windows')
@@ -84,5 +84,5 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./dist/amaxa.exe
-          asset_name: ${{ format('Amaxa ({})', matrix.os) }}
+          asset_name: ${{ format('Amaxa ({0})', matrix.os) }}
           asset_content_type: application/octet-stream
