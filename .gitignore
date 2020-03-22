@@ -12,3 +12,4 @@ dist
 .sfdx
 .tox
 docs/_build
+*.spec
