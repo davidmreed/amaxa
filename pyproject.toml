@@ -44,6 +44,7 @@ sphinx = "^2.4.4"
 pyinstaller = "^3.6"
 pefile = "^2019.4.18"
 macholib = "^1.14"
+pywin32-ctypes = "^0.2.0"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
