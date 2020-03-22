@@ -14,7 +14,7 @@ class test_ExtractionOperationLoader(unittest.TestCase):
     def _mock_execute(self, context, file_data):
         if file_data is not None:
 
-            def open_func(key, status):
+            def open_func(key, status, **kwargs):
                 data = file_data[key]
 
                 if type(data) is str:
@@ -437,10 +437,10 @@ class test_ExtractionOperationLoader(unittest.TestCase):
 
         m.assert_has_calls(
             [
-                unittest.mock.call("Account.csv", "w"),
-                unittest.mock.call("Contact.csv", "w"),
-                unittest.mock.call("Opportunity.csv", "w"),
-                unittest.mock.call("Task.csv", "w"),
+                unittest.mock.call("Account.csv", "w", newline=""),
+                unittest.mock.call("Contact.csv", "w", newline=""),
+                unittest.mock.call("Opportunity.csv", "w", newline=""),
+                unittest.mock.call("Task.csv", "w", newline=""),
             ],
             any_order=True,
         )

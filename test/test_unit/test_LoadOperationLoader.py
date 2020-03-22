@@ -14,7 +14,7 @@ class test_LoadOperationLoader(unittest.TestCase):
     def _mock_execute(self, context, input_data):
         if input_data is not None:
 
-            def open_func(key, status):
+            def open_func(key, status, **kwargs):
                 data = input_data[key]
 
                 if type(data) is str:
@@ -572,10 +572,10 @@ class test_LoadOperationLoader(unittest.TestCase):
                 unittest.mock.call("Contact.csv", "r"),
                 unittest.mock.call("Opportunity.csv", "r"),
                 unittest.mock.call("Task.csv", "r"),
-                unittest.mock.call("Account-results.csv", "w"),
-                unittest.mock.call("Contact-results.csv", "w"),
-                unittest.mock.call("Opportunity-results.csv", "w"),
-                unittest.mock.call("Task-results.csv", "w"),
+                unittest.mock.call("Account-results.csv", "w", newline=""),
+                unittest.mock.call("Contact-results.csv", "w", newline=""),
+                unittest.mock.call("Opportunity-results.csv", "w", newline=""),
+                unittest.mock.call("Task-results.csv", "w", newline=""),
             ],
             any_order=True,
         )
@@ -611,7 +611,7 @@ class test_LoadOperationLoader(unittest.TestCase):
         m.assert_has_calls(
             [
                 unittest.mock.call("Account.csv", "r"),
-                unittest.mock.call("Account-results.csv", "w"),
+                unittest.mock.call("Account-results.csv", "w", newline=""),
             ],
             any_order=True,
         )
@@ -644,7 +644,7 @@ class test_LoadOperationLoader(unittest.TestCase):
         m.assert_has_calls(
             [
                 unittest.mock.call("Account.csv", "r"),
-                unittest.mock.call("Account-results.csv", "a"),
+                unittest.mock.call("Account-results.csv", "a", newline=""),
             ],
             any_order=True,
         )

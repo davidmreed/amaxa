@@ -91,7 +91,9 @@ class LoadOperationLoader(OperationLoader):
                 )
 
             try:
-                f = open(entry["result-file"], "w" if not self.use_state else "a")
+                f = open(
+                    entry["result-file"], "w" if not self.use_state else "a", newline=""
+                )
                 output = csv.DictWriter(
                     f,
                     fieldnames=[
