@@ -93,4 +93,5 @@ jobs:
         shell: bash
         run: |
           ls ./dist
+          ls ./dist/amaxa
           ./dist/amaxa.exe -h
