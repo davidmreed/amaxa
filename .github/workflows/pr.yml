@@ -21,6 +21,12 @@ jobs:
             key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
             restore-keys: |
               ${{ runner.os }}-pip-
+        - name: Install Dependencies
+          shell: bash
+          run: |
+            pip install --upgrade pip
+            pip install poetry
+            poetry install --no-root
         - name: Install SFDX
           shell: bash
           run: |
@@ -38,8 +44,8 @@ jobs:
           shell: bash
           run: |
               source assets/scripts/get-auth-params.sh
-              tox test/test_org
-              codecov -F integration
+              poetry run tox test/test_org
+              poetry run codecov -F integration
         - name: Delete Scratch Org
           if: always()
           run: 'sfdx force:org:delete -p -u amaxa'
