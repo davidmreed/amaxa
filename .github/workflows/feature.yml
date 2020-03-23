@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           poetry run tox -e py
-          codecov -F unit
+          poetry run codecov -F unit
 
   build:
     runs-on: ubuntu-latest
@@ -91,4 +91,6 @@ jobs:
       - name: Test Binary (Windows)
         if: "startsWith(matrix.os, 'windows')"
         shell: bash
-        run: ./dist/amaxa.exe -h
+        run: |
+          ls ./dist
+          ./dist/amaxa.exe -h
