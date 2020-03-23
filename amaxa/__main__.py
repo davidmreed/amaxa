@@ -26,6 +26,7 @@ def main():
     )
     a.add_argument("-l", "--load", action="store_true")
     a.add_argument("-s", "--use-state", dest="use_state", type=argparse.FileType("r"))
+    a.add_argument("-k", "--check-only", dest="check_only", action="store_true")
     verbosity_levels = {
         "quiet": logging.NOTSET,
         "errors": logging.ERROR,
@@ -44,19 +45,18 @@ def main():
 
     args = a.parse_args()
 
-    logging.getLogger("amaxa").setLevel(verbosity_levels[args.verbosity])
-    logging.getLogger("amaxa").handlers[:] = [logging.StreamHandler()]
+    logger = logging.getLogger("amaxa")
+
+    logger.setLevel(verbosity_levels[args.verbosity])
+    logger.handlers[:] = [logging.StreamHandler()]
 
     # Grab the credential file first. We need it to validate the extraction.
     credential_loader = CredentialLoader(load_file(args.credentials))
     credential_loader.load()
 
     if credential_loader.errors:
-        print(
-            "The supplied credentials were not valid: {}".format(
-                "\n".join(credential_loader.errors)
-            )
-        )
+        errors = "\n".join(credential_loader.errors)
+        logger.error(f"The supplied credentials were not valid: {errors}")
         return -1
 
     config = load_file(args.config)
@@ -70,11 +70,8 @@ def main():
 
     operation_loader.load()
     if operation_loader.errors:
-        print(
-            "Errors occured during load of the operation: {}".format(
-                "\n".join(operation_loader.errors)
-            )
-        )
+        errors = "\n".join(operation_loader.errors)
+        logger.error(f"Errors occured during load of the operation: {errors}")
         return -1
 
     ex = operation_loader.result
@@ -84,12 +81,13 @@ def main():
         state_loader = StateLoader(state_file, ex)
         state_loader.load()
         if state_loader.errors:
-            print(
-                "Errors occured during load of the state file: {}".format(
-                    "\n".join(state_loader.errors)
-                )
-            )
+            errors = "\n".join(state_loader.errors)
+            logger.error(f"Errors occured during load of the state file: {errors}")
             return -1
+
+    if args.check_only:
+        logger.info(f"Input files validated successfully.")
+        return 0
 
     ret = ex.run()
 
