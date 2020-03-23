@@ -92,6 +92,7 @@ jobs:
         if: "startsWith(matrix.os, 'windows')"
         shell: bash
         run: |
-          ls ./dist
-          ls ./dist/amaxa
+          ls -al ./dist
+          ls -al ./dist/amaxa
+          ls -al ./dist/amaxa/amaxa
           ./dist/amaxa.exe -h
