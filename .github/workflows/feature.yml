@@ -1,0 +1,94 @@
+name: Feature Tests
+
+on:
+  push:
+    branches:
+      - feature/*
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.8'
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+          poetry install --no-root
+      - name: Run Commit Checks
+        run: poetry run pre-commit run --all
+
+  unit-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        python: [3.6.1, 3.7, 3.8]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install Dependencies
+        shell: bash
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+          poetry install --no-root
+      - name: Run Unit Tests
+        shell: bash
+        run: |
+          poetry run tox -e py
+          codecov -F unit
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.8'
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install Dependencies
+        shell: bash
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+          poetry install --no-root
+      - name: Build Binary
+        shell: bash
+        run: poetry run pyinstaller amaxa/__main__.py -n amaxa -F
+      - name: Test Binary
+        if: "!startsWith(matrix.os, 'windows')"
+        shell: bash
+        run: ./dist/amaxa -h
+      - name: Test Binary (Windows)
+        if: "startsWith(matrix.os, 'windows')"
+        shell: bash
+        run: ./dist/amaxa.exe -h

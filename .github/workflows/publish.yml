@@ -14,6 +14,12 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: '3.8'
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
@@ -56,6 +62,27 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: '3.8'
+      - uses: actions/cache@v1
+        if: startsWith(runner.os, 'Linux')
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/cache@v1
+        if: startsWith(runner.os, 'macOS')
+        with:
+          path: ~/Library/Caches/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/cache@v1
+        if: startsWith(runner.os, 'Windows')
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
       - name: Install Dependencies
         shell: bash
         run: |
@@ -69,7 +96,7 @@ jobs:
         if: "!startsWith(matrix.os, 'windows')"
         shell: bash
         run: ./dist/amaxa -h
-      - name: Test Binary
+      - name: Test Binary (Windows)
         if: "startsWith(matrix.os, 'windows')"
         shell: bash
         run: ./dist/amaxa.exe -h
@@ -83,7 +110,7 @@ jobs:
           asset_path: ./dist/amaxa
           asset_name: ${{ format('Amaxa ({0})', matrix.os) }}
           asset_content_type: application/octet-stream
-      - name: Upload Release Asset
+      - name: Upload Release Asset (Windows)
         if: startsWith(matrix.os, 'windows')
         uses: actions/upload-release-asset@v1
         env:
