@@ -85,14 +85,5 @@ jobs:
         shell: bash
         run: poetry run pyinstaller amaxa/__main__.py -n amaxa -F
       - name: Test Binary
-        if: "!startsWith(matrix.os, 'windows')"
         shell: bash
         run: ./dist/amaxa -h
-      - name: Test Binary (Windows)
-        if: "startsWith(matrix.os, 'windows')"
-        shell: bash
-        run: |
-          ls -al ./dist
-          ls -al ./dist/amaxa
-          ls -al ./dist/amaxa/amaxa
-          ./dist/amaxa.exe -h
