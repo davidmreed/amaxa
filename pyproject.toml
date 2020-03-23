@@ -45,6 +45,7 @@ pyinstaller = "^3.6"
 pefile = "^2019.4.18"
 macholib = "^1.14"
 pywin32-ctypes = "^0.2.0"
+importlib_resources = "^1.4.0"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
