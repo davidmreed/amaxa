@@ -14,8 +14,11 @@ Amaxa - a multi-object ETL tool for Salesforce
   :alt: Code Coverage
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
-    :alt: Black Code Formatting
+  :target: https://github.com/psf/black
+  :alt: Black Code Formatting
+
+.. image:: https://img.shields.io/pypi/l/amaxa
+  :alt: PyPI - License
 
 .. image:: https://readthedocs.org/projects/amaxa/badge/?version=latest
 :target: https://amaxa.readthedocs.io/en/latest/?badge=latest
