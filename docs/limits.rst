@@ -1,7 +1,7 @@
 Limitations, Known Issues, and Future Plans
 -------------------------------------------
 
-Issues and roadmap are tracked in `GitLab Issues <https://gitlab.com/davidmreed/amaxa/issues>`_.
+Issues and roadmap are tracked in `GitHub Issues <https://github.com/davidmreed/amaxa/issues>`_.
 
 Limitations
 ***********

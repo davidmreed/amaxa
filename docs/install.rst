@@ -19,7 +19,7 @@ Amaxa is operating system-agnostic. It has been tested primarily on Linux. Amaxa
 Development
 ***********
 
-To start working with Amaxa in a virtual environment, clone the Git repository. Amaxa's primary repository is on `GitLab <https://gitlab.com/davidmreed/amaxa>`_, and is mirrored on GitHub.
+To start working with Amaxa in a virtual environment, clone the Git repository. Amaxa's primary repository is on `GitHub <https://github.com/davidmreed/amaxa>`_, and is mirrored on `GitLab <https://gitlab.com/davidmreed/amaxa>`_.
 
 Then, create a virtual environment for Amaxa and install:
 
@@ -33,6 +33,6 @@ Then, create a virtual environment for Amaxa and install:
 
 Amaxa uses ``poetry`` to managed dependencies and ``tox`` with ``pytest`` to execute test runs.
 
-If a valid Salesforce access token and instance URL are present in the environment variables ``INSTANCE_URL`` and ``ACCESS_TOKEN``, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org (see ``.gitlab-ci.yml`` for the specific testing process).
+If a valid Salesforce access token and instance URL are present in the environment variables ``INSTANCE_URL`` and ``ACCESS_TOKEN``, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org.
 
 Two scripts are included under ``assets/scripts`` to assist in integration testing. Execute ``prep-scratch-org.sh`` to create a scratch org and make it available to Amaxa integration tests. Execute ``get-auth-params.sh`` if you wish to manually create an org and then expose it to Amaxa; the org's alias must be ``amaxa``.
