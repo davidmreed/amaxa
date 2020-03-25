@@ -4,7 +4,9 @@ Installing Amaxa
 Installation
 ************
 
-Amaxa requires Python 3.7 or 3.8.
+Amaxa supports Python 3.6.1 or greater.
+
+Prebuilt, single-binary versions of Amaxa (created using ``PyInstaller``) are available in current `releases <https://github.com/davidmreed/amaxa/releases>`_ for Linux, Mac OS X, and Windows 10.
 
 To install Amaxa using ``pip``, execute
 
@@ -12,14 +14,14 @@ To install Amaxa using ``pip``, execute
 
     $ pip install amaxa
 
-Make sure to invoke within a Python 3.7+ virtual environment or specify Python 3.7 or greater as required by your operating system.
+Make sure to invoke within a Python 3.6+ virtual environment or specify Python 3.6 or greater as required by your operating system.
 
-Amaxa is operating system-agnostic. It has been tested primarily on Linux. Amaxa has been known to work in some Windows environments (such as MINGW), but is not actively tested on Windows.
+Amaxa is operating system-agnostic but is primarily tested on Linux.
 
 Development
 ***********
 
-To start working with Amaxa in a virtual environment, clone the Git repository. Amaxa's primary repository is on `GitHub <https://github.com/davidmreed/amaxa>`_, and is mirrored on `GitLab <https://gitlab.com/davidmreed/amaxa>`_.
+To start working with Amaxa in a virtual environment, clone the Git repository. Amaxa's repository is on `GitHub <https://github.com/davidmreed/amaxa>`_, and is mirrored on `GitLab <https://gitlab.com/davidmreed/amaxa>`_.
 
 Then, create a virtual environment for Amaxa and install:
 
