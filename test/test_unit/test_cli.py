@@ -417,3 +417,38 @@ class test_CLI(unittest.TestCase):
             },
             op.global_id_map,
         )
+
+    @unittest.mock.patch("amaxa.__main__.CredentialLoader")
+    @unittest.mock.patch("amaxa.__main__.ExtractionOperationLoader")
+    def test_main_stops_with_check_only(self, operation_mock, credential_mock):
+        context = Mock()
+        context.run.return_value = 0
+        credential_mock.return_value = Mock()
+        credential_mock.return_value.result = context
+        credential_mock.return_value.errors = []
+        operation_mock.return_value = Mock()
+        operation_mock.return_value.result = context
+        operation_mock.return_value.errors = []
+
+        m = Mock(side_effect=select_file)
+        with unittest.mock.patch("builtins.open", m):
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "amaxa",
+                    "-c",
+                    "credentials-good.json",
+                    "extraction-good.json",
+                    "--check-only",
+                ],
+            ):
+                return_value = main()
+
+        credential_mock.assert_called_once_with(json.loads(CREDENTIALS_GOOD_JSON))
+        operation_mock.assert_called_once_with(
+            json.loads(EXTRACTION_GOOD_JSON), context
+        )
+
+        context.run.assert_not_called()
+
+        self.assertEqual(0, return_value)

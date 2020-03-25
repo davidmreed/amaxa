@@ -108,7 +108,7 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./dist/amaxa
-          asset_name: ${{ format('Amaxa ({0})', matrix.os) }}
+          asset_name: ${{ format('amaxa_{0}', matrix.os) }}
           asset_content_type: application/octet-stream
       - name: Upload Release Asset (Windows)
         if: startsWith(matrix.os, 'windows')
@@ -118,5 +118,5 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./dist/amaxa.exe
-          asset_name: ${{ format('Amaxa ({0})', matrix.os) }}
+          asset_name: 'amaxa_windows.exe'
           asset_content_type: application/octet-stream
