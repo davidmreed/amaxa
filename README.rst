@@ -1,6 +1,27 @@
 Amaxa - a multi-object ETL tool for Salesforce
 ==============================================
 
+.. image:: https://github.com/davidmreed/amaxa/workflows/Feature%20Tests/badge.svg
+  :target: https://github.com/davidmreed/amaxa
+  :alt: Unit Tests
+
+.. image:: https://github.com/davidmreed/amaxa/workflows/Integration%20Test/badge.svg?branch=master
+  :target: https://github.com/davidmreed/amaxa
+  :alt: Integration Tests
+
+.. image:: https://codecov.io/gh/davidmreed/amaxa/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/davidmreed/amaxa
+  :alt: Code Coverage
+
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+    :alt: Black Code Formatting
+
+.. image:: https://readthedocs.org/projects/amaxa/badge/?version=latest
+:target: https://amaxa.readthedocs.io/en/latest/?badge=latest
+:alt: Documentation Status
+
+
 Introduction
 ------------
 
