@@ -10,7 +10,7 @@ Amaxa is designed to replace complex, error-prone workflows that manipulate data
 
 Amaxa is free and open source software, distributed under the BSD License. Amaxa is by `David Reed <https://ktema.org>`_, (c) 2019-2020.
 
-Documentation on `ReadTheDocs <https://amaxa.readthedocs.io>`_ covers the development version of Amaxa (as found in the ``master`` branch). For documentation that covers the latest versions of Amaxa available on PyPI, please view the README found on the `PyPI listing <https://pypi.org/project/amaxa/>`_.
+Documentation for Amaxa is available on `ReadTheDocs <https://amaxa.readthedocs.io>`_. The project is developed on `GitHub <https://github.com/davidmreed/amaxa>`_.
 
 What Does Amaxa Mean?
 ---------------------
