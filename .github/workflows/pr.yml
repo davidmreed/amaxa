@@ -60,3 +60,9 @@ jobs:
       - name: Delete Scratch Org
         if: always()
         run: 'sfdx force:org:delete -p -u amaxa'
+      - name: Store Results
+        if: always()
+        uses: actions/upload-artifact@v1
+        with:
+          name: junit
+          path: test-reports

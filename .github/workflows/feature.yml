@@ -61,6 +61,12 @@ jobs:
         run: |
           poetry run tox -e py
           poetry run codecov -F unit
+      - name: Store Results
+        if: always()
+        uses: actions/upload-artifact@v1
+        with:
+          name: junit
+          path: test-reports
 
   build:
     name: Build Binary
