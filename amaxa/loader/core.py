@@ -1,3 +1,4 @@
+import abc
 import collections
 import json
 import logging
@@ -17,7 +18,7 @@ def load_file(file_data):
     return yaml.safe_load(file_data)
 
 
-class Loader(object):
+class Loader(metaclass=abc.ABCMeta):
     def __init__(self, in_dict, input_type):
         self.input = in_dict
         self.input_type = input_type

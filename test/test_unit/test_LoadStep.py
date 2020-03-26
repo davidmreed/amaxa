@@ -693,6 +693,38 @@ class test_LoadStep(unittest.TestCase):
             op.register_error.call_args_list,
         )
 
+    def test_execute_dependent_updates_handles_exceptions__outside_lookups(self):
+        record_list = [
+            {"Name": "Test", "Id": "001000000000000", "ParentId": ""},
+            {"Name": "Test 2", "Id": "001000000000001", "ParentId": "001000000000002"},
+        ]
+        connection = MockConnection()
+        op = amaxa.LoadOperation(Mock(wraps=connection))
+        op.file_store = MockFileStore()
+        op.file_store.records["Account"] = record_list
+        op.register_new_id = Mock()
+        op.register_error = Mock()
+
+        load_step = amaxa.LoadStep("Account", ["Name", "ParentId"])
+        load_step.set_lookup_behavior_for_field(
+            "ParentId", amaxa.OutsideLookupBehavior.ERROR
+        )
+        op.add_step(load_step)
+
+        load_step.initialize()
+        load_step.execute_dependent_updates()
+
+        self.assertEqual(
+            [
+                unittest.mock.call(
+                    "Account",
+                    record_list[1]["Id"],
+                    f"Account {record_list[1]['Id']} has an outside reference in field ParentId (001000000000002), which is not allowed by the extraction configuration.",
+                ),
+            ],
+            op.register_error.call_args_list,
+        )
+
     def test_execute_does_not_insert_records_prepopulated_in_id_map(self):
         record_list = [
             {"Name": "Test", "Id": "001000000000000"},
