@@ -508,52 +508,41 @@ class test_ExtractionStep(unittest.TestCase):
         step.store_result.assert_any_call(retval[1])
 
     def test_resolve_registered_dependencies_loads_records(self):
-        connection = Mock()
-
-        oc = amaxa.ExtractOperation(connection)
-        oc.get_field_map = Mock(
-            return_value={
-                "Lookup__c": {
-                    "name": "Lookup__c",
-                    "type": "reference",
-                    "referenceTo": ["Account"],
-                }
-            }
+        oc = Mock()
+        id_set = set(
+            [
+                amaxa.SalesforceId("001000000000001"),
+                amaxa.SalesforceId("001000000000002"),
+            ]
         )
         oc.get_dependencies = Mock(
-            side_effect=[
-                set(
-                    [
-                        amaxa.SalesforceId("001000000000001"),
-                        amaxa.SalesforceId("001000000000002"),
-                    ]
-                ),
-                set(),
-            ]
+            side_effect=[id_set, set([amaxa.SalesforceId("001000000000002")]),]
+        )
+        oc.connection.retrieve_records_by_id = Mock(
+            return_value=[{"Id": amaxa.SalesforceId("001000000000001")}]
         )
 
         step = amaxa.ExtractionStep(
-            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Lookup__c"]
+            "Account", amaxa.ExtractionScope.ALL_RECORDS, ["Id"]
         )
-        connection.retrieve_records_by_id = Mock(return_value=[])
-        oc.add_step(step)
-        step.initialize()
+        step.context = oc
+        step.store_result = Mock()
 
         step.resolve_registered_dependencies()
 
+        oc.connection.retrieve_records_by_id.assert_called_once_with(
+            "Account", id_set, ["Id"]
+        )
+        step.store_result.assert_called_once_with(
+            {"Id": amaxa.SalesforceId("001000000000001")}
+        )
         oc.get_dependencies.assert_has_calls(
             [unittest.mock.call("Account"), unittest.mock.call("Account")]
         )
-        connection.retrieve_records_by_id.assert_called_once_with(
-            "Account",
-            set(
-                [
-                    amaxa.SalesforceId("001000000000001"),
-                    amaxa.SalesforceId("001000000000002"),
-                ]
-            ),
-            ["Lookup__c"],
-        )
+
+        assert step.errors == [
+            "Unable to resolve dependencies for sObject Account. The following Ids could not be found: 001000000000002AAA"
+        ]
 
     def test_resolve_registered_dependencies_registers_error_for_missing_ids(self):
         connection = Mock()

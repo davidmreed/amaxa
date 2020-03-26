@@ -172,7 +172,7 @@ class test_OperationLoader(unittest.TestCase):
 
     def test_validate_field_permissions_flags_fields(self):
         context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
-        context.result = amaxa.Operation(MockConnection())
+        context.result = amaxa.LoadOperation(MockConnection())
         context.result.steps = [Mock()]
         context.result.steps[0].sobjectname = "Account"
         context.result.steps[0].field_scope = set(["Name", "IsDeleted"])

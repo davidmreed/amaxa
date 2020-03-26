@@ -1,3 +1,4 @@
+import pytest
 import unittest
 from unittest.mock import Mock
 
@@ -134,6 +135,7 @@ class test_LoadStep(unittest.TestCase):
             return_value={
                 "Name": {"soapType": "xsd:string"},
                 "Boolean__c": {"soapType": "xsd:boolean"},
+                "Boolean_False__c": {"soapType": "xsd:boolean"},
                 "Id": {"soapType": "tns:ID"},
                 "Date__c": {"soapType": "xsd:date"},
                 "DateTime__c": {"soapType": "xsd:dateTime"},
@@ -149,6 +151,7 @@ class test_LoadStep(unittest.TestCase):
         record = {
             "Name": "Test",
             "Boolean__c": "yes",
+            "Boolean_False__c": "no",
             "Id": "001000000000001",
             "Date__c": "2018-12-31",
             "DateTime__c": "2018-12-31T00:00:00.000Z",
@@ -161,6 +164,7 @@ class test_LoadStep(unittest.TestCase):
             {
                 "Name": "Test",
                 "Boolean__c": "true",
+                "Boolean_False__c": "false",
                 "Id": "001000000000001",
                 "Date__c": "2018-12-31",
                 "DateTime__c": "2018-12-31T00:00:00.000Z",
@@ -170,6 +174,24 @@ class test_LoadStep(unittest.TestCase):
             },
             load_step.primitivize(record),
         )
+
+    def test_converts_data_for_bulk_api__failures(self):
+        connection = Mock()
+        op = amaxa.LoadOperation(connection)
+        op.get_field_map = Mock(
+            return_value={
+                "Boolean__c": {"soapType": "xsd:boolean"},
+                "Address__c": {"soapType": "xsd:address"},
+            }
+        )
+
+        load_step = amaxa.LoadStep("Account", ["Name", "ParentId"])
+        op.add_step(load_step)
+
+        with pytest.raises(ValueError):
+            load_step.primitivize({"Boolean__c": "blah"})
+
+        assert load_step.primitivize({"Address__c": "foo"})["Address__c"] is None
 
     def test_transform_records_calls_context_mapper(self):
         connection = Mock()
@@ -486,6 +508,73 @@ class test_LoadStep(unittest.TestCase):
             op.register_error.call_args_list,
         )
 
+    def test_execute_handles_exceptions__outside_lookups(self):
+        record_list = [
+            {"Name": "Test", "Id": "001000000000000", "ParentId": ""},
+            {"Name": "Test 2", "Id": "001000000000001", "ParentId": "001000000000002"},
+        ]
+        connection = MockConnection()
+        op = amaxa.LoadOperation(Mock(wraps=connection))
+        op.file_store = MockFileStore()
+        op.file_store.records["Account"] = record_list
+        op.register_new_id = Mock()
+        op.register_error = Mock()
+
+        load_step = amaxa.LoadStep("Account", ["Name", "ParentId"])
+        load_step.set_lookup_behavior_for_field(
+            "ParentId", amaxa.OutsideLookupBehavior.ERROR
+        )
+        op.add_step(load_step)
+
+        load_step.initialize()
+
+        # Force a failure by treating ParentId as a descendent lookup
+        load_step.descendent_lookups = {"ParentId"}
+        load_step.self_lookups = set()
+        load_step.dependent_lookups = set()
+
+        load_step.execute()
+
+        self.assertEqual(
+            [
+                unittest.mock.call(
+                    "Account",
+                    record_list[1]["Id"],
+                    f"Account {record_list[1]['Id']} has an outside reference in field ParentId (001000000000002), which is not allowed by the extraction configuration.",
+                ),
+            ],
+            op.register_error.call_args_list,
+        )
+
+    def test_execute_handles_exceptions__bad_data(self):
+        record_list = [
+            {"Name": "Test", "Id": "001000000000000", "IsDeleted": "false"},
+            {"Name": "Test 2", "Id": "001000000000001", "IsDeleted": "foo"},
+        ]
+        connection = MockConnection()
+        op = amaxa.LoadOperation(Mock(wraps=connection))
+        op.file_store = MockFileStore()
+        op.file_store.records["Account"] = record_list
+        op.register_new_id = Mock()
+        op.register_error = Mock()
+
+        load_step = amaxa.LoadStep("Account", ["Name", "IsDeleted"])
+        op.add_step(load_step)
+
+        load_step.initialize()
+        load_step.execute()
+
+        self.assertEqual(
+            [
+                unittest.mock.call(
+                    "Account",
+                    record_list[1]["Id"],
+                    f"Bad data in record {record_list[1]['Id']}: Invalid Boolean value foo",
+                ),
+            ],
+            op.register_error.call_args_list,
+        )
+
     def test_execute_dependent_updates_handles_lookups(self):
         record_list = [
             {"Name": "Test", "Id": "001000000000000", "ParentId": "001000000000004"},
@@ -599,6 +688,38 @@ class test_LoadStep(unittest.TestCase):
                 ),
                 unittest.mock.call(
                     "Account", record_list[1]["Id"], load_step.format_error(error)
+                ),
+            ],
+            op.register_error.call_args_list,
+        )
+
+    def test_execute_dependent_updates_handles_exceptions__outside_lookups(self):
+        record_list = [
+            {"Name": "Test", "Id": "001000000000000", "ParentId": ""},
+            {"Name": "Test 2", "Id": "001000000000001", "ParentId": "001000000000002"},
+        ]
+        connection = MockConnection()
+        op = amaxa.LoadOperation(Mock(wraps=connection))
+        op.file_store = MockFileStore()
+        op.file_store.records["Account"] = record_list
+        op.register_new_id = Mock()
+        op.register_error = Mock()
+
+        load_step = amaxa.LoadStep("Account", ["Name", "ParentId"])
+        load_step.set_lookup_behavior_for_field(
+            "ParentId", amaxa.OutsideLookupBehavior.ERROR
+        )
+        op.add_step(load_step)
+
+        load_step.initialize()
+        load_step.execute_dependent_updates()
+
+        self.assertEqual(
+            [
+                unittest.mock.call(
+                    "Account",
+                    record_list[1]["Id"],
+                    f"Account {record_list[1]['Id']} has an outside reference in field ParentId (001000000000002), which is not allowed by the extraction configuration.",
                 ),
             ],
             op.register_error.call_args_list,
