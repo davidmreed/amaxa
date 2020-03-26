@@ -1,3 +1,4 @@
+import abc
 import csv
 import functools
 import logging
@@ -112,7 +113,7 @@ class FileStore(object):
             f.close()
 
 
-class Operation(object):
+class Operation(metaclass=abc.ABCMeta):
     def __init__(self, connection):
         self.steps = []
         self.connection = connection
@@ -138,6 +139,7 @@ class Operation(object):
         for s in self.steps:
             s.initialize()
 
+    @abc.abstractmethod
     def execute(self):
         pass
 
@@ -180,7 +182,7 @@ class Operation(object):
         return {k: field_map[k] for k in field_map if lam(field_map[k])}
 
 
-class Step(object):
+class Step(metaclass=abc.ABCMeta):
     def __init__(self, sobjectname, field_scope):
         self.sobjectname = sobjectname
         self.field_scope = field_scope
@@ -250,6 +252,7 @@ class Step(object):
             )
         }
 
+    @abc.abstractmethod
     def execute(self):
         pass
 
