@@ -353,11 +353,8 @@ class LoadStep(Step):
             return value
         elif b is OutsideLookupBehavior.ERROR:
             raise AmaxaException(
-                "{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.",
-                self.sobjectname,
-                record_id,
-                lookup,
-                value,
+                f"{self.sobjectname} {record_id} has an outside reference in field {lookup} ({value}), "
+                "which is not allowed by the extraction configuration.",
             )
         elif b is OutsideLookupBehavior.DROP_FIELD:
             return ""
@@ -379,7 +376,7 @@ class LoadStep(Step):
                     return "false"
                 elif value.lower() in ["yes", "true", "y", "t", "1"]:
                     return "true"
-                raise ValueError("Invalid Boolean value {}", value)
+                raise ValueError(f"Invalid Boolean value {value}")
             elif value is None or len(value) == 0:
                 return None
             elif field_type == "tns:ID":
@@ -449,7 +446,7 @@ class LoadStep(Step):
                 self.context.register_error(
                     self.sobjectname,
                     original_ids[-1],
-                    "Bad data in record {}: {}".format(original_ids[-1], str(e)),
+                    f"Bad data in record {original_ids[-1]}: {str(e)}",
                 )
                 success = False
 

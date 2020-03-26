@@ -191,7 +191,7 @@ class test_LoadStep(unittest.TestCase):
         with pytest.raises(ValueError):
             load_step.primitivize({"Boolean__c": "blah"})
 
-        assert load_step.primivize({"Address__c": "foo"})["Address__c"] is None
+        assert load_step.primitivize({"Address__c": "foo"})["Address__c"] is None
 
     def test_transform_records_calls_context_mapper(self):
         connection = Mock()
@@ -510,7 +510,7 @@ class test_LoadStep(unittest.TestCase):
 
     def test_execute_handles_exceptions__outside_lookups(self):
         record_list = [
-            {"Name": "Test", "Id": "001000000000000", "ParentId": None},
+            {"Name": "Test", "Id": "001000000000000", "ParentId": ""},
             {"Name": "Test 2", "Id": "001000000000001", "ParentId": "001000000000002"},
         ]
         connection = MockConnection()
@@ -520,13 +520,19 @@ class test_LoadStep(unittest.TestCase):
         op.register_new_id = Mock()
         op.register_error = Mock()
 
-        load_step = amaxa.LoadStep("Account", ["Name"])
+        load_step = amaxa.LoadStep("Account", ["Name", "ParentId"])
         load_step.set_lookup_behavior_for_field(
             "ParentId", amaxa.OutsideLookupBehavior.ERROR
         )
         op.add_step(load_step)
 
         load_step.initialize()
+
+        # Force a failure by treating ParentId as a descendent lookup
+        load_step.descendent_lookups = {"ParentId"}
+        load_step.self_lookups = set()
+        load_step.dependent_lookups = set()
+
         load_step.execute()
 
         self.assertEqual(
@@ -563,7 +569,7 @@ class test_LoadStep(unittest.TestCase):
                 unittest.mock.call(
                     "Account",
                     record_list[1]["Id"],
-                    f"Bad data in record {record_list[1]['Id']}: invalid Boolean value foo.",
+                    f"Bad data in record {record_list[1]['Id']}: Invalid Boolean value foo",
                 ),
             ],
             op.register_error.call_args_list,

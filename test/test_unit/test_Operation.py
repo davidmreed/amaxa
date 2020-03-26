@@ -4,10 +4,15 @@ from unittest.mock import Mock
 import amaxa
 
 
+class ConcreteOperation(amaxa.Operation):
+    def execute(self):
+        pass
+
+
 class test_Operation(unittest.TestCase):
     def test_stores_steps(self):
         connection = Mock()
-        oc = amaxa.Operation(connection)
+        oc = ConcreteOperation(connection)
 
         step = Mock()
         oc.add_step(step)
@@ -22,7 +27,7 @@ class test_Operation(unittest.TestCase):
         describe_info = {"fields": fields}
 
         connection.get_sobject_describe.return_value = describe_info
-        oc = amaxa.Operation(connection)
+        oc = ConcreteOperation(connection)
 
         retval = oc.get_describe("Account")
         self.assertEqual(describe_info, retval)
@@ -40,7 +45,7 @@ class test_Operation(unittest.TestCase):
         describe_info = {"fields": fields}
 
         connection.get_sobject_describe.return_value = describe_info
-        oc = amaxa.Operation(connection)
+        oc = ConcreteOperation(connection)
 
         retval = oc.get_field_map("Account")
         self.assertEqual({"Name": {"name": "Name"}, "Id": {"name": "Id"}}, retval)
@@ -58,7 +63,7 @@ class test_Operation(unittest.TestCase):
         describe_info = {"fields": fields}
 
         connection.get_sobject_describe.return_value = describe_info
-        oc = amaxa.Operation(connection)
+        oc = ConcreteOperation(connection)
 
         retval = oc.get_filtered_field_map("Account", lambda f: f["name"] == "Id")
         self.assertEqual({"Id": {"name": "Id"}}, retval)
@@ -72,7 +77,7 @@ class test_Operation(unittest.TestCase):
             ]
         }
 
-        oc = amaxa.Operation(connection)
+        oc = ConcreteOperation(connection)
 
         self.assertEqual("Account", oc.get_sobject_name_for_id("001000000000000"))
         self.assertEqual("Contact", oc.get_sobject_name_for_id("003000000000000"))
@@ -81,7 +86,7 @@ class test_Operation(unittest.TestCase):
 
     def test_run_calls_initialize_and_execute(self):
         connection = Mock()
-        op = amaxa.Operation(connection)
+        op = ConcreteOperation(connection)
         op.initialize = Mock()
         op.execute = Mock(return_value=0)
         op.file_store = Mock()
@@ -93,7 +98,7 @@ class test_Operation(unittest.TestCase):
 
     def test_run_logs_exceptions(self):
         connection = Mock()
-        op = amaxa.Operation(connection)
+        op = ConcreteOperation(connection)
         op.initialize = Mock()
         op.execute = Mock(side_effect=amaxa.AmaxaException("Test"))
         op.logger = Mock()
