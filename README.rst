@@ -1,26 +1,28 @@
 Amaxa - a multi-object ETL tool for Salesforce
 ==============================================
 
-.. image:: https://github.com/davidmreed/amaxa/workflows/Feature%20Tests/badge.svg?branch=master
+|Unit Test Badge| |Integration Test Badge| |Code Coverage Badge| |Black Badge| |PyPI Badge| |Docs Badge|
+  
+.. |Unit Test Badge| image:: https://github.com/davidmreed/amaxa/workflows/Feature%20Tests/badge.svg?branch=master
   :target: https://github.com/davidmreed/amaxa
   :alt: Unit Tests
-
-.. image:: https://github.com/davidmreed/amaxa/workflows/Integration%20Test/badge.svg?branch=master
+  
+.. |Integration Test Badge| image:: https://github.com/davidmreed/amaxa/workflows/Integration%20Test/badge.svg?branch=master
   :target: https://github.com/davidmreed/amaxa
   :alt: Integration Tests
-
-.. image:: https://codecov.io/gh/davidmreed/amaxa/branch/master/graph/badge.svg
+  
+.. |Code Coverage Badge| image:: https://codecov.io/gh/davidmreed/amaxa/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/davidmreed/amaxa
   :alt: Code Coverage
-
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+  
+.. |Black Badge| image:: https://img.shields.io/badge/code%20style-black-000000.svg
   :target: https://github.com/psf/black
   :alt: Black Code Formatting
-
-.. image:: https://img.shields.io/pypi/l/amaxa
+  
+.. |PyPI Badge| image:: https://img.shields.io/pypi/l/amaxa
   :alt: PyPI - License
 
-.. image:: https://readthedocs.org/projects/amaxa/badge/?version=latest
+.. |Docs Badge| image:: https://readthedocs.org/projects/amaxa/badge/?version=latest
   :target: https://amaxa.readthedocs.io/en/latest/?badge=latest
   :alt: Documentation Status
 
