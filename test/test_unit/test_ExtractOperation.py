@@ -21,6 +21,21 @@ class test_ExtractOperation(unittest.TestCase):
             s.execute.assert_called_once_with()
             self.assertEqual(oc, s.context)
 
+    def test_execute_returns_on_error(self):
+        connection = Mock()
+        oc = amaxa.ExtractOperation(connection)
+
+        # pylint: disable=W0612
+        for i in range(3):
+            oc.add_step(Mock(sobjectname=str(i), errors=[]))
+        oc.steps[1].errors = ["Bad things happened"]
+
+        assert oc.execute() == -1
+
+        oc.steps[0].execute.assert_called_once_with()
+        oc.steps[1].execute.assert_called_once_with()
+        oc.steps[2].execute.assert_not_called()
+
     def test_add_dependency_tracks_dependencies(self):
         connection = Mock()
 

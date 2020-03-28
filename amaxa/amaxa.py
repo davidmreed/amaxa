@@ -1,3 +1,4 @@
+import abc
 import csv
 import functools
 import logging
@@ -112,7 +113,7 @@ class FileStore(object):
             f.close()
 
 
-class Operation(object):
+class Operation(metaclass=abc.ABCMeta):
     def __init__(self, connection):
         self.steps = []
         self.connection = connection
@@ -138,6 +139,7 @@ class Operation(object):
         for s in self.steps:
             s.initialize()
 
+    @abc.abstractmethod
     def execute(self):
         pass
 
@@ -180,7 +182,7 @@ class Operation(object):
         return {k: field_map[k] for k in field_map if lam(field_map[k])}
 
 
-class Step(object):
+class Step(metaclass=abc.ABCMeta):
     def __init__(self, sobjectname, field_scope):
         self.sobjectname = sobjectname
         self.field_scope = field_scope
@@ -250,6 +252,7 @@ class Step(object):
             )
         }
 
+    @abc.abstractmethod
     def execute(self):
         pass
 
@@ -350,11 +353,8 @@ class LoadStep(Step):
             return value
         elif b is OutsideLookupBehavior.ERROR:
             raise AmaxaException(
-                "{} {} has an outside reference in field {} ({}), which is not allowed by the extraction configuration.",
-                self.sobjectname,
-                record_id,
-                lookup,
-                value,
+                f"{self.sobjectname} {record_id} has an outside reference in field {lookup} ({value}), "
+                "which is not allowed by the extraction configuration.",
             )
         elif b is OutsideLookupBehavior.DROP_FIELD:
             return ""
@@ -376,7 +376,7 @@ class LoadStep(Step):
                     return "false"
                 elif value.lower() in ["yes", "true", "y", "t", "1"]:
                     return "true"
-                raise ValueError("Invalid Boolean value {}", value)
+                raise ValueError(f"Invalid Boolean value {value}")
             elif value is None or len(value) == 0:
                 return None
             elif field_type == "tns:ID":
@@ -446,7 +446,7 @@ class LoadStep(Step):
                 self.context.register_error(
                     self.sobjectname,
                     original_ids[-1],
-                    "Bad data in record {}: {}".format(original_ids[-1], str(e)),
+                    f"Bad data in record {original_ids[-1]}: {str(e)}",
                 )
                 success = False
 

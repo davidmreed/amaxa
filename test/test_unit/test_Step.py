@@ -4,6 +4,11 @@ from unittest.mock import Mock
 import amaxa
 
 
+class ConcreteStep(amaxa.Step):
+    def execute(self):
+        pass
+
+
 class test_Step(unittest.TestCase):
     def test_initialize_identifies_self_lookups(self):
         connection = Mock()
@@ -26,7 +31,7 @@ class test_Step(unittest.TestCase):
             }
         )
 
-        step = amaxa.Step("Account", ["Lookup__c", "Other__c"])
+        step = ConcreteStep("Account", ["Lookup__c", "Other__c"])
         oc.add_step(step)
 
         step.initialize()
@@ -56,7 +61,7 @@ class test_Step(unittest.TestCase):
         )
         oc.get_sobject_list = Mock(return_value=["Account", "Contact"])
 
-        step = amaxa.Step("Account", ["Lookup__c", "Other__c"])
+        step = ConcreteStep("Account", ["Lookup__c", "Other__c"])
         oc.add_step(step)
 
         step.initialize()
@@ -91,7 +96,7 @@ class test_Step(unittest.TestCase):
         )
         oc.get_sobject_list = Mock(return_value=["Account", "Contact"])
 
-        step = amaxa.Step("Account", ["Lookup__c", "Other__c", "Outside__c"])
+        step = ConcreteStep("Account", ["Lookup__c", "Other__c", "Outside__c"])
         oc.add_step(step)
 
         step.initialize()
@@ -121,7 +126,7 @@ class test_Step(unittest.TestCase):
         )
         oc.get_sobject_list = Mock(return_value=["Account", "Contact"])
 
-        step = amaxa.Step("Contact", ["Lookup__c", "Other__c"])
+        step = ConcreteStep("Contact", ["Lookup__c", "Other__c"])
         oc.add_step(step)
 
         step.initialize()
@@ -152,7 +157,7 @@ class test_Step(unittest.TestCase):
         )
         oc.get_sobject_list = Mock(return_value=["Account", "Contact", "Opportunity"])
 
-        step = amaxa.Step("Contact", ["Poly_Lookup__c", "Other__c"])
+        step = ConcreteStep("Contact", ["Poly_Lookup__c", "Other__c"])
         oc.add_step(step)
 
         step.initialize()
@@ -161,6 +166,6 @@ class test_Step(unittest.TestCase):
         self.assertEqual(set(["Poly_Lookup__c"]), step.descendent_lookups)
 
     def test_generates_field_list(self):
-        step = amaxa.Step("Account", ["Lookup__c", "Other__c"])
+        step = ConcreteStep("Account", ["Lookup__c", "Other__c"])
 
         self.assertEqual("Lookup__c, Other__c", step.get_field_list())
