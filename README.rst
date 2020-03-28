@@ -1,7 +1,7 @@
 Amaxa - a multi-object ETL tool for Salesforce
 ==============================================
 
-.. image:: https://github.com/davidmreed/amaxa/workflows/Feature%20Tests/badge.svg
+.. image:: https://github.com/davidmreed/amaxa/workflows/Feature%20Tests/badge.svg?branch=master
   :target: https://github.com/davidmreed/amaxa
   :alt: Unit Tests
 
@@ -21,8 +21,8 @@ Amaxa - a multi-object ETL tool for Salesforce
   :alt: PyPI - License
 
 .. image:: https://readthedocs.org/projects/amaxa/badge/?version=latest
-:target: https://amaxa.readthedocs.io/en/latest/?badge=latest
-:alt: Documentation Status
+  :target: https://amaxa.readthedocs.io/en/latest/?badge=latest
+  :alt: Documentation Status
 
 
 Introduction
