@@ -1,5 +1,5 @@
 version: 2
-plugin_modules:
+plugin-modules:
     - test_transforms
 operation:
     - sobject: Account
