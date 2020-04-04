@@ -4,7 +4,9 @@ plugin_modules:
 operation:
     - sobject: Account
       fields:
-        - Name
+        - field: Name
+          transforms:
+            - lowercase
         - field: Description
           transforms:
             - name: multiply
