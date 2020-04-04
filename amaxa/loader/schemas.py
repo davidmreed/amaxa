@@ -50,19 +50,19 @@ def _validate_transform_options(field, value, error):
 
     if transform_name not in available_transforms:
         error(field, f"The transform {transform_name} does not exist.")
+        return
 
-    if options:
-        validator = cerberus.Validator(
-            available_transforms[transform_name].get_options_schema()
+    validator = cerberus.Validator(
+        available_transforms[transform_name].get_options_schema()
+    )
+    validator.validate(options)
+
+    if validator.errors:
+        errors = "\n".join(validator.errors)
+        error(
+            field,
+            f"The options schema for transform {transform_name} failed to validate: {errors}",
         )
-        validator.validate(value)
-
-        if validator.errors:
-            errors = "\n".join(validator.errors)
-            error(
-                field,
-                f"The options schema for transform {transform_name} failed to validate: {errors}",
-            )
 
 
 OPTIONS_SCHEMA = {
