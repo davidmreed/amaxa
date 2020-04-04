@@ -97,7 +97,7 @@ class test_end_to_end_transforms(IntegrationTest):
                     self.assertEqual(0, main())
 
                 result = self.connection.query(
-                    "SELECT Name, Description FROM Account WHERE Name = 'Sandia Style Interiors'"
+                    "SELECT Id, Name, Description FROM Account WHERE Name = 'Sandia Style Interiors'"
                 )
                 assert len(result["records"]) == 1
                 record = result["records"][0]

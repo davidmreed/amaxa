@@ -31,9 +31,8 @@ class TransformProvider(metaclass=ABCMeta):
     def get_transform(self, field_context: str, options: Dict):
         pass
 
-    @abstractmethod
     def get_options_schema(self):
-        pass
+        return {}
 
 
 class LowercaseTransformProvider(TransformProvider):
@@ -45,9 +44,6 @@ class LowercaseTransformProvider(TransformProvider):
 
         return lowercase
 
-    def get_options_schema(self):
-        return {}
-
 
 class UppercaseTransformProvider(TransformProvider):
     transform_name = "uppercase"
@@ -58,9 +54,6 @@ class UppercaseTransformProvider(TransformProvider):
 
         return uppercase
 
-    def get_options_schema(self):
-        return {}
-
 
 class StripTransformProvider(TransformProvider):
     transform_name = "strip"
@@ -70,9 +63,6 @@ class StripTransformProvider(TransformProvider):
             return x.strip()
 
         return strip
-
-    def get_options_schema(self):
-        return {}
 
 
 class PrefixTransformProvider(TransformProvider):
