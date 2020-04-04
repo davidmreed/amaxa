@@ -320,7 +320,12 @@ SCHEMAS = {
                                         "type": "list",
                                         "schema": {
                                             "type": "string",
-                                            "allowed": transforms.__all__,
+                                            "allowed": [
+                                                "strip",
+                                                "lowercase",
+                                                "uppercase",
+                                            ],
+                                            "coerce": _coerce_transform,
                                         },
                                         "required": False,
                                     },

@@ -148,12 +148,18 @@ class OperationLoader(Loader):
                     if "transforms" in f:
                         field_name = f[source] if source in f else f[dest]
                         mapper.field_transforms[field_name] = [
-                            getattr(transforms, t) for t in f["transforms"]
+                            self._build_transform(field_name, t)
+                            for t in f["transforms"]
                         ]
 
             return mapper
 
         return None
+
+    def _build_transform(self, field_name, transform):
+        transform_factory = transforms.get_all_transforms()[transform["name"]]
+
+        return transform_factory.get_transform(field_name, transform["options"])
 
     def _populate_lookup_behaviors(self, step, entry):
         if "fields" in entry and any(

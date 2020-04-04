@@ -1,8 +1,12 @@
 from abc import ABCMeta, abstractmethod
 from typing import Dict
 
+_all_transforms = None
+
 
 def get_all_transforms():
+    global _all_transforms
+
     def get_subclasses(cls):
         classes = []
         for subclass in cls.__subclasses__():
@@ -11,7 +15,12 @@ def get_all_transforms():
 
         return classes
 
-    return {cls.transform_name: cls for cls in get_subclasses(TransformProvider)}
+    if _all_transforms is None:
+        _all_transforms = {
+            cls.transform_name: cls() for cls in get_subclasses(TransformProvider)
+        }
+
+    return _all_transforms
 
 
 class TransformProvider(metaclass=ABCMeta):
@@ -19,7 +28,7 @@ class TransformProvider(metaclass=ABCMeta):
     allowed_types = []
 
     @abstractmethod
-    def get_transform(self, field_context: Dict, options: Dict):
+    def get_transform(self, field_context: str, options: Dict):
         pass
 
     @abstractmethod
@@ -31,7 +40,7 @@ class LowercaseTransformProvider(TransformProvider):
     transform_name = "lowercase"
     allowed_types = ["xsd:string"]
 
-    def get_transform(self, field_context: Dict, options: Dict):
+    def get_transform(self, field_context: str, options: Dict):
         def lowercase(x):
             return x.lower()
 
@@ -45,7 +54,7 @@ class UppercaseTransformProvider(TransformProvider):
     transform_name = "uppercase"
     allowed_types = ["xsd:string"]
 
-    def get_transform(self, field_context: Dict, options: Dict):
+    def get_transform(self, field_context: str, options: Dict):
         def uppercase(x):
             return x.upper()
 
@@ -59,7 +68,7 @@ class StripTransformProvider(TransformProvider):
     transform_name = "strip"
     allowed_types = ["xsd:string"]
 
-    def get_transform(self, field_context: Dict, options: Dict):
+    def get_transform(self, field_context: str, options: Dict):
         def strip(x):
             return x.strip()
 
@@ -73,7 +82,7 @@ class PrefixTransformProvider(TransformProvider):
     transform_name = "prefix"
     allowed_types = ["xsd:string"]
 
-    def get_transform(self, field_context: Dict, options: Dict):
+    def get_transform(self, field_context: str, options: Dict):
         def prefix(x):
             return options["prefix"] + x
 
@@ -87,7 +96,7 @@ class SuffixTransformProvider(TransformProvider):
     transform_name = "suffix"
     allowed_types = ["xsd:string"]
 
-    def get_transform(self, field_context: Dict, options: Dict):
+    def get_transform(self, field_context: str, options: Dict):
         def suffix(x):
             return x + options["suffix"]
 
