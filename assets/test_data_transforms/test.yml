@@ -1,0 +1,14 @@
+version: 2
+plugin_modules:
+    - test_transforms
+operation:
+    - sobject: Account
+      fields:
+        - Name
+        - field: Description
+          transforms:
+            - name: multiply
+              options:
+                count: 2
+      extract:
+        all: True

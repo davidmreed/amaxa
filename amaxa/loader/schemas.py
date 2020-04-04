@@ -1,5 +1,6 @@
 import importlib
 import os
+import sys
 
 import cerberus
 
@@ -35,6 +36,8 @@ def _coerce_transform(trans):
 
 def _validate_import_module(field, value, error):
     try:
+        if "." not in sys.path:
+            sys.path.append(".")
         importlib.import_module(value)
     except ImportError:
         error(field, f"Unable to import module {value}")
