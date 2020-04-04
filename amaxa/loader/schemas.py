@@ -350,7 +350,7 @@ SCHEMAS = {
         2: {
             "version": {"type": "integer", "required": True, "allowed": [2]},
             "options": OPTIONS_SCHEMA,
-            "plugin_modules": {
+            "plugin-modules": {
                 "type": "list",
                 "schema": {"type": "string", "check_with": _validate_import_module},
             },

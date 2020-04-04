@@ -38,7 +38,6 @@ class TransformProvider(metaclass=ABCMeta):
 
 class LowercaseTransformProvider(TransformProvider):
     transform_name = "lowercase"
-    allowed_types = ["xsd:string"]
 
     def get_transform(self, field_context: str, options: Dict):
         def lowercase(x):
@@ -52,7 +51,6 @@ class LowercaseTransformProvider(TransformProvider):
 
 class UppercaseTransformProvider(TransformProvider):
     transform_name = "uppercase"
-    allowed_types = ["xsd:string"]
 
     def get_transform(self, field_context: str, options: Dict):
         def uppercase(x):
@@ -66,7 +64,6 @@ class UppercaseTransformProvider(TransformProvider):
 
 class StripTransformProvider(TransformProvider):
     transform_name = "strip"
-    allowed_types = ["xsd:string"]
 
     def get_transform(self, field_context: str, options: Dict):
         def strip(x):
@@ -80,7 +77,6 @@ class StripTransformProvider(TransformProvider):
 
 class PrefixTransformProvider(TransformProvider):
     transform_name = "prefix"
-    allowed_types = ["xsd:string"]
 
     def get_transform(self, field_context: str, options: Dict):
         def prefix(x):
@@ -94,7 +90,6 @@ class PrefixTransformProvider(TransformProvider):
 
 class SuffixTransformProvider(TransformProvider):
     transform_name = "suffix"
-    allowed_types = ["xsd:string"]
 
     def get_transform(self, field_context: str, options: Dict):
         def suffix(x):
