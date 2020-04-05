@@ -245,7 +245,7 @@ class test_ExtractionOperationLoader(unittest.TestCase):
     def test_load_extraction_operation_creates_export_mapper(self):
         result = self._run_success_test(
             {
-                "version": 1,
+                "version": 2,
                 "operation": [
                     {
                         "sobject": "Account",
@@ -253,7 +253,10 @@ class test_ExtractionOperationLoader(unittest.TestCase):
                             {
                                 "field": "Name",
                                 "column": "Account Name",
-                                "transforms": ["strip", "lowercase"],
+                                "transforms": [
+                                    {"name": "strip", "options": {}},
+                                    {"name": "lowercase", "options": {}},
+                                ],
                             },
                             "Industry",
                         ],

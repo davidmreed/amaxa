@@ -4,7 +4,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "amaxa"
-version = "0.9.5"
+version = "0.9.6"
 description = "Load and extract data from multiple Salesforce objects in a single operation, preserving links and network structure."
 license = "BSD-3-Clause"
 authors = ["David Reed <david@ktema.org>"]

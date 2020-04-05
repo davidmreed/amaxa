@@ -6,6 +6,7 @@
    running
    credentials
    operations
+   transforms
    validation
    references
    errors

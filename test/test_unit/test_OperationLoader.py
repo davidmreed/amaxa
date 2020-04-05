@@ -62,7 +62,10 @@ class test_OperationLoader(unittest.TestCase):
                 {
                     "field": "Name",
                     "column": "Account Name",
-                    "transforms": ["strip", "lowercase"],
+                    "transforms": [
+                        {"name": "strip", "options": {}},
+                        {"name": "lowercase", "options": {}},
+                    ],
                 },
                 "Industry",
             ],
@@ -88,7 +91,10 @@ class test_OperationLoader(unittest.TestCase):
                 {
                     "field": "Name",
                     "column": "Account Name",
-                    "transforms": ["strip", "lowercase"],
+                    "transforms": [
+                        {"name": "strip", "options": {}},
+                        {"name": "lowercase", "options": {}},
+                    ],
                 },
                 "Industry",
             ],
@@ -111,7 +117,13 @@ class test_OperationLoader(unittest.TestCase):
         ex = {
             "sobject": "Account",
             "fields": [
-                {"field": "Name", "transforms": ["strip", "lowercase"]},
+                {
+                    "field": "Name",
+                    "transforms": [
+                        {"name": "strip", "options": {}},
+                        {"name": "lowercase", "options": {}},
+                    ],
+                },
                 "Industry",
             ],
             "extract": {"all": True},

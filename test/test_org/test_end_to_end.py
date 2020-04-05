@@ -83,3 +83,47 @@ class test_end_to_end(IntegrationTest):
 
                     self.assertFalse(names[sobject])
                     self.assertEqual(0, counts[sobject])
+
+
+class test_end_to_end_transforms(IntegrationTest):
+    def test_round_trip_all_transforms(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            copy_tree("assets/test_data_transforms", tempdir)
+            with cd(tempdir):
+                with unittest.mock.patch(
+                    "sys.argv",
+                    ["amaxa", "--load", "-c", "credentials-env.yml", "test.yml"],
+                ):
+                    self.assertEqual(0, main())
+
+                result = self.connection.query(
+                    "SELECT Id, Name, Description FROM Account WHERE Name = 'Sandia Style Interiors'"
+                )
+                assert len(result["records"]) == 1
+                record = result["records"][0]
+                assert record["Name"] == "sandia style interiors"
+                assert record["Description"] == "LifestyleLifestyle"
+
+                self.connection.Account.update(
+                    record["Id"], {"Name": record["Name"].upper()}
+                )
+
+                # Re-extract the data.
+                with unittest.mock.patch(
+                    "sys.argv", ["amaxa", "-c", "credentials-env.yml", "test.yml"]
+                ):
+                    self.assertEqual(0, main())
+
+                # Validate the results
+                with open("Account.csv", "r") as csv_file:
+                    reader = csv.DictReader(csv_file)
+                    for record in reader:
+                        self.register_case_record("Account", record["Id"])
+
+                        assert record["Name"].islower()
+                        assert record["Description"] in [
+                            "Lifestyle" * 4,
+                            "VC" * 4,
+                            "Government" * 4,
+                            "Sustainability" * 4,
+                        ]

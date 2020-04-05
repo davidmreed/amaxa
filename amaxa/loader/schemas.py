@@ -1,4 +1,8 @@
+import importlib
 import os
+import sys
+
+import cerberus
 
 from .. import amaxa, constants, transforms
 from .input_type import InputType
@@ -21,6 +25,47 @@ def _env_or_string(params):
     ret.update(params)
 
     return ret
+
+
+def _coerce_transform(trans):
+    if isinstance(trans, str):
+        return {"name": trans, "options": {}}
+
+    return trans
+
+
+def _validate_import_module(field, value, error):
+    try:
+        if "." not in sys.path:
+            sys.path.append(".")
+        importlib.import_module(value)
+    except ImportError:
+        error(field, f"Unable to import module {value}")
+
+
+def _validate_transform_options(field, value, error):
+    # value will be a dict with keys "name" and "options"
+
+    transform_name = value["name"]
+    options = value["options"]
+
+    available_transforms = transforms.get_all_transforms()
+
+    if transform_name not in available_transforms:
+        error(field, f"The transform {transform_name} does not exist.")
+        return
+
+    validator = cerberus.Validator(
+        available_transforms[transform_name].get_options_schema()
+    )
+    validator.validate(options)
+
+    if validator.errors:
+        errors = "\n".join(validator.errors)
+        error(
+            field,
+            f"The options schema for transform {transform_name} failed to validate: {errors}",
+        )
 
 
 OPTIONS_SCHEMA = {
@@ -278,7 +323,12 @@ SCHEMAS = {
                                         "type": "list",
                                         "schema": {
                                             "type": "string",
-                                            "allowed": transforms.__all__,
+                                            "allowed": [
+                                                "strip",
+                                                "lowercase",
+                                                "uppercase",
+                                            ],
+                                            "coerce": _coerce_transform,
                                         },
                                         "required": False,
                                     },
@@ -300,6 +350,10 @@ SCHEMAS = {
         2: {
             "version": {"type": "integer", "required": True, "allowed": [2]},
             "options": OPTIONS_SCHEMA,
+            "plugin-modules": {
+                "type": "list",
+                "schema": {"type": "string", "check_with": _validate_import_module},
+            },
             "operation": {
                 "type": "list",
                 "schema": {
@@ -371,8 +425,16 @@ SCHEMAS = {
                                     "transforms": {
                                         "type": "list",
                                         "schema": {
-                                            "type": "string",
-                                            "allowed": transforms.__all__,
+                                            "type": ["dict", "string"],
+                                            "schema": {
+                                                "name": {
+                                                    "type": "string",
+                                                    "required": True,
+                                                },
+                                                "options": {"type": "dict"},
+                                            },
+                                            "coerce": _coerce_transform,
+                                            "check_with": _validate_transform_options,
                                         },
                                         "required": False,
                                     },
