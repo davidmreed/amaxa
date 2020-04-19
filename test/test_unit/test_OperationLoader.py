@@ -73,7 +73,8 @@ class test_OperationLoader(unittest.TestCase):
             "input-validation": "none",
         }
 
-        context = core.OperationLoader({}, None, InputType.EXTRACT_OPERATION)
+        mc = MockConnection()
+        context = core.OperationLoader({}, mc, InputType.EXTRACT_OPERATION)
         mapper = context._get_data_mapper(ex, "column", "field")
 
         self.assertEqual({"Account Name": "Name"}, mapper.field_name_mapping)
@@ -102,7 +103,8 @@ class test_OperationLoader(unittest.TestCase):
             "input-validation": "none",
         }
 
-        context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
+        mc = MockConnection()
+        context = core.OperationLoader({}, mc, InputType.LOAD_OPERATION)
         mapper = context._get_data_mapper(ex, "field", "column")
 
         self.assertEqual({"Name": "Account Name"}, mapper.field_name_mapping)
@@ -130,7 +132,8 @@ class test_OperationLoader(unittest.TestCase):
             "input-validation": "none",
         }
 
-        context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
+        mc = MockConnection()
+        context = core.OperationLoader({}, mc, InputType.LOAD_OPERATION)
         mapper = context._get_data_mapper(ex, "field", "column")
 
         self.assertEqual({}, mapper.field_name_mapping)
@@ -149,7 +152,8 @@ class test_OperationLoader(unittest.TestCase):
             "input-validation": "none",
         }
 
-        context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
+        mc = MockConnection()
+        context = core.OperationLoader({}, mc, InputType.LOAD_OPERATION)
         mapper = context._get_data_mapper(ex, "field", "column")
 
         self.assertEqual({"Name": "Account Name"}, mapper.field_name_mapping)
@@ -158,6 +162,34 @@ class test_OperationLoader(unittest.TestCase):
             mapper.transform_record(
                 {"Name": "UNIversity of caprica", "Industry": "Education"}
             ),
+        )
+
+    def test_get_data_mapper_fails_inapplicable_mapper(self):
+        ex = {
+            "sobject": "Account",
+            "fields": [
+                {
+                    "field": "ParentId",
+                    "transforms": [
+                        {"name": "strip", "options": {}},
+                        {"name": "lowercase", "options": {}},
+                    ],
+                },
+                "Industry",
+            ],
+            "extract": {"all": True},
+            "input-validation": "none",
+        }
+
+        mc = MockConnection()
+        context = core.OperationLoader({}, mc, InputType.LOAD_OPERATION)
+        context._get_data_mapper(ex, "field", "column")
+
+        self.assertEqual(
+            [
+                "Unable to create transforms for field Account.ParentId: Transform strip is not available for fields of type tns:ID.",
+            ],
+            context.errors,
         )
 
     def test_validate_sobjects_flags_missing_sobjects(self):

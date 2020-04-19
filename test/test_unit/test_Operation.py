@@ -3,6 +3,8 @@ from unittest.mock import Mock
 
 import amaxa
 
+from .MockConnection import MockConnection
+
 
 class ConcreteOperation(amaxa.Operation):
     def execute(self):
@@ -20,69 +22,30 @@ class test_Operation(unittest.TestCase):
         self.assertEqual([step], oc.steps)
         self.assertEqual(oc, step.context)
 
-    def test_caches_describe_results(self):
+    def test_get_describe_calls_connection(self):
         connection = Mock()
-
-        fields = [{"name": "Name"}, {"name": "Id"}]
-        describe_info = {"fields": fields}
-
-        connection.get_sobject_describe.return_value = describe_info
         oc = ConcreteOperation(connection)
 
-        retval = oc.get_describe("Account")
-        self.assertEqual(describe_info, retval)
+        oc.get_describe("Account")
+
         connection.get_sobject_describe.assert_called_once_with("Account")
-        connection.get_sobject_describe.reset_mock()
 
-        retval = oc.get_describe("Account")
-        self.assertEqual(describe_info, retval)
-        connection.get_sobject_describe.assert_not_called()
-
-    def test_caches_field_maps(self):
+    def test_get_sobject_name_for_id_calls_connection(self):
         connection = Mock()
-
-        fields = [{"name": "Name"}, {"name": "Id"}]
-        describe_info = {"fields": fields}
-
-        connection.get_sobject_describe.return_value = describe_info
         oc = ConcreteOperation(connection)
 
-        retval = oc.get_field_map("Account")
-        self.assertEqual({"Name": {"name": "Name"}, "Id": {"name": "Id"}}, retval)
-        connection.get_sobject_describe.assert_called_once_with("Account")
-        connection.get_sobject_describe.reset_mock()
+        oc.get_sobject_name_for_id("001000000000001")
 
-        retval = oc.get_field_map("Account")
-        self.assertEqual({"Name": {"name": "Name"}, "Id": {"name": "Id"}}, retval)
-        connection.get_sobject_describe.assert_not_called()
+        connection.get_sobject_name_for_id.assert_called_once_with("001000000000001")
 
     def test_filters_field_maps(self):
-        connection = Mock()
+        connection = MockConnection()
 
-        fields = [{"name": "Name"}, {"name": "Id"}]
-        describe_info = {"fields": fields}
-
-        connection.get_sobject_describe.return_value = describe_info
         oc = ConcreteOperation(connection)
 
         retval = oc.get_filtered_field_map("Account", lambda f: f["name"] == "Id")
-        self.assertEqual({"Id": {"name": "Id"}}, retval)
-
-    def test_maps_ids_to_sobject_types(self):
-        connection = Mock()
-        connection.get_global_describe.return_value = {
-            "sobjects": [
-                {"name": "Account", "keyPrefix": "001"},
-                {"name": "Contact", "keyPrefix": "003"},
-            ]
-        }
-
-        oc = ConcreteOperation(connection)
-
-        self.assertEqual("Account", oc.get_sobject_name_for_id("001000000000000"))
-        self.assertEqual("Contact", oc.get_sobject_name_for_id("003000000000000"))
-
-        connection.get_global_describe.assert_called_once_with()
+        self.assertEqual(1, len(retval))
+        self.assertEqual("Id", retval["Id"]["name"])
 
     def test_run_calls_initialize_and_execute(self):
         connection = Mock()
