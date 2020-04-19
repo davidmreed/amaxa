@@ -1,6 +1,6 @@
 version: 2
 plugin-modules:
-    - test_transforms
+    - example_transforms
 operation:
     - sobject: Account
       fields:

@@ -146,20 +146,28 @@ class OperationLoader(Loader):
                         mapper.field_name_mapping[f[source]] = f[dest]
 
                     if "transforms" in f:
-                        field_name = f[source] if source in f else f[dest]
-                        mapper.field_transforms[field_name] = [
-                            self._build_transform(field_name, t)
-                            for t in f["transforms"]
-                        ]
+                        try:
+                            field_name = f[source] if source in f else f[dest]
+                            mapper.field_transforms[field_name] = [
+                                self._build_transform(entry["sobject"], f["field"], t)
+                                for t in f["transforms"]
+                            ]
+                        except transforms.TransformException as e:
+                            self.errors.append(
+                                f"Unable to create transforms for field {entry['sobject']}.{f['field']}: {e}"
+                            )
 
             return mapper
 
         return None
 
-    def _build_transform(self, field_name, transform):
+    def _build_transform(self, sobject_name, field_name, transform):
         transform_factory = transforms.get_all_transforms()[transform["name"]]
 
-        return transform_factory.get_transform(field_name, transform["options"])
+        return transform_factory.get_transform(
+            self.connection.get_sobject_field_map(sobject_name)[field_name],
+            transform["options"],
+        )
 
     def _populate_lookup_behaviors(self, step, entry):
         if "fields" in entry and any(

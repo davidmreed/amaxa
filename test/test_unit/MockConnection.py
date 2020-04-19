@@ -29,6 +29,7 @@ class MockConnection(object):
         self._bulk_query_results = bulk_query_results
         self._retrieve_results = retrieve_results
         self._query_results = query_results
+        self._field_maps = {}
 
     def get_global_describe(self):
         if self._describe is None:
@@ -39,8 +40,16 @@ class MockConnection(object):
     def get_sobject_describe(self, sobject):
         if sobject not in self._sobject_describes:
             self._sobject_describes[sobject] = copy.deepcopy(sobject_describes[sobject])
-
+            self._field_maps[sobject] = {
+                f.get("name"): f for f in self._sobject_describes[sobject].get("fields")
+            }
         return self._sobject_describes[sobject]
+
+    def get_sobject_field_map(self, sobjectname):
+        if sobjectname not in self._sobject_describes:
+            self.get_sobject_describe(sobjectname)
+
+        return self._field_maps[sobjectname]
 
     def bulk_api_insert(
         self,

@@ -151,30 +151,13 @@ class Operation(metaclass=abc.ABCMeta):
         return [step.sobjectname for step in self.steps]
 
     def get_sobject_name_for_id(self, id):
-        if self.key_prefix_map is None:
-            global_describe = self.connection.get_global_describe()["sobjects"]
-            self.key_prefix_map = {
-                sobject["keyPrefix"]: sobject["name"] for sobject in global_describe
-            }
-
-        return self.key_prefix_map[id[:3]]
+        return self.connection.get_sobject_name_for_id(id)
 
     def get_describe(self, sobjectname):
-        if sobjectname not in self.describe_info:
-            self.describe_info[sobjectname] = self.connection.get_sobject_describe(
-                sobjectname
-            )
-            self.field_maps[sobjectname] = {
-                f.get("name"): f for f in self.describe_info[sobjectname].get("fields")
-            }
-
-        return self.describe_info[sobjectname]
+        return self.connection.get_sobject_describe(sobjectname)
 
     def get_field_map(self, sobjectname):
-        if sobjectname not in self.describe_info:
-            self.get_describe(sobjectname)
-
-        return self.field_maps[sobjectname]
+        return self.connection.get_sobject_field_map(sobjectname)
 
     def get_filtered_field_map(self, sobjectname, lam):
         field_map = self.get_field_map(sobjectname)

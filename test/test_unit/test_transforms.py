@@ -1,6 +1,11 @@
+import pytest
 import unittest
 
 from amaxa import transforms
+
+TEST_FIELD = {"name": "Test__c", "soapType": "xsd:string"}
+
+TEST_FIELD_FAILURE = {"name": "ParentId", "soapType": "tns:Id"}
 
 
 class test_transforms(unittest.TestCase):
@@ -25,14 +30,14 @@ class test_transforms(unittest.TestCase):
         )
 
     def test_strip(self):
-        transformer = transforms.StripTransformProvider().get_transform("test__c", {})
+        transformer = transforms.StripTransformProvider().get_transform(TEST_FIELD, {})
 
         assert transformer("  test  ") == "test"
         assert transformer("test") == "test"
 
     def test_lowercase(self):
         transformer = transforms.LowercaseTransformProvider().get_transform(
-            "test__c", {}
+            TEST_FIELD, {}
         )
 
         assert transformer("TEST") == "test"
@@ -40,7 +45,7 @@ class test_transforms(unittest.TestCase):
 
     def test_uppercase(self):
         transformer = transforms.UppercaseTransformProvider().get_transform(
-            "test__c", {}
+            TEST_FIELD, {}
         )
 
         assert transformer("TEST") == "TEST"
@@ -48,7 +53,7 @@ class test_transforms(unittest.TestCase):
 
     def test_prefix(self):
         transformer = transforms.PrefixTransformProvider().get_transform(
-            "test__c", {"prefix": "foo"}
+            TEST_FIELD, {"prefix": "foo"}
         )
 
         assert transformer("TEST") == "fooTEST"
@@ -56,8 +61,14 @@ class test_transforms(unittest.TestCase):
 
     def test_suffix(self):
         transformer = transforms.SuffixTransformProvider().get_transform(
-            "test__c", {"suffix": "foo"}
+            TEST_FIELD, {"suffix": "foo"}
         )
 
         assert transformer("TEST") == "TESTfoo"
         assert "suffix" in transforms.SuffixTransformProvider().get_options_schema()
+
+    def test_field_type_exception(self):
+        with pytest.raises(transforms.TransformException):
+            transforms.SuffixTransformProvider().get_transform(
+                TEST_FIELD_FAILURE, {"suffix": "foo"}
+            )
