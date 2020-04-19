@@ -22,6 +22,22 @@ class test_Operation(unittest.TestCase):
         self.assertEqual([step], oc.steps)
         self.assertEqual(oc, step.context)
 
+    def test_get_describe_calls_connection(self):
+        connection = Mock()
+        oc = ConcreteOperation(connection)
+
+        oc.get_describe("Account")
+
+        connection.get_sobject_describe.assert_called_once_with("Account")
+
+    def test_get_sobject_name_for_id_calls_connection(self):
+        connection = Mock()
+        oc = ConcreteOperation(connection)
+
+        oc.get_sobject_name_for_id("001000000000001")
+
+        connection.get_sobject_name_for_id.assert_called_once_with("001000000000001")
+
     def test_filters_field_maps(self):
         connection = MockConnection()
 
