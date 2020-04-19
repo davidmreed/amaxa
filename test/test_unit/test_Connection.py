@@ -36,10 +36,68 @@ class test_Connection(unittest.TestCase):
         sf.bulk_url = "https://salesforce.com"
 
         conn = Connection(sf)
+        sf.Account.describe.return_value = {
+            "fields": [{"name": "Name"}, {"name": "Id"}]
+        }
+
         self.assertEqual(
             sf.Account.describe.return_value, conn.get_sobject_describe("Account")
         )
         sf.Account.describe.assert_called_once_with()
+
+    def test_caches_describe_results(self):
+        sf = Mock()
+        sf.bulk_url = "https://salesforce.com"
+
+        conn = Connection(sf)
+        sf.Account.describe.return_value = {
+            "fields": [{"name": "Name"}, {"name": "Id"}]
+        }
+
+        retval = conn.get_sobject_describe("Account")
+        self.assertEqual(sf.Account.describe.return_value, retval)
+        sf.Account.describe.assert_called_once_with()
+        sf.Account.describe.reset_mock()
+
+        retval = conn.get_sobject_describe("Account")
+        self.assertEqual(sf.Account.describe.return_value, retval)
+        sf.Account.describe.assert_not_called()
+
+    def test_caches_field_maps(self):
+        sf = Mock()
+        sf.bulk_url = "https://salesforce.com"
+
+        conn = Connection(sf)
+        sf.Account.describe.return_value = {
+            "fields": [{"name": "Name"}, {"name": "Id"}]
+        }
+
+        retval = conn.get_sobject_field_map("Account")
+        self.assertEqual({"Name": {"name": "Name"}, "Id": {"name": "Id"}}, retval)
+        sf.Account.describe.assert_called_once_with()
+        sf.Account.describe.reset_mock()
+
+        retval = conn.get_sobject_field_map("Account")
+        self.assertEqual({"Name": {"name": "Name"}, "Id": {"name": "Id"}}, retval)
+        sf.Account.describe.assert_not_called()
+
+    def test_maps_ids_to_sobject_types(self):
+        sf = Mock()
+        sf.bulk_url = "https://salesforce.com"
+
+        conn = Connection(sf)
+        conn.get_global_describe = Mock()
+        conn.get_global_describe.return_value = {
+            "sobjects": [
+                {"name": "Account", "keyPrefix": "001"},
+                {"name": "Contact", "keyPrefix": "003"},
+            ]
+        }
+
+        self.assertEqual("Account", conn.get_sobject_name_for_id("001000000000000"))
+        self.assertEqual("Contact", conn.get_sobject_name_for_id("003000000000000"))
+
+        conn.get_global_describe.assert_called_once_with()
 
     def test_bulk_api_query(self):  # FIXME: test wait
         sf = Mock()

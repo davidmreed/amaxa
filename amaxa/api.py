@@ -40,12 +40,36 @@ class Connection(object):
             host=urlparse(self._sf.bulk_url).hostname,
             API_version=constants.API_VERSION,
         )
+        self._describe_info = {}
+        self._field_maps = {}
+        self._key_prefix_map = None
 
     def get_global_describe(self):
         return self._sf.describe()
 
-    def get_sobject_describe(self, sobject):
-        return getattr(self._sf, sobject).describe()
+    def get_sobject_field_map(self, sobjectname):
+        if sobjectname not in self._describe_info:
+            self.get_sobject_describe(sobjectname)
+
+        return self._field_maps[sobjectname]
+
+    def get_sobject_describe(self, sobjectname):
+        if sobjectname not in self._describe_info:
+            self._describe_info[sobjectname] = getattr(self._sf, sobjectname).describe()
+            self._field_maps[sobjectname] = {
+                f.get("name"): f for f in self._describe_info[sobjectname].get("fields")
+            }
+
+        return self._describe_info[sobjectname]
+
+    def get_sobject_name_for_id(self, id):
+        if self._key_prefix_map is None:
+            global_describe = self.get_global_describe()["sobjects"]
+            self._key_prefix_map = {
+                sobject["keyPrefix"]: sobject["name"] for sobject in global_describe
+            }
+
+        return self._key_prefix_map[id[:3]]
 
     def _bulk_api_insert_update(
         self,
