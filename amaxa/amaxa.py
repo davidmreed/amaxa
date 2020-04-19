@@ -247,6 +247,7 @@ class LoadOperation(Operation):
         self.global_id_map = {}
         self.success = True
         self.stage = LoadStage.INSERTS
+        self.mapper_cache = None
 
     def register_new_id(self, sobjectname, old_id, new_id):
         self.global_id_map[old_id] = new_id
@@ -267,6 +268,11 @@ class LoadOperation(Operation):
         self.logger.info(
             "Starting load with sObjects %s", ", ".join(self.get_sobject_list())
         )
+
+        if self.mapper_cache:
+            self.logger.info("Loading mapped sObjects into cache")
+            self.mapper_cache.populate_cache()
+
         if self.stage is LoadStage.INSERTS:
             for s in self.steps:
                 self.logger.info("%s: starting load", s.sobjectname)

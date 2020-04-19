@@ -350,6 +350,18 @@ SCHEMAS = {
         2: {
             "version": {"type": "integer", "required": True, "allowed": [2]},
             "options": OPTIONS_SCHEMA,
+            "object-mappings": {
+                "schema": {
+                    "type": "list",
+                    "schema": {
+                        "type": "dict",
+                        "schema": {
+                            "sobject": {"type": "string", "required": True},
+                            "key-field": {"type": "string", "required": True},
+                        },
+                    },
+                }
+            },
             "plugin-modules": {
                 "type": "list",
                 "schema": {"type": "string", "check_with": _validate_import_module},

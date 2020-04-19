@@ -1,6 +1,7 @@
 import csv
+import functools
 
-from .. import amaxa, constants
+from .. import amaxa, constants, mapper_cache
 from .core import OperationLoader
 from .input_type import InputType
 
@@ -13,12 +14,22 @@ class LoadOperationLoader(OperationLoader):
     def _validate(self):
         self._validate_sobjects("createable")
         self._validate_field_mapping()
+        self._validate_caching_schema()
 
     def _load(self):
         # Create the core operation
         self.result = amaxa.LoadOperation(self.connection)
+        self.result.mapper_cache = mapper_cache.ObjectMapperCache(self.connection)
 
+        # Collect options
         options = self.input.get("options") or {}
+
+        # Register mapped sObjects
+        mapped_schema = self.input.get("object-mappings")
+        for mapping in mapped_schema:
+            sobject = mapping["sobject"]
+            key_field = mapping["key-field"]
+            self.result.mapper_cache.add_cached_sobject(sobject, [key_field])
 
         # Create the steps and data mappers
         for entry in self.input["operation"]:
@@ -28,8 +39,24 @@ class LoadOperationLoader(OperationLoader):
             mapper = self._get_data_mapper(entry, "column", "field")
             if mapper is not None:
                 self.result.mappers[sobject] = mapper
+
             # Field scope
             field_scope = self._get_field_scope(entry)
+
+            # Map Record Types if included
+            if "RecordTypeId" in field_scope:
+                self.result.mapper_cache.add_cached_sobject(
+                    "RecordType", ["SObjectType", "DeveloperName"]
+                )
+                mapper = self.result.mappers.setdefault(sobject, amaxa.DataMapper())
+                mapper.field_transforms.setdefault("RecordTypeId", []).append(
+                    functools.partial(
+                        mapper_cache.transform_record_type_reference,
+                        self.result.mapper_cache,
+                        sobject,
+                    )
+                )
+
             # Options dictionary
             step_opts = options.copy()
             step_opts.update(entry.get("options", {}))
@@ -45,6 +72,8 @@ class LoadOperationLoader(OperationLoader):
 
             self._populate_lookup_behaviors(step, entry)
             self.result.add_step(step)
+
+        # TODO: Add mappers for references to other mapped sObjects
 
     def _post_load_validate(self):
         self._validate_field_permissions("createable")
@@ -193,3 +222,6 @@ class LoadOperationLoader(OperationLoader):
                             ", ".join(sorted(file_field_set)),
                         )
                     )
+
+    def _validate_caching_schema(self):
+        pass  # TODO: implement
