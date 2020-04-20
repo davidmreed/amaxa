@@ -118,10 +118,6 @@ class Operation(metaclass=abc.ABCMeta):
         self.steps = []
         self.connection = connection
         self._bulk = None
-        self.describe_info = {}
-        self.field_maps = {}
-        self.proxy_objects = {}
-        self.key_prefix_map = None
         self.logger = logging.getLogger("amaxa")
         self.file_store = FileStore()
 
