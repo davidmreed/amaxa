@@ -149,6 +149,25 @@ class test_LoadOperationLoader(unittest.TestCase):
         result = self._run_success_test(ex)
         self.assertEqual({"Name", "Industry"}, result.steps[0].field_scope)
 
+    def test_LoadOperationLoader_generates_field_list__all_directives(self):
+        ex = {
+            "version": 2,
+            "operation": [
+                {
+                    "sobject": "Account",
+                    "field-group": "writeable",
+                    "fields": [{"field": "Name", "transforms": ["lowercase"]}],
+                    "exclude-fields": ["Industry"],
+                    "extract": {"all": True},
+                    "input-validation": "none",
+                }
+            ],
+        }
+
+        result = self._run_success_test(ex)
+        self.assertIn("Account", result.mappers)
+        self.assertNotIn("Industry", result.steps[0].field_scope)
+
     def test_LoadOperationLoader_populates_data_mappers(self):
         ex = {
             "version": 1,
