@@ -107,6 +107,21 @@ is an example of a simple field specification.
 
 would extract the ``Description`` field, name the CSV column ``Desc``, and apply the transformations ``strip`` (remove leading and trailing whitespace) and ``lowercase`` (convert text to lower case) on extracted data. On load, Amaxa would look for a CSV column ``Desc``, map it to the ``Description`` field, and apply the same transformations to inbound data.
 
+``fields`` and ``field-group`` can be combined if you wish to customize the behavior of ``field-group`` by adding column mappings or specifying additional fields that don't exist in the group. Additionally, the ``exclude-fields`` key can be used to suppress fields you don't want that might otherwise be included by the chosen ``field-group``.
+
+.. code-block:: yaml
+
+    field-group: smart
+    fields:
+        -
+            field: Description
+            column: Desc
+            transforms:
+                - strip
+                - lowercase
+    exclude-fields:
+        - OwnerId
+
 Where is the data going to or coming from?
 ******************************************
 

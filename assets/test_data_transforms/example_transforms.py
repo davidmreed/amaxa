@@ -6,7 +6,7 @@ class MultiplyTransformer(TransformProvider):
     transform_name = "multiply"
     allowed_types = ["xsd:string"]
 
-    def _get_transform(self, field_context: str, options: Dict):
+    def _get_transform(self, field_context: Dict, options: Dict):
         def multiply(x):
             return x * options["count"]
 

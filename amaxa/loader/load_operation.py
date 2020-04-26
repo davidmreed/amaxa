@@ -83,7 +83,9 @@ class LoadOperationLoader(OperationLoader):
         self._open_files()
 
     def _get_field_scope(self, entry):
-        # Use the 'field-group' or 'field' items to derive the field scope
+        # Use the 'field-group', 'field', and 'exclude-fields' items to derive the field scope
+
+        fields = set()
 
         if "field-group" in entry:
             # Validation clamps acceptable values to 'writeable' or 'smart' by this point.
@@ -92,12 +94,20 @@ class LoadOperationLoader(OperationLoader):
             def include(f):
                 return f["createable"] and f["type"] != "base64"
 
-            return set(
+            fields.update(
                 self.result.get_filtered_field_map(entry["sobject"], include).keys()
             )
-        else:
-            # Build the field scope, taking flat lists and maps into account.
-            return {f if isinstance(f, str) else f["field"] for f in entry["fields"]}
+
+        if "fields" in entry:
+            fields.update(
+                {f if isinstance(f, str) else f["field"] for f in entry["fields"]}
+            )
+
+        if "exclude-fields" in entry:
+            for f in entry["exclude-fields"]:
+                fields.discard(f)
+
+        return fields
 
     def _open_files(self):
         # Open all of the input and output files

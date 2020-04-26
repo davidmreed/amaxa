@@ -38,11 +38,13 @@ Amaxa ships with five transforms:
 Custom Transforms
 *****************
 
-Amaxa also supports custom transforms. To implement a custom transformation, create a Python module containing a class that subclasses ``amaxa.transforms.TransformProvider``. Subclasses must populate the ``transform_name`` class attribute and override two methods, ``get_transform()`` and ``get_options_schema()``.
+Amaxa also supports custom transforms. To implement a custom transformation, create a Python module containing a class that subclasses ``amaxa.transforms.TransformProvider``. Subclasses must populate the ``transform_name`` class attribute and override two methods, ``_get_transform()`` and ``get_options_schema()``.
 
-``get_transform()`` accepts the API name of the configured field and a ``dict`` containing the user-specified options, if any. It returns a callable that will be invoked with a single parameter, the field value, each time the transform is used.
+``_get_transform()`` accepts a ``dict`` representing the describe of the configured field and a ``dict`` containing the user-specified options, if any. It returns a callable that will be invoked with a single parameter, the field value, each time the transform is used.
 
 ``get_options_schema()`` returns the schema by which the user-specifiable options will be validated in the operation definition. This is a `Cerberus <https://docs.python-cerberus.org/>`_ schema that should validate a ``dict``.
+
+Transforms may optionally override ``_validate_field()``, which also accepts a ``dict`` representing the describe of the configured field. This method should raise a ``TransformException`` if the transform cannot be applied to this field for any reason. The default implementation requires that the field's ``soapType`` attribute be one of the values in the class attribute ``allowed_types``, a string list.
 
 Before being used in an operation, custom transforms must be loaded by specifying them in a ``plugin-modules`` list at the top level of the YAML configuration. Specify the name of the containing module, not the transform class; Amaxa will automatically discover transforms in those modules. Modules may be located in the current working directory or anywhere in the Python search path.
 
