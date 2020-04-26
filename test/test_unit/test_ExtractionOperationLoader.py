@@ -242,6 +242,25 @@ class test_ExtractionOperationLoader(unittest.TestCase):
 
         self.assertEqual({"Name", "Industry", "Id"}, result.steps[0].field_scope)
 
+    def test_ExtractionOperationLoader_generates_field_list__all_directives(self):
+        ex = {
+            "version": 2,
+            "operation": [
+                {
+                    "sobject": "Account",
+                    "field-group": "writeable",
+                    "fields": ["IsDeleted"],
+                    "exclude-fields": ["OwnerId"],
+                    "extract": {"all": True},
+                    "input-validation": "none",
+                }
+            ],
+        }
+
+        result = self._run_success_test(ex)
+        self.assertIn("IsDeleted", result.steps[0].field_scope)
+        self.assertNotIn("OwnerId", result.steps[0].field_scope)
+
     def test_load_extraction_operation_creates_export_mapper(self):
         result = self._run_success_test(
             {
