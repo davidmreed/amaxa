@@ -308,12 +308,12 @@ SCHEMAS = {
                         },
                         "field-group": {
                             "type": "string",
-                            "excludes": ["fields"],
                             "allowed": ["readable", "writeable", "smart"],
+                            "excludes": ["fields"],
                         },
                         "fields": {
                             "type": "list",
-                            "excludes": "field-group",
+                            "excludes": ["field-group"],
                             "schema": {
                                 "type": ["string", "dict"],
                                 "schema": {
