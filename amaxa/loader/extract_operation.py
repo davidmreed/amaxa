@@ -87,7 +87,9 @@ class ExtractionOperationLoader(OperationLoader):
         self._validate_lookup_behaviors()
 
     def _get_field_scope(self, entry):
-        # Use the 'field-group' or 'field' items to derive the field scope
+        # Use the 'field-group', 'field', and 'exclude-fields' items to derive the field scope
+
+        fields = set()
 
         if "field-group" in entry:
             # Don't include types we don't process: geolocations, addresses, and base64 fields.
@@ -105,12 +107,20 @@ class ExtractionOperationLoader(OperationLoader):
                         "base64",
                     ]
 
-            return set(
+            fields.update(
                 self.result.get_filtered_field_map(entry["sobject"], include).keys()
             )
 
-        # Build the field scope, taking flat lists and maps into account.
-        return {f if isinstance(f, str) else f["field"] for f in entry["fields"]}
+        if "fields" in entry:
+            fields.update(
+                {f if isinstance(f, str) else f["field"] for f in entry["fields"]}
+            )
+
+        if "exclude-fields" in entry:
+            for f in entry["exclude-fields"]:
+                fields.discard(f)
+
+        return fields
 
     def _open_files(self):
         # Open all of the output files
