@@ -20,6 +20,7 @@ class ExtractionOperationLoader(OperationLoader):
     def _load(self):
         # Create the core operation
         self.result = amaxa.ExtractOperation(self.connection)
+        self.filenames = []
 
         options = self.input.get("options") or {}
 
@@ -79,6 +80,34 @@ class ExtractionOperationLoader(OperationLoader):
 
             self._populate_lookup_behaviors(step, entry)
             self.result.add_step(step)
+            self.filenames.append(entry["file"])
+
+        # Handle mapped sObjects
+        mapped_schema = self.input.get("object-mappings")
+        for mapping in mapped_schema:
+            sobject = mapping["sobject"]
+            key_field = mapping["key-field"]
+            step = amaxa.ExtractionStep(
+                sobject,
+                amaxa.ExtractionScope.DESCENDENTS,
+                ["Id", key_field],
+                None,
+                options=options,
+            )
+            self.result.add_step(step)
+            self.filenames.append(mapping["file"])
+
+        # Map Record Types if desired
+        if any("RecordTypeId" in step.field_scope for step in self.result.steps):
+            self.result.add_step(
+                amaxa.ExtractionStep(
+                    "RecordType",
+                    amaxa.ExtractionScope.DESCENDENTS,
+                    ["Id", "SobjectType", "DeveloperName"],
+                    None,
+                )
+            )
+            self.filenames.append("RecordType.mapping.csv")
 
     def _post_load_validate(self):
         self._validate_field_permissions()
@@ -125,9 +154,9 @@ class ExtractionOperationLoader(OperationLoader):
     def _open_files(self):
         # Open all of the output files
         # Create DictWriters and populate them in the context
-        for (step, entry) in zip(self.result.steps, self.input["operation"]):
+        for (step, filename) in zip(self.result.steps, self.filenames):
             try:
-                file_handle = open(entry["file"], "w", newline="")
+                file_handle = open(filename, "w", newline="")
                 if step.sobjectname not in self.result.mappers:
                     fieldnames = step.field_scope
                 else:
@@ -152,7 +181,5 @@ class ExtractionOperationLoader(OperationLoader):
                 )
             except IOError as exp:
                 self.errors.append(
-                    "Unable to open file {} for writing ({}).".format(
-                        entry["file"], exp
-                    )
+                    "Unable to open file {} for writing ({}).".format(filename, exp)
                 )

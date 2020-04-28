@@ -351,16 +351,18 @@ SCHEMAS = {
             "version": {"type": "integer", "required": True, "allowed": [2]},
             "options": OPTIONS_SCHEMA,
             "object-mappings": {
+                "type": "list",
                 "schema": {
-                    "type": "list",
+                    "type": "dict",
                     "schema": {
-                        "type": "dict",
-                        "schema": {
-                            "sobject": {"type": "string", "required": True},
-                            "key-field": {"type": "string", "required": True},
+                        "sobject": {"type": "string", "required": True},
+                        "key-field": {"type": "string", "required": True},
+                        "file": {
+                            "type": "string",
+                            "default_setter": lambda doc: f"{doc['sobject']}.mapping.csv",
                         },
                     },
-                }
+                },
             },
             "plugin-modules": {
                 "type": "list",
