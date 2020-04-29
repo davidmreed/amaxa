@@ -112,6 +112,26 @@ class LoadOperationLoader(OperationLoader):
     def _open_files(self):
         # Open all of the input and output files
         # Create DictReaders and populate them in the context
+
+        # Mapped sObjects
+        for entry in self.input.get("object-mappings", []):
+            try:
+                file_handle = open(entry["file"], "r")
+                input_file = csv.DictReader(file_handle)
+                self.result.file_store.set_file(
+                    entry["sobject"], amaxa.FileType.INPUT, file_handle
+                )
+                self.result.file_store.set_csv(
+                    entry["sobject"], amaxa.FileType.INPUT, input_file
+                )
+            except IOError as exp:
+                self.errors.append(
+                    "Unable to open file {} for reading ({}).".format(
+                        entry["file"], exp
+                    )
+                )
+
+        # Operation sObject
         for (step, entry) in zip(self.result.steps, self.input["operation"]):
             try:
                 file_handle = open(entry["file"], "r")
@@ -161,9 +181,10 @@ class LoadOperationLoader(OperationLoader):
         self._validate_dependent_field_permissions()
         self._validate_lookup_behaviors()
         self._validate_input_file_columns()
+        self._validate_mapping_file_columns()
 
     def _validate_dependent_field_permissions(self):
-        # Validate that dependent lookups are updateable.
+        """Validate that dependent lookups are updateable."""
         for step in self.result.steps:
             field_map = self.result.get_field_map(step.sobjectname)
             for f in step.dependent_lookups | step.self_lookups:
@@ -174,12 +195,35 @@ class LoadOperationLoader(OperationLoader):
                         )
                     )
 
+    def _validate_mapping_file_columns(self):
+        """Validate the column sets in sObject mapping files."""
+
+        for entry in self.input.get("object-mappings", []):
+            input_file = self.result.file_store.get_csv(
+                entry["sobject"], amaxa.FileType.INPUT
+            )
+
+            file_field_set = set(input_file.fieldnames)
+            if "Id" in file_field_set:
+                file_field_set.remove("Id")
+
+            if entry["sobject"] == "RecordType":
+                required_set = ["SobjectType", "DeveloperName"]
+            else:
+                required_set = set([entry["key-field"]])
+
+            if required_set != file_field_set:
+                self.errors.append(
+                    f"Mapping file for sObject {entry['sobject']} does not contain the correct column set for this mapping."
+                )
+
     def _validate_input_file_columns(self):
-        # Validate the column sets in the input files.
-        # For each file, if validation is active, check as follows.
-        # For field group steps, validate that each column in the input file
-        # is mapped to a field within the field group, but allow "missing" columns.
-        # For explicit field list steps, require that the mapped column set and field scope be 1:1
+        """Validate the column sets in the input files.
+        For each file, if validation is active, check as follows.
+        For field group steps, validate that each column in the input file
+        is mapped to a field within the field group, but allow "missing" columns.
+        For explicit field list steps, require that the mapped column set and field scope be 1:1"""
+
         for (step, entry) in zip(self.result.steps, self.input["operation"]):
             if entry["input-validation"] == "none":
                 continue

@@ -267,7 +267,11 @@ class LoadOperation(Operation):
 
         if self.mapper_cache:
             self.logger.info("Loading mapped sObjects into cache")
-            self.mapper_cache.populate_cache()
+            try:
+                self.mapper_cache.populate_cache()
+            except AmaxaException as e:
+                self.logger.error(f"Unable to map sObjects: {e}")
+                return -1
 
         if self.stage is LoadStage.INSERTS:
             for s in self.steps:
