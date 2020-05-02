@@ -9,6 +9,10 @@ class MappingMissBehavior(StringEnum):
     DEFAULT = "default"
 
 
+class MappingException(Exception):
+    pass
+
+
 class ObjectMapperCache:
     """Extract and cache a mapping between user-defined cache keys and sObject Ids.
 
@@ -81,16 +85,44 @@ class ObjectMapperCache:
         return self._cache_schema.keys()
 
 
-def transform_reference(cache: ObjectMapperCache, target_sobject: str, value: str):
+def transform_reference(
+    cache: ObjectMapperCache,
+    miss_behavior: MappingMissBehavior,
+    target_sobject: str,
+    value: str,
+):
     """After partial application with functools.partial, map references in a loadable
     sObject record to the Ids of their target objects, based upon key_fields."""
 
-    return cache.get_cached_value((target_sobject, value,))
+    mapped_value = cache.get_cached_value((target_sobject, value,))
+
+    if mapped_value is None:
+        if miss_behavior is MappingMissBehavior.ERROR:
+            raise MappingException(
+                f"No value available for cache key {value} in sObject {target_sobject}."
+            )
+        elif miss_behavior is MappingMissBehavior.DEFAULT:
+            pass  # TODO
+
+    return mapped_value
 
 
 def transform_record_type_reference(
-    cache: ObjectMapperCache, source_sobject: str, value: str
+    cache: ObjectMapperCache,
+    miss_behavior: MappingMissBehavior,
+    source_sobject: str,
+    value: str,
 ):
     """After partial application with functools.partial, map Record Type references
     in a loadable sObject record to the corresponding Ids based on Developer Name."""
-    return cache.get_cached_value(("RecordType", source_sobject, value,))
+    mapped_value = cache.get_cached_value(("RecordType", source_sobject, value,))
+
+    if mapped_value is None:
+        if miss_behavior is MappingMissBehavior.ERROR:
+            raise MappingException(
+                f"No value available for cache key {value} in sObject {target_sobject}."
+            )
+        elif miss_behavior is MappingMissBehavior.DEFAULT:
+            pass  # TODO
+
+    return mapped_value
