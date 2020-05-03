@@ -7,8 +7,6 @@ from simple_salesforce.exceptions import (
     SalesforceResourceNotFound,
 )
 
-from amaxa import constants
-
 
 @unittest.skipIf(
     any(["INSTANCE_URL" not in os.environ, "ACCESS_TOKEN" not in os.environ]),
@@ -23,7 +21,7 @@ class IntegrationTest(unittest.TestCase):
         cls.connection = Salesforce(
             instance_url=os.environ["INSTANCE_URL"],
             session_id=os.environ["ACCESS_TOKEN"],
-            version=constants.OPTION_DEFAULTS["api-version"],
+            version="48.0",
         )
 
     @classmethod

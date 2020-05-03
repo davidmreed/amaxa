@@ -41,7 +41,8 @@ class test_end_to_end(IntegrationTest):
                 # Read the data in so we can validate once it's re-extracted.
                 with open("test.yml", "r") as fh:
                     load_op = amaxa.loader.LoadOperationLoader(
-                        yaml.safe_load(fh.read()), amaxa.api.Connection(self.connection)
+                        yaml.safe_load(fh.read()),
+                        amaxa.api.Connection(self.connection, "48.0"),
                     )
                     load_op.load()
 
