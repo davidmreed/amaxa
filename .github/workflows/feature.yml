@@ -51,9 +51,8 @@ jobs:
       - name: Install Dependencies
         shell: bash
         run: |
-          pip install --upgrade pip
-          pip install poetry
-          poetry install --no-root
+          pip install --upgrade --user pip
+          pip install --user poetry
       - name: Run Unit Tests
         shell: bash
         env:
