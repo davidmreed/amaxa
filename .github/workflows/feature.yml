@@ -94,11 +94,11 @@ jobs:
       - name: Build Binary
         shell: bash
         run: poetry run pyinstaller amaxa/__main__.py -n amaxa -F
-      - name: Test Binary (Windows)
+      - name: Test Binary
         if: "!startsWith(matrix.os, 'windows')"
         shell: bash
         run: ./dist/amaxa -h
-      - name: Test Binary
+      - name: Test Binary (Windows)
         if: startsWith(matrix.os, 'windows')
         shell: bash
         run: ./dist/amaxa.exe -h
