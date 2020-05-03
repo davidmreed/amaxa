@@ -439,6 +439,7 @@ class LoadStep(Step):
                 self.get_option("bulk-api-timeout"),
                 self.get_option("bulk-api-poll-interval"),
                 self.get_option("bulk-api-batch-size"),
+                self.get_option("bulk-api-mode"),
             )
         ):
             if r.success:
@@ -501,6 +502,7 @@ class LoadStep(Step):
                         self.get_option("bulk-api-timeout"),
                         self.get_option("bulk-api-poll-interval"),
                         self.get_option("bulk-api-batch-size"),
+                        self.get_option("bulk-api-mode"),
                     )
                 ):
                     if not r.success:

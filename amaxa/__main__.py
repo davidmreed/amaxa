@@ -3,6 +3,7 @@ import logging
 import os.path
 import sys
 
+from amaxa import constants
 from amaxa.loader import (
     CredentialLoader,
     ExtractionOperationLoader,
@@ -50,16 +51,35 @@ def main():
     logger.setLevel(verbosity_levels[args.verbosity])
     logger.handlers[:] = [logging.StreamHandler()]
 
+    # Before loading anything, we need the desired API version, which is set
+    # as part of the operation definition.
+
+    # Obtain it before formally loading the config, since loading the config
+    # requires a Connection, which requires the API version.
+    # This solution is not ideal.
+    config = load_file(args.config)
+    if (
+        "options" in config
+        and type(config["options"]) == dict
+        and "api-version" in config["options"]
+    ):
+        api_version = config["options"]["api-version"]
+        if not all(
+            [len(api_version) == 4, api_version[2:] == ".0", api_version[:2].isdigit()]
+        ):
+            logger.error(f"API version {api_version} is not valid.")
+            return -1
+    else:
+        api_version = constants.OPTION_DEFAULTS["api-version"]
+
     # Grab the credential file first. We need it to validate the extraction.
-    credential_loader = CredentialLoader(load_file(args.credentials))
+    credential_loader = CredentialLoader(load_file(args.credentials), api_version)
     credential_loader.load()
 
     if credential_loader.errors:
         errors = "\n".join(credential_loader.errors)
         logger.error(f"The supplied credentials were not valid: {errors}")
         return -1
-
-    config = load_file(args.config)
 
     if args.load:
         operation_loader = LoadOperationLoader(

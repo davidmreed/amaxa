@@ -5,6 +5,7 @@ from test.test_unit.MockFileStore import MockFileStore
 from simple_salesforce import Salesforce
 
 import amaxa
+from amaxa import constants
 from amaxa.api import Connection
 
 
@@ -17,7 +18,7 @@ class test_integration_high_volume(unittest.TestCase):
         self.connection = Salesforce(
             instance_url=os.environ["INSTANCE_URL"],
             session_id=os.environ["ACCESS_TOKEN"],
-            version="46.0",
+            version=constants.OPTION_DEFAULTS["api-version"],
         )
 
     def tearDown(self):

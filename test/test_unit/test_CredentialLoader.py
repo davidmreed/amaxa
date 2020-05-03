@@ -12,7 +12,7 @@ class test_CredentialLoader(unittest.TestCase):
             with patch("salesforce_bulk.SalesforceBulk"):
                 sf_mock.return_value.bulk_url = "https://salesforce.com"
 
-                credential_loader = loader.CredentialLoader(input_data)
+                credential_loader = loader.CredentialLoader(input_data, "48.0")
 
                 credential_loader.load()
                 self.assertEqual([], credential_loader.errors)
@@ -23,7 +23,7 @@ class test_CredentialLoader(unittest.TestCase):
             with patch("salesforce_bulk.SalesforceBulk"):
                 sf_mock.return_value.bulk_url = "https://salesforce.com"
 
-                credential_loader = loader.CredentialLoader(input_data)
+                credential_loader = loader.CredentialLoader(input_data, "48.0")
 
                 credential_loader.load()
                 if type(errors) is list:
@@ -38,13 +38,13 @@ class test_CredentialLoader(unittest.TestCase):
             with patch("salesforce_bulk.SalesforceBulk"):
                 sf_mock.return_value.bulk_url = "https://salesforce.com"
 
-                credential_loader = loader.CredentialLoader(input_data)
+                credential_loader = loader.CredentialLoader(input_data, "48.0")
 
                 credential_loader.load()
                 self.assertEqual([], credential_loader.errors)
                 self.assertIsNotNone(credential_loader.result)
 
-                sf_mock.assert_called_once_with(version="46.0", **arguments)
+                sf_mock.assert_called_once_with(version="48.0", **arguments)
 
     def test_credential_schema_validates_username_password_v1(self):
         self._run_validation_test(
@@ -574,7 +574,7 @@ class test_CredentialLoader(unittest.TestCase):
         )
 
     def test_load_credentials_traps_login_errors(self):
-        credentials = loader.CredentialLoader({})
+        credentials = loader.CredentialLoader({}, "48.0")
 
         side_effect = simple_salesforce.SalesforceError(
             "https://salesforce.com", 401, "describe", ""

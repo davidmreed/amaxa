@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import yaml
 
 import amaxa
+from amaxa import constants
 from amaxa.__main__ import main
 
 CREDENTIALS_GOOD_YAML = """
@@ -134,7 +135,9 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(json.loads(CREDENTIALS_GOOD_JSON))
+        credential_mock.assert_called_once_with(
+            json.loads(CREDENTIALS_GOOD_JSON), constants.OPTION_DEFAULTS["api-version"]
+        )
         operation_mock.assert_called_once_with(
             json.loads(EXTRACTION_GOOD_JSON), context
         )
@@ -171,7 +174,9 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(json.loads(CREDENTIALS_GOOD_JSON))
+        credential_mock.assert_called_once_with(
+            json.loads(CREDENTIALS_GOOD_JSON), constants.OPTION_DEFAULTS["api-version"]
+        )
         operation_mock.assert_called_once_with(
             json.loads(EXTRACTION_GOOD_JSON), context, use_state=False
         )
@@ -200,7 +205,10 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(yaml.safe_load(CREDENTIALS_GOOD_YAML))
+        credential_mock.assert_called_once_with(
+            yaml.safe_load(CREDENTIALS_GOOD_YAML),
+            constants.OPTION_DEFAULTS["api-version"],
+        )
         operation_mock.assert_called_once_with(
             yaml.safe_load(EXTRACTION_GOOD_YAML), context
         )
@@ -230,7 +238,9 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(yaml.safe_load(CREDENTIALS_BAD))
+        credential_mock.assert_called_once_with(
+            yaml.safe_load(CREDENTIALS_BAD), constants.OPTION_DEFAULTS["api-version"]
+        )
         context.run.assert_not_called()
 
         self.assertEqual(-1, return_value)
@@ -256,7 +266,10 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(yaml.safe_load(CREDENTIALS_GOOD_YAML))
+        credential_mock.assert_called_once_with(
+            yaml.safe_load(CREDENTIALS_GOOD_YAML),
+            constants.OPTION_DEFAULTS["api-version"],
+        )
         operation_mock.assert_called_once_with(yaml.safe_load(EXTRACTION_BAD), context)
 
         self.assertEqual(-1, return_value)
@@ -288,7 +301,10 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(yaml.safe_load(CREDENTIALS_GOOD_YAML))
+        credential_mock.assert_called_once_with(
+            yaml.safe_load(CREDENTIALS_GOOD_YAML),
+            constants.OPTION_DEFAULTS["api-version"],
+        )
         state_mock.assert_called_once_with(
             yaml.safe_load(STATE_GOOD_YAML), operation_mock.return_value.result
         )
@@ -444,7 +460,9 @@ class test_CLI(unittest.TestCase):
             ):
                 return_value = main()
 
-        credential_mock.assert_called_once_with(json.loads(CREDENTIALS_GOOD_JSON))
+        credential_mock.assert_called_once_with(
+            json.loads(CREDENTIALS_GOOD_JSON), constants.OPTION_DEFAULTS["api-version"]
+        )
         operation_mock.assert_called_once_with(
             json.loads(EXTRACTION_GOOD_JSON), context
         )

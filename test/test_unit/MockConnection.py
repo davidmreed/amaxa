@@ -58,6 +58,7 @@ class MockConnection(object):
         bulk_api_timeout,
         bulk_api_poll_interval,
         bulk_api_batch_size,
+        bulk_api_mode,
     ):
         for r in self._bulk_insert_results:
             yield r
@@ -69,6 +70,7 @@ class MockConnection(object):
         bulk_api_timeout,
         bulk_api_poll_interval,
         bulk_api_batch_size,
+        bulk_api_mode,
     ):
         for r in self._bulk_update_results:
             yield r

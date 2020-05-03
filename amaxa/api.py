@@ -6,8 +6,6 @@ from urllib.parse import urlparse
 
 import salesforce_bulk
 
-from . import constants
-
 
 def JSONIterator(records):
     def enc(r):
@@ -33,12 +31,12 @@ def BatchIterator(iterator, n=10000):
 
 
 class Connection(object):
-    def __init__(self, sf):
+    def __init__(self, sf, api_version):
         self._sf = sf
         self._bulk = salesforce_bulk.SalesforceBulk(
             sessionId=self._sf.session_id,
             host=urlparse(self._sf.bulk_url).hostname,
-            API_version=constants.API_VERSION,
+            API_version=api_version,
         )
         self._describe_info = {}
         self._field_maps = {}
@@ -106,9 +104,12 @@ class Connection(object):
         bulk_api_timeout,
         bulk_api_poll_interval,
         bulk_api_batch_size,
+        bulk_api_mode,
     ):
         yield from self._bulk_api_insert_update(
-            self._bulk.create_insert_job(sobject, contentType="JSON"),
+            self._bulk.create_insert_job(
+                sobject, contentType="JSON", concurrency=bulk_api_mode
+            ),
             sobject,
             iter(record_list),
             bulk_api_timeout,
@@ -123,9 +124,12 @@ class Connection(object):
         bulk_api_timeout,
         bulk_api_poll_interval,
         bulk_api_batch_size,
+        bulk_api_mode,
     ):
         yield from self._bulk_api_insert_update(
-            self._bulk.create_update_job(sobject, contentType="JSON"),
+            self._bulk.create_update_job(
+                sobject, contentType="JSON", concurrency=bulk_api_mode
+            ),
             sobject,
             iter(record_list),
             bulk_api_timeout,

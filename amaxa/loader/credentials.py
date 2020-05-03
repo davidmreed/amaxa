@@ -4,14 +4,15 @@ import subprocess
 
 import simple_salesforce
 
-from .. import api, constants, jwt_auth
+from .. import api, jwt_auth
 from .core import Loader
 from .input_type import InputType
 
 
 class CredentialLoader(Loader):
-    def __init__(self, in_dict):
+    def __init__(self, in_dict, api_version):
         super().__init__(in_dict, InputType.CREDENTIALS)
+        self.api_version = api_version
 
     def _load(self):
         if self.input["version"] == 1:
@@ -31,7 +32,7 @@ class CredentialLoader(Loader):
                 security_token=credentials.get("security-token", ""),
                 organizationId=credentials.get("organization-id", ""),
                 sandbox=credentials.get("sandbox", False),
-                version=constants.API_VERSION,
+                version=self.api_version,
             )
 
             logging.getLogger("amaxa").debug(
@@ -44,6 +45,7 @@ class CredentialLoader(Loader):
                     credentials["consumer-key"],
                     credentials["username"],
                     credentials["jwt-key"],
+                    self.api_version,
                     credentials.get("sandbox", False),
                 )
                 logging.getLogger("amaxa").debug(
@@ -61,6 +63,7 @@ class CredentialLoader(Loader):
                         credentials["consumer-key"],
                         credentials["username"],
                         jwt_file.read(),
+                        self.api_version,
                         credentials.get("sandbox", False),
                     )
                 logging.getLogger("amaxa").debug(
@@ -74,7 +77,7 @@ class CredentialLoader(Loader):
             self.result = simple_salesforce.Salesforce(
                 instance_url=credentials["instance-url"],
                 session_id=credentials["access-token"],
-                version=constants.API_VERSION,
+                version=self.api_version,
             )
             logging.getLogger("amaxa").debug(
                 "Authenticating to Salesforce with access token"
@@ -83,7 +86,7 @@ class CredentialLoader(Loader):
             self.errors.append("A set of valid credentials was not provided.")
 
         if self.result is not None:
-            self.result = api.Connection(self.result)
+            self.result = api.Connection(self.result, self.api_version)
 
     def _load_v2(self):
         credentials = self.input["credentials"]
@@ -99,7 +102,7 @@ class CredentialLoader(Loader):
                 security_token=credentials.get("security-token", ""),
                 organizationId=credentials.get("organization-id", ""),
                 sandbox=sandbox,
-                version=constants.API_VERSION,
+                version=self.api_version,
             )
 
             logging.getLogger("amaxa").debug(
@@ -121,7 +124,11 @@ class CredentialLoader(Loader):
 
             try:
                 self.result = jwt_auth.jwt_login(
-                    credentials["consumer-key"], credentials["username"], key, sandbox
+                    credentials["consumer-key"],
+                    credentials["username"],
+                    key,
+                    self.api_version,
+                    sandbox,
                 )
             except simple_salesforce.exceptions.SalesforceAuthenticationFailed as ex:
                 self.errors.append(
@@ -132,7 +139,7 @@ class CredentialLoader(Loader):
             self.result = simple_salesforce.Salesforce(
                 instance_url=credentials["instance-url"],
                 session_id=credentials["access-token"],
-                version=constants.API_VERSION,
+                version=self.api_version,
             )
             logging.getLogger("amaxa").debug(
                 "Authenticating to Salesforce with access token"
@@ -153,7 +160,7 @@ class CredentialLoader(Loader):
                     self.result = simple_salesforce.Salesforce(
                         instance_url=org_info["result"]["instanceUrl"],
                         session_id=org_info["result"]["accessToken"],
-                        version=constants.API_VERSION,
+                        version=self.api_version,
                     )
                 else:
                     self.errors.append(
@@ -165,7 +172,7 @@ class CredentialLoader(Loader):
                 )
 
         if self.result is not None:
-            self.result = api.Connection(self.result)
+            self.result = api.Connection(self.result, self.api_version)
 
     def _post_validate(self):
         try:
