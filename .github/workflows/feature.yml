@@ -15,19 +15,29 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: '3.8'
+      - name: Update Pip
+        shell: bash
+        run: |
+          pip install --upgrade pip
+      - name: Locate Pip Cache
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
       - uses: actions/cache@v1
         with:
-          path: ~/.cache/pip
+          path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - name: Install Dependencies
+      - name: Install
+        shell: bash
         run: |
-          pip install --upgrade pip
           pip install poetry
           poetry install --no-root
       - name: Run Commit Checks
-        run: poetry run pre-commit run --all
+        shell: bash
+        run: |
+          poetry run pre-commit run --all
 
   unit-tests:
     name: Unit Tests
@@ -42,25 +52,31 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - name: Install Dependencies
+      - name: Update Pip
         shell: bash
         run: |
           pip install --upgrade pip
+      - name: Locate Pip Cache
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - uses: actions/cache@v1
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install Poetry
+        shell: bash
+        run: |
           pip install poetry
-          poetry install --no-root
       - name: Run Unit Tests
         shell: bash
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           poetry run tox -e py
-          poetry run codecov -F unit
+      - uses: codecov/codecov-action@v1
+        with:
+          flags: unit
       - name: Store Results
         if: always()
         uses: actions/upload-artifact@v1
@@ -80,26 +96,33 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: '3.8'
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - name: Install Dependencies
+      - name: Update Pip
         shell: bash
         run: |
           pip install --upgrade pip
+      - name: Locate Pip Cache
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - uses: actions/cache@v1
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install
+        shell: bash
+        run: |
           pip install poetry
           poetry install --no-root
       - name: Build Binary
         shell: bash
         run: poetry run pyinstaller amaxa/__main__.py -n amaxa -F
-      - name: Test Binary (Windows)
+      - name: Test Binary
         if: "!startsWith(matrix.os, 'windows')"
         shell: bash
         run: ./dist/amaxa -h
-      - name: Test Binary
+      - name: Test Binary (Windows)
         if: startsWith(matrix.os, 'windows')
         shell: bash
         run: ./dist/amaxa.exe -h
