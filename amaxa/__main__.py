@@ -64,8 +64,11 @@ def main():
         and "api-version" in config["options"]
     ):
         api_version = config["options"]["api-version"]
-        if not all(
-            [len(api_version) == 4, api_version[2:] == ".0", api_version[:2].isdigit()]
+        if not (
+            type(api_version) == str
+            and len(api_version) == 4
+            and api_version[2:] == ".0"
+            and api_version[:2].isdigit()
         ):
             logger.error(f"API version {api_version} is not valid.")
             return -1
