@@ -73,6 +73,8 @@ jobs:
           poetry install --no-root
       - name: Run Unit Tests
         shell: bash
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           poetry run tox -e py
           poetry run codecov -F unit

@@ -58,6 +58,8 @@ jobs:
             source assets/scripts/prep-scratch-org.sh
       - name: Run Tests
         shell: bash
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
             source assets/scripts/get-auth-params.sh
             poetry run tox test/test_org
