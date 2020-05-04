@@ -70,6 +70,7 @@ jobs:
         shell: bash
         run: |
           pip install poetry
+          poetry install --no-root
       - name: Run Unit Tests
         shell: bash
         run: |
