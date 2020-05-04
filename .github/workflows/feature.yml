@@ -18,7 +18,7 @@ jobs:
       - name: Update Pip
         shell: bash
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
       - name: Locate Pip Cache
         id: pip-cache
         run: |
@@ -55,7 +55,7 @@ jobs:
       - name: Update Pip
         shell: bash
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
       - name: Locate Pip Cache
         id: pip-cache
         run: |
@@ -66,10 +66,11 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - name: Install Poetry
+      - name: Install
         shell: bash
         run: |
           pip install poetry
+          poetry install --no-root
       - name: Run Unit Tests
         shell: bash
         run: |
@@ -99,7 +100,7 @@ jobs:
       - name: Update Pip
         shell: bash
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
       - name: Locate Pip Cache
         id: pip-cache
         run: |
