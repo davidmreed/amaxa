@@ -75,10 +75,7 @@ jobs:
         shell: bash
         run: |
           poetry run tox -e py
-      - uses: codecov/codecov-action@v1
-        with:
-          flags: unit
-          file: ./coverage
+          poetry run codecov -F unit
       - name: Store Results
         if: always()
         uses: actions/upload-artifact@v1

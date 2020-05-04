@@ -61,10 +61,7 @@ jobs:
         run: |
             source assets/scripts/get-auth-params.sh
             poetry run tox test/test_org
-      - uses: codecov/codecov-action@v1
-        with:
-          flags: integration
-          file: ./coverage
+            poetry run codecov -F unit
       - name: Delete Scratch Org
         if: always()
         run: 'sfdx force:org:delete -p -u amaxa'
