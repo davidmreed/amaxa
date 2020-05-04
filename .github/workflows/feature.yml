@@ -78,6 +78,7 @@ jobs:
       - uses: codecov/codecov-action@v1
         with:
           flags: unit
+          file: ./coverage
       - name: Store Results
         if: always()
         uses: actions/upload-artifact@v1

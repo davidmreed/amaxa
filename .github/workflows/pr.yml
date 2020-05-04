@@ -64,6 +64,7 @@ jobs:
       - uses: codecov/codecov-action@v1
         with:
           flags: integration
+          file: ./coverage
       - name: Delete Scratch Org
         if: always()
         run: 'sfdx force:org:delete -p -u amaxa'
