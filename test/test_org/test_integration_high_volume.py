@@ -5,6 +5,7 @@ from test.test_unit.MockFileStore import MockFileStore
 from simple_salesforce import Salesforce
 
 import amaxa
+from amaxa import constants
 from amaxa.api import Connection
 
 
@@ -17,7 +18,7 @@ class test_integration_high_volume(unittest.TestCase):
         self.connection = Salesforce(
             instance_url=os.environ["INSTANCE_URL"],
             session_id=os.environ["ACCESS_TOKEN"],
-            version="46.0",
+            version=constants.OPTION_DEFAULTS["api-version"],
         )
 
     def tearDown(self):
@@ -41,7 +42,7 @@ class test_integration_high_volume(unittest.TestCase):
                 }
             )
 
-        op = amaxa.LoadOperation(Connection(self.connection))
+        op = amaxa.LoadOperation(Connection(self.connection, "48.0"))
         op.file_store = MockFileStore()
         op.file_store.records["Lead"] = records
         op.add_step(amaxa.LoadStep("Lead", set(["LastName", "Company"])))
@@ -53,7 +54,7 @@ class test_integration_high_volume(unittest.TestCase):
             100000, self.connection.query("SELECT count() FROM Lead").get("totalSize")
         )
 
-        oc = amaxa.ExtractOperation(Connection(self.connection))
+        oc = amaxa.ExtractOperation(Connection(self.connection, "48.0"))
         oc.file_store = MockFileStore()
 
         extraction = amaxa.ExtractionStep(

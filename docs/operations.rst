@@ -180,10 +180,12 @@ When designing an operation, it's best to think in terms of which objects are pr
 Specifying API Options
 **********************
 
-You can control how Amaxa uses the Bulk API with the ``options`` key, which can be specified at the top level of the file as well as within each step of the operation. Step-level options take precedence over operation-level options.
+You can control how Amaxa uses the Salesforce API with the ``options`` key, which can be specified at the top level of the file as well as within each step of the operation. Step-level options take precedence over operation-level options.
 
 The available options are:
 
+- ``api-version``, the Salesforce API version to use (default: 48.0). This option may be specified only at the operation level.
 - ``bulk-api-batch-size``, an integer between 0 and 10,000 (default: 10,000). This is the maximum record count of a batch uploaded by Amaxa. Reduce the batch size if your operations fail due to size errors from the Bulk API, such as ``Exceeded max size limit of 10000000`` (a limit on the total bytewise size of a batch). Note that the Bulk API batch size is not connected to the batch size used by Salesforce Data Loader when operated in REST API mode and does not impact the size of trigger invocations.
 - ``bulk-api-timeout``, an integer greater than 0 (default: 1,200). The length of time, in seconds, to wait for a Bulk API batch to complete. Defaults to 1200 seconds (20 minutes).
 - ``bulk-api-poll-interval``, an integer between 0 and 60 (default: 5). The length of time, in seconds, to wait between calls to check the Bulk API's status. Increase if you are running very large jobs and want to minimize API calls and log chatter.
+- ``bulk-api-mode``, either ``Serial`` or ``Parallel`` (default: ``Parallel`). The Bulk API mode of operation. Serial mode may be selected to resolve some concurrency issues, such as ``UNABLE_TO_LOCK_ROW``.

@@ -69,24 +69,40 @@ def _validate_transform_options(field, value, error):
 
 
 OPTIONS_SCHEMA = {
+    "bulk-api-batch-size": {
+        "type": "integer",
+        "default": constants.OPTION_DEFAULTS["bulk-api-batch-size"],
+        "max": 10000,
+        "min": 0,
+    },
+    "bulk-api-timeout": {
+        "type": "integer",
+        "default": constants.OPTION_DEFAULTS["bulk-api-timeout"],
+        "min": 0,
+    },
+    "bulk-api-poll-interval": {
+        "type": "integer",
+        "default": constants.OPTION_DEFAULTS["bulk-api-poll-interval"],
+        "min": 0,
+        "max": 60,
+    },
+    "bulk-api-mode": {
+        "type": "string",
+        "default": constants.OPTION_DEFAULTS["bulk-api-mode"],
+        "allowed": ["Serial", "Parallel"],
+    },
+}
+
+SOBJECT_OPTIONS_SCHEMA = {"type": "dict", "schema": {**OPTIONS_SCHEMA,}}
+
+OPERATION_OPTIONS_SCHEMA = {
     "type": "dict",
     "schema": {
-        "bulk-api-batch-size": {
-            "type": "integer",
-            "default": constants.OPTION_DEFAULTS["bulk-api-batch-size"],
-            "max": 10000,
-            "min": 0,
-        },
-        "bulk-api-timeout": {
-            "type": "integer",
-            "default": constants.OPTION_DEFAULTS["bulk-api-timeout"],
-            "min": 0,
-        },
-        "bulk-api-poll-interval": {
-            "type": "integer",
-            "default": constants.OPTION_DEFAULTS["bulk-api-poll-interval"],
-            "min": 0,
-            "max": 60,
+        **OPTIONS_SCHEMA,
+        "api-version": {
+            "type": "string",
+            "default": constants.OPTION_DEFAULTS["api-version"],
+            "regex": r"\d{2}\.0",
         },
     },
 }
@@ -349,7 +365,7 @@ SCHEMAS = {
         },
         2: {
             "version": {"type": "integer", "required": True, "allowed": [2]},
-            "options": OPTIONS_SCHEMA,
+            "options": OPERATION_OPTIONS_SCHEMA,
             "plugin-modules": {
                 "type": "list",
                 "schema": {"type": "string", "check_with": _validate_import_module},
@@ -360,7 +376,7 @@ SCHEMAS = {
                     "type": "dict",
                     "schema": {
                         "sobject": {"type": "string", "required": True},
-                        "options": OPTIONS_SCHEMA,
+                        "options": SOBJECT_OPTIONS_SCHEMA,
                         "file": {
                             "type": "string",
                             "default_setter": lambda doc: doc["sobject"] + ".csv",

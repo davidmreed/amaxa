@@ -5,5 +5,6 @@ OPTION_DEFAULTS = {
     "bulk-api-poll-interval": 5,
     "bulk-api-timeout": 1200,
     "bulk-api-batch-size": 10000,
+    "bulk-api-mode": "Parallel",
+    "api-version": "48.0",
 }
-API_VERSION = "46.0"
