@@ -14,19 +14,17 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        Connection(sf)
+        Connection(sf, api_version="48.0")
 
         bulk_mock.assert_called_once_with(
-            sessionId=sf.session_id,
-            host="salesforce.com",
-            API_version=amaxa.constants.API_VERSION,
+            sessionId=sf.session_id, host="salesforce.com", API_version="48.0",
         )
 
     def test_get_global_describe_calls_salesforce(self):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         self.assertEqual(sf.describe.return_value, conn.get_global_describe())
 
         sf.describe.assert_called_once_with()
@@ -35,7 +33,7 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         sf.Account.describe.return_value = {
             "fields": [{"name": "Name"}, {"name": "Id"}]
         }
@@ -49,7 +47,7 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         sf.Account.describe.return_value = {
             "fields": [{"name": "Name"}, {"name": "Id"}]
         }
@@ -67,7 +65,7 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         sf.Account.describe.return_value = {
             "fields": [{"name": "Name"}, {"name": "Id"}]
         }
@@ -85,7 +83,7 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         conn.get_global_describe = Mock()
         conn.get_global_describe.return_value = {
             "sobjects": [
@@ -103,7 +101,7 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         conn._bulk = Mock()
 
         retval = [{"Id": "001000000000001"}, {"Id": "001000000000002"}]
@@ -131,7 +129,7 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         conn._bulk = Mock()
 
         retval = [
@@ -160,14 +158,16 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         conn._bulk = Mock()
         conn._bulk_api_insert_update = Mock(return_value=[])
 
-        self.assertEqual([], list(conn.bulk_api_insert("Account", [], 120, 5, 1)))
+        self.assertEqual(
+            [], list(conn.bulk_api_insert("Account", [], 120, 5, 1, "Parallel"))
+        )
 
         conn._bulk.create_insert_job.assert_called_once_with(
-            "Account", contentType="JSON"
+            "Account", contentType="JSON", concurrency="Parallel"
         )
 
         conn._bulk_api_insert_update.assert_called_once()
@@ -184,14 +184,16 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
 
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         conn._bulk = Mock()
         conn._bulk_api_insert_update = Mock(return_value=[])
 
-        self.assertEqual([], list(conn.bulk_api_update("Account", [], 120, 5, 1)))
+        self.assertEqual(
+            [], list(conn.bulk_api_update("Account", [], 120, 5, 1, "Parallel"))
+        )
 
         conn._bulk.create_update_job.assert_called_once_with(
-            "Account", contentType="JSON"
+            "Account", contentType="JSON", concurrency="Parallel"
         )
 
         conn._bulk_api_insert_update.assert_called_once()
@@ -207,7 +209,7 @@ class test_Connection(unittest.TestCase):
     def test_bulk_api_insert_update(self):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
         conn._bulk = Mock()
         job = Mock()
 
@@ -276,7 +278,7 @@ class test_Connection(unittest.TestCase):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
         sf.restful = Mock(side_effect=api_return_value)
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
 
         retval = conn.retrieve_records_by_id("Account", id_set, ["Name"])
         self.assertEqual(complete_return_value, list(retval))
@@ -301,7 +303,7 @@ class test_Connection(unittest.TestCase):
     def test_query_records_by_reference_field(self):
         sf = Mock()
         sf.bulk_url = "https://salesforce.com"
-        conn = Connection(sf)
+        conn = Connection(sf, "48.0")
 
         id_set = []
         for i in range(400):

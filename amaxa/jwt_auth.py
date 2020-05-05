@@ -6,7 +6,7 @@ import simple_salesforce
 from simple_salesforce.exceptions import SalesforceAuthenticationFailed
 
 
-def jwt_login(consumer_id, username, private_key, sandbox=False):
+def jwt_login(consumer_id, username, private_key, api_version, sandbox=False):
     endpoint = (
         "https://test.salesforce.com"
         if sandbox is True
@@ -38,5 +38,5 @@ def jwt_login(consumer_id, username, private_key, sandbox=False):
     return simple_salesforce.Salesforce(
         instance_url=body["instance_url"],
         session_id=body["access_token"],
-        version="46.0",
+        version=api_version,
     )

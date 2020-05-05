@@ -43,7 +43,7 @@ class test_Integration_Extraction(IntegrationTest):
         cls.register_session_record("Contact", contact["id"])
 
     def test_all_records_extracts_accounts(self):
-        oc = amaxa.ExtractOperation(Connection(self.connection))
+        oc = amaxa.ExtractOperation(Connection(self.connection, "48.0"))
         oc.file_store = MockFileStore()
 
         extraction = amaxa.ExtractionStep(
@@ -62,7 +62,7 @@ class test_Integration_Extraction(IntegrationTest):
             "Gemenon Gastronomy",
             "Aerilon Agrinomics",
         }
-        oc = amaxa.ExtractOperation(Connection(self.connection))
+        oc = amaxa.ExtractOperation(Connection(self.connection, "48.0"))
         oc.file_store = MockFileStore()
 
         rec = self.connection.query(
@@ -91,7 +91,7 @@ class test_Integration_Extraction(IntegrationTest):
 
     def test_descendents_extracts_object_network(self):
         expected_names = {"Elosha", "Gaius"}
-        oc = amaxa.ExtractOperation(Connection(self.connection))
+        oc = amaxa.ExtractOperation(Connection(self.connection, "48.0"))
         oc.file_store = MockFileStore()
 
         rec = self.connection.query(
@@ -135,7 +135,7 @@ class test_Integration_Extraction(IntegrationTest):
         }
         expected_contact_names = {"Gaius"}
 
-        oc = amaxa.ExtractOperation(Connection(self.connection))
+        oc = amaxa.ExtractOperation(Connection(self.connection, "48.0"))
         oc.file_store = MockFileStore()
 
         rec = self.connection.query("SELECT Id FROM Contact WHERE LastName = 'Baltar'")
@@ -175,7 +175,7 @@ class test_Integration_Extraction(IntegrationTest):
         self.assertEqual(0, len(expected_account_names))
 
     def test_extracts_polymorphic_lookups(self):
-        oc = amaxa.ExtractOperation(Connection(self.connection))
+        oc = amaxa.ExtractOperation(Connection(self.connection, "48.0"))
         oc.file_store = MockFileStore()
 
         rec = self.connection.query(
@@ -226,7 +226,7 @@ class test_Integration_Load(IntegrationTest):
             },
         ]
 
-        op = amaxa.LoadOperation(Connection(self.connection))
+        op = amaxa.LoadOperation(Connection(self.connection, "48.0"))
         op.file_store = MockFileStore()
         op.file_store.records["Product2"] = records
 
@@ -310,7 +310,7 @@ class test_Integration_Load(IntegrationTest):
             },
         ]
 
-        op = amaxa.LoadOperation(Connection(self.connection))
+        op = amaxa.LoadOperation(Connection(self.connection, "48.0"))
         op.file_store = MockFileStore()
         op.file_store.records["Account"] = accounts
         op.file_store.records["Contact"] = contacts

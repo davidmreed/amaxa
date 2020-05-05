@@ -24,16 +24,23 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: '3.6'
+      - name: Update Pip
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+      - name: Locate Pip Cache
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
       - uses: actions/cache@v1
         with:
-          path: ~/.cache/pip
+          path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - name: Install Dependencies
+      - name: Install
         shell: bash
         run: |
-          pip install --upgrade pip
           pip install poetry
           poetry install --no-root
       - name: Install SFDX
@@ -56,7 +63,7 @@ jobs:
         run: |
             source assets/scripts/get-auth-params.sh
             poetry run tox test/test_org
-            poetry run codecov -F integration
+            poetry run codecov -F unit
       - name: Delete Scratch Org
         if: always()
         run: 'sfdx force:org:delete -p -u amaxa'

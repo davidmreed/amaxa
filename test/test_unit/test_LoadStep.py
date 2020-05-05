@@ -338,6 +338,7 @@ class test_LoadStep(unittest.TestCase):
             load_step.get_option("bulk-api-timeout"),
             load_step.get_option("bulk-api-poll-interval"),
             load_step.get_option("bulk-api-batch-size"),
+            load_step.get_option("bulk-api-mode"),
         )
         op.register_new_id.assert_has_calls(
             [
@@ -411,6 +412,7 @@ class test_LoadStep(unittest.TestCase):
             load_step.get_option("bulk-api-timeout"),
             load_step.get_option("bulk-api-poll-interval"),
             load_step.get_option("bulk-api-batch-size"),
+            load_step.get_option("bulk-api-mode"),
         )
         op.register_new_id.assert_has_calls(
             [
@@ -636,6 +638,7 @@ class test_LoadStep(unittest.TestCase):
             load_step.get_option("bulk-api-timeout"),
             load_step.get_option("bulk-api-poll-interval"),
             load_step.get_option("bulk-api-batch-size"),
+            load_step.get_option("bulk-api-mode"),
         )
 
     def test_execute_dependent_updates_handles_errors(self):
@@ -765,6 +768,7 @@ class test_LoadStep(unittest.TestCase):
             load_step.get_option("bulk-api-timeout"),
             load_step.get_option("bulk-api-poll-interval"),
             load_step.get_option("bulk-api-batch-size"),
+            load_step.get_option("bulk-api-mode"),
         )
         op.register_new_id.assert_has_calls(
             [
@@ -863,6 +867,7 @@ class test_LoadStep(unittest.TestCase):
                 "bulk-api-poll-interval": 10,
                 "bulk-api-timeout": 600,
                 "bulk-api-batch-size": 5000,
+                "bulk-api-mode": "Serial",
             },
         )
         step.context = op
@@ -873,7 +878,7 @@ class test_LoadStep(unittest.TestCase):
         step.execute()
 
         op.connection.bulk_api_insert.assert_called_once_with(
-            "Account", cleaned_record_list, 600, 10, 5000
+            "Account", cleaned_record_list, 600, 10, 5000, "Serial"
         )
 
     def test_execute_dependent_updates_uses_bulk_api_options(self):
@@ -917,6 +922,7 @@ class test_LoadStep(unittest.TestCase):
                 "bulk-api-poll-interval": 10,
                 "bulk-api-timeout": 600,
                 "bulk-api-batch-size": 5000,
+                "bulk-api-mode": "Serial",
             },
         )
         op.add_step(load_step)
@@ -925,5 +931,5 @@ class test_LoadStep(unittest.TestCase):
         load_step.execute_dependent_updates()
 
         op.connection.bulk_api_update.assert_called_once_with(
-            "Account", cleaned_record_list, 600, 10, 5000
+            "Account", cleaned_record_list, 600, 10, 5000, "Serial"
         )
