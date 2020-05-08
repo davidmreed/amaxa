@@ -84,9 +84,15 @@ class ObjectMapperCache:
         return self._cache_schema.keys()
 
     def get_reference_transformer(
-        self, miss_behavior: MappingMissBehavior, default: str = None,
+        self, key_prefixes, miss_behavior: MappingMissBehavior, default: str = None,
     ):
         def transformer(id):
+            # Make sure this is actually a reference to a mapped sObject
+            # Polymorphic relationships may be only partially mapped.
+
+            if id[:3] not in key_prefixes:
+                return id
+
             mapped_value = self.get_cached_value(id)
 
             if mapped_value is None:

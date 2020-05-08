@@ -1,5 +1,4 @@
 import csv
-import functools
 
 from .. import amaxa, constants, mapper_cache
 from .core import OperationLoader
@@ -42,21 +41,6 @@ class LoadOperationLoader(OperationLoader):
 
             # Field scope
             field_scope = self._get_field_scope(entry)
-
-            # Map Record Types if included
-            if "RecordTypeId" in field_scope:
-                self.result.mapper_cache.add_cached_sobject(
-                    "RecordType", ["SObjectType", "DeveloperName"]
-                )
-                mapper = self.result.mappers.setdefault(sobject, amaxa.DataMapper())
-                mapper.field_transforms.setdefault("RecordTypeId", []).append(
-                    functools.partial(
-                        mapper_cache.transform_record_type_reference,
-                        self.result.mapper_cache,
-                        sobject,
-                    )
-                )
-
             # Options dictionary
             step_opts = options.copy()
             step_opts.update(entry.get("options", {}))
@@ -73,7 +57,49 @@ class LoadOperationLoader(OperationLoader):
             self._populate_lookup_behaviors(step, entry)
             self.result.add_step(step)
 
-        # TODO: Add mappers for references to other mapped sObjects
+        self._add_reference_mappers()
+
+    def _add_reference_mappers(self):
+        for step in self.result.steps:
+            # Map Record Types if included
+            if "RecordTypeId" in step.field_scope:
+                self.result.mapper_cache.add_cached_sobject(
+                    "RecordType", ["SObjectType", "DeveloperName"]
+                )
+                mapper = self.result.mappers.setdefault(
+                    step.sobjectname, amaxa.DataMapper()
+                )
+                mapper.field_transforms.setdefault("RecordTypeId", []).append(
+                    mapper_cache.get_reference_transformer(
+                        ["RecordType"], amaxa.MappingMissBehavior.ERROR
+                    ),
+                )
+
+            # Identify further relationships to mapped objects and add transformers
+            mapped_sobjects = self.result.mapper_cache.get_cached_sobjects()
+            field_map = self.result.get_filtered_field_map(
+                step.sobjectname,
+                lambda f: any([sobj in mapped_sobjects for sobj in f["referenceTo"]]),
+            )
+
+            for field in step.field_scope:
+                if field in field_map:
+                    # This is a lookup field that refers to at least one mapped sObject
+                    mapper = self.result.mappers.setdefault(
+                        step.sobjectname, amaxa.DataMapper()
+                    )
+                    mapper.field_transforms.setdefault(field, []).append(
+                        self.result.mapper_cache.get_reference_transformer(
+                            [
+                                sobject["keyPrefix"]
+                                for sobject in self.connection.get_global_describe()[
+                                    "sobjects"
+                                ]
+                                if sobject["name"] in mapped_sobjects
+                            ],
+                            amaxa.MappingMissBehavior.ERROR,
+                        ),
+                    )
 
     def _post_load_validate(self):
         self._validate_field_permissions("createable")
