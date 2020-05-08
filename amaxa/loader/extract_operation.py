@@ -83,7 +83,7 @@ class ExtractionOperationLoader(OperationLoader):
             self.filenames.append(entry["file"])
 
         # Handle mapped sObjects
-        mapped_schema = self.input.get("object-mappings")
+        mapped_schema = self.input.get("object-mappings", [])
         for mapping in mapped_schema:
             sobject = mapping["sobject"]
             key_field = mapping["key-field"]
