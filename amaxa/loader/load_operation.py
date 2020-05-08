@@ -24,7 +24,7 @@ class LoadOperationLoader(OperationLoader):
         options = self.input.get("options") or {}
 
         # Register mapped sObjects
-        mapped_schema = self.input.get("object-mappings")
+        mapped_schema = self.input.get("object-mappings", [])
         for mapping in mapped_schema:
             sobject = mapping["sobject"]
             key_field = mapping["key-field"]
@@ -60,6 +60,10 @@ class LoadOperationLoader(OperationLoader):
         self._add_reference_mappers()
 
     def _add_reference_mappers(self):
+        mapped_sobjects = self.result.mapper_cache.get_cached_sobjects()
+        if not mapped_sobjects:
+            return
+
         for step in self.result.steps:
             # Map Record Types if included
             if "RecordTypeId" in step.field_scope:
@@ -76,7 +80,6 @@ class LoadOperationLoader(OperationLoader):
                 )
 
             # Identify further relationships to mapped objects and add transformers
-            mapped_sobjects = self.result.mapper_cache.get_cached_sobjects()
             field_map = self.result.get_filtered_field_map(
                 step.sobjectname,
                 lambda f: any([sobj in mapped_sobjects for sobj in f["referenceTo"]]),

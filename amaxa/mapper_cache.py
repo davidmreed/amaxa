@@ -97,9 +97,13 @@ class ObjectMapperCache:
 
             if mapped_value is None:
                 if miss_behavior is MappingMissBehavior.ERROR:
-                    raise MappingException(f"No value available for cache key {id}.")
+                    raise MappingException(
+                        f"No value available for mapped reference {id}."
+                    )
                 elif miss_behavior is MappingMissBehavior.DEFAULT:
                     return default
+
+            # MappingMissBehavior.DROP is equivalent to returning None
 
             return mapped_value
 
