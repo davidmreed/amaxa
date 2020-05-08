@@ -1,12 +1,6 @@
 from typing import List, Tuple, Union
-from .amaxa import AmaxaException, FileStore, FileType, StringEnum
+from .amaxa import AmaxaException, FileStore, FileType, MappingMissBehavior
 from .api import Connection
-
-
-class MappingMissBehavior(StringEnum):
-    ERROR = "error"
-    DROP = "drop"
-    DEFAULT = "default"
 
 
 class MappingException(Exception):
@@ -16,7 +10,12 @@ class MappingException(Exception):
 class ObjectMapperCache:
     """Extract and cache a mapping between user-defined cache keys and sObject Ids.
 
-    This class is used only during load operations."""
+    This class is used only during load operations.
+
+    The content of the cache is two distinct types of key->value mappings.
+    One maps from an Id (the lookup value in the source org) to a tuple of (sobject, key_field, key_field, ...)
+    The other maps from such a tuple to the corresponding Id in the target org.
+    """
 
     def __init__(self):
         self._cache = None
@@ -84,45 +83,18 @@ class ObjectMapperCache:
     def get_cached_sobjects(self):
         return self._cache_schema.keys()
 
+    def get_reference_transformer(
+        self, miss_behavior: MappingMissBehavior, default: str = None,
+    ):
+        def transformer(id):
+            mapped_value = self.get_cached_value(id)
 
-def transform_reference(
-    cache: ObjectMapperCache,
-    miss_behavior: MappingMissBehavior,
-    target_sobject: str,
-    value: str,
-):
-    """After partial application with functools.partial, map references in a loadable
-    sObject record to the Ids of their target objects, based upon key_fields."""
+            if mapped_value is None:
+                if miss_behavior is MappingMissBehavior.ERROR:
+                    raise MappingException(f"No value available for cache key {id}.")
+                elif miss_behavior is MappingMissBehavior.DEFAULT:
+                    return default
 
-    mapped_value = cache.get_cached_value((target_sobject, value,))
+            return mapped_value
 
-    if mapped_value is None:
-        if miss_behavior is MappingMissBehavior.ERROR:
-            raise MappingException(
-                f"No value available for cache key {value} in sObject {target_sobject}."
-            )
-        elif miss_behavior is MappingMissBehavior.DEFAULT:
-            pass  # TODO
-
-    return mapped_value
-
-
-def transform_record_type_reference(
-    cache: ObjectMapperCache,
-    miss_behavior: MappingMissBehavior,
-    source_sobject: str,
-    value: str,
-):
-    """After partial application with functools.partial, map Record Type references
-    in a loadable sObject record to the corresponding Ids based on Developer Name."""
-    mapped_value = cache.get_cached_value(("RecordType", source_sobject, value,))
-
-    if mapped_value is None:
-        if miss_behavior is MappingMissBehavior.ERROR:
-            raise MappingException(
-                f"No value available for cache key {value} in sObject {target_sobject}."
-            )
-        elif miss_behavior is MappingMissBehavior.DEFAULT:
-            pass  # TODO
-
-    return mapped_value
+        return transformer

@@ -377,6 +377,12 @@ SCHEMAS = {
                             "type": "string",
                             "default_setter": lambda doc: f"{doc['sobject']}.mapping.csv",
                         },
+                        "mapping-miss-behavior": {
+                            "type": "string",
+                            "allowed": amaxa.MappingMissBehavior.all_values(),
+                            "default": "error",
+                        },
+                        "default-key": {"type": "string",},
                     },
                 },
             },

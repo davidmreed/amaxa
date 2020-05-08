@@ -36,6 +36,12 @@ class OutsideLookupBehavior(StringEnum):
     ERROR = "error"
 
 
+class MappingMissBehavior(StringEnum):
+    ERROR = "error"
+    DROP = "drop"
+    DEFAULT = "default"
+
+
 class LoadStage(StringEnum):
     INSERTS = "inserts"
     DEPENDENTS = "dependents"
