@@ -18,7 +18,7 @@ class LoadOperationLoader(OperationLoader):
     def _load(self):
         # Create the core operation
         self.result = amaxa.LoadOperation(self.connection)
-        self.result.mapper_cache = mapper_cache.ObjectMapperCache(self.connection)
+        self.result.mapper_cache = mapper_cache.ObjectMapperCache()
 
         # Collect options
         options = self.input.get("options") or {}
