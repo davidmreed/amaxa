@@ -132,7 +132,7 @@ class Operation(metaclass=abc.ABCMeta):
             self.initialize()
             return self.execute()
         except Exception as e:
-            self.logger.error("Unexpected exception {} occurred.".format(str(e)))
+            self.logger.exception("Unexpected exception {} occurred.".format(str(e)))
             return -1
         finally:
             self.file_store.close()
@@ -274,7 +274,7 @@ class LoadOperation(Operation):
         if self.mapper_cache:
             self.logger.info("Loading mapped sObjects into cache")
             try:
-                self.mapper_cache.populate_cache()
+                self.mapper_cache.populate_cache(self.connection, self.file_store)
             except AmaxaException as e:
                 self.logger.error(f"Unable to map sObjects: {e}")
                 return -1

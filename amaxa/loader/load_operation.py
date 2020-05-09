@@ -68,13 +68,13 @@ class LoadOperationLoader(OperationLoader):
             # Map Record Types if included
             if "RecordTypeId" in step.field_scope:
                 self.result.mapper_cache.add_cached_sobject(
-                    "RecordType", ["SObjectType", "DeveloperName"]
+                    "RecordType", ["SobjectType", "DeveloperName"]
                 )
                 mapper = self.result.mappers.setdefault(
                     step.sobjectname, amaxa.DataMapper()
                 )
                 mapper.field_transforms.setdefault("RecordTypeId", []).append(
-                    mapper_cache.get_reference_transformer(
+                    self.result.mapper_cache.get_reference_transformer(
                         ["RecordType"], amaxa.MappingMissBehavior.ERROR
                     ),
                 )
@@ -138,45 +138,30 @@ class LoadOperationLoader(OperationLoader):
 
         return fields
 
+    def _open_input_file(self, filename, sobject):
+        try:
+            file_handle = open(filename, "r")
+            input_file = csv.DictReader(file_handle)
+            self.result.file_store.set_file(sobject, amaxa.FileType.INPUT, file_handle)
+            self.result.file_store.set_csv(sobject, amaxa.FileType.INPUT, input_file)
+        except IOError as exp:
+            self.errors.append(f"Unable to open file {filename} for reading ({exp}).")
+
     def _open_files(self):
         # Open all of the input and output files
         # Create DictReaders and populate them in the context
 
         # Mapped sObjects
         for entry in self.input.get("object-mappings", []):
-            try:
-                file_handle = open(entry["file"], "r")
-                input_file = csv.DictReader(file_handle)
-                self.result.file_store.set_file(
-                    entry["sobject"], amaxa.FileType.INPUT, file_handle
-                )
-                self.result.file_store.set_csv(
-                    entry["sobject"], amaxa.FileType.INPUT, input_file
-                )
-            except IOError as exp:
-                self.errors.append(
-                    "Unable to open file {} for reading ({}).".format(
-                        entry["file"], exp
-                    )
-                )
+            self._open_input_file(entry["file"], entry["sobject"])
+
+        # Record Types, if applicable
+        if any(["RecordTypeId" in step.field_scope for step in self.result.steps]):
+            self._open_input_file("RecordType.mapping.csv", "RecordType")
 
         # Operation sObject
         for (step, entry) in zip(self.result.steps, self.input["operation"]):
-            try:
-                file_handle = open(entry["file"], "r")
-                input_file = csv.DictReader(file_handle)
-                self.result.file_store.set_file(
-                    step.sobjectname, amaxa.FileType.INPUT, file_handle
-                )
-                self.result.file_store.set_csv(
-                    step.sobjectname, amaxa.FileType.INPUT, input_file
-                )
-            except IOError as exp:
-                self.errors.append(
-                    "Unable to open file {} for reading ({}).".format(
-                        entry["file"], exp
-                    )
-                )
+            self._open_input_file(entry["file"], step.sobjectname)
 
             try:
                 f = open(

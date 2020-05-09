@@ -1,5 +1,5 @@
 from typing import List, Tuple, Union
-from .amaxa import AmaxaException, FileStore, FileType, MappingMissBehavior
+from .amaxa import constants, AmaxaException, FileStore, FileType, MappingMissBehavior
 from .api import Connection
 
 
@@ -53,7 +53,7 @@ class ObjectMapperCache:
 
             for r in csv:
                 self._store_cache_key(
-                    r["Id"], tuple([sobject] + (r[key] for key in schema))
+                    r["Id"], tuple([sobject] + [r[key] for key in schema])
                 )
 
     def _extract_records(self, conn: Connection):
@@ -62,10 +62,13 @@ class ObjectMapperCache:
         for sobject, schema in self._cache_schema.items():
             self._cache[sobject] = {}
             fields = ", ".join(schema)
-            for result in self.conn.bulk_api_query(
-                sobject, f"SELECT {fields} FROM {self.sobject}"
+            for result in conn.bulk_api_query(
+                sobject,
+                f"SELECT Id, {fields} FROM {sobject}",
+                [],
+                constants.OPTION_DEFAULTS["bulk-api-poll-interval"],
             ):
-                cache_key = tuple([sobject] + (result[f] for f in schema))
+                cache_key = tuple([sobject] + [result[f] for f in schema])
                 self._store_cache_key(cache_key, result["Id"])
 
     def populate_cache(self, conn: Connection, file_store: FileStore):
@@ -74,10 +77,15 @@ class ObjectMapperCache:
         if self._cache:
             return
 
+        self._cache = {}
+
         self._read_mapping_files(file_store)
         self._extract_records(conn)
 
-    def get_cached_value(self, cache_key: Tuple[str]):
+    def get_cached_value(self, cache_key: Union[str, Tuple[str]]):
+        if cache_key is None:
+            return None
+
         return self._cache.get(self._cache.get(cache_key))
 
     def get_cached_sobjects(self):
@@ -86,7 +94,7 @@ class ObjectMapperCache:
     def get_reference_transformer(
         self, key_prefixes, miss_behavior: MappingMissBehavior, default: str = None,
     ):
-        def transformer(id):
+        def transformer(id: str):
             # Make sure this is actually a reference to a mapped sObject
             # Polymorphic relationships may be only partially mapped.
 
