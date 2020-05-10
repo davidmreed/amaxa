@@ -27,8 +27,8 @@ class LoadOperationLoader(OperationLoader):
         mapped_schema = self.input.get("object-mappings", [])
         for mapping in mapped_schema:
             sobject = mapping["sobject"]
-            key_field = mapping["key-field"]
-            self.result.mapper_cache.add_cached_sobject(sobject, [key_field])
+            key_fields = mapping["key-fields"]
+            self.result.mapper_cache.add_cached_sobject(sobject, key_fields)
 
         # Create the steps and data mappers
         for entry in self.input["operation"]:
@@ -65,21 +65,7 @@ class LoadOperationLoader(OperationLoader):
             return
 
         for step in self.result.steps:
-            # Map Record Types if included
-            if "RecordTypeId" in step.field_scope:
-                self.result.mapper_cache.add_cached_sobject(
-                    "RecordType", ["SobjectType", "DeveloperName"]
-                )
-                mapper = self.result.mappers.setdefault(
-                    step.sobjectname, amaxa.DataMapper()
-                )
-                mapper.field_transforms.setdefault("RecordTypeId", []).append(
-                    self.result.mapper_cache.get_reference_transformer(
-                        ["RecordType"], amaxa.MappingMissBehavior.ERROR
-                    ),
-                )
-
-            # Identify further relationships to mapped objects and add transformers
+            # Identify relationships to mapped objects and add transformers
             field_map = self.result.get_filtered_field_map(
                 step.sobjectname,
                 lambda f: any([sobj in mapped_sobjects for sobj in f["referenceTo"]]),
@@ -100,7 +86,7 @@ class LoadOperationLoader(OperationLoader):
                                 ]
                                 if sobject["name"] in mapped_sobjects
                             ],
-                            amaxa.MappingMissBehavior.ERROR,
+                            amaxa.MappingMissBehavior.ERROR,  # TODO: use the specified behavior
                         ),
                     )
 
@@ -154,10 +140,6 @@ class LoadOperationLoader(OperationLoader):
         # Mapped sObjects
         for entry in self.input.get("object-mappings", []):
             self._open_input_file(entry["file"], entry["sobject"])
-
-        # Record Types, if applicable
-        if any(["RecordTypeId" in step.field_scope for step in self.result.steps]):
-            self._open_input_file("RecordType.mapping.csv", "RecordType")
 
         # Operation sObject
         for (step, entry) in zip(self.result.steps, self.input["operation"]):
@@ -221,10 +203,7 @@ class LoadOperationLoader(OperationLoader):
             if "Id" in file_field_set:
                 file_field_set.remove("Id")
 
-            if entry["sobject"] == "RecordType":
-                required_set = ["SobjectType", "DeveloperName"]
-            else:
-                required_set = set([entry["key-field"]])
+            required_set = set(entry["key-fields"])
 
             if required_set != file_field_set:
                 self.errors.append(

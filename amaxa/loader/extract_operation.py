@@ -86,28 +86,16 @@ class ExtractionOperationLoader(OperationLoader):
         mapped_schema = self.input.get("object-mappings", [])
         for mapping in mapped_schema:
             sobject = mapping["sobject"]
-            key_field = mapping["key-field"]
+            key_fields = mapping["key-fields"]
             step = amaxa.ExtractionStep(
                 sobject,
                 amaxa.ExtractionScope.DESCENDENTS,
-                ["Id", key_field],
+                ["Id", *key_fields],
                 None,
                 options=options,
             )
             self.result.add_step(step)
             self.filenames.append(mapping["file"])
-
-        # Map Record Types if desired
-        if any("RecordTypeId" in step.field_scope for step in self.result.steps):
-            self.result.add_step(
-                amaxa.ExtractionStep(
-                    "RecordType",
-                    amaxa.ExtractionScope.DESCENDENTS,
-                    ["Id", "SobjectType", "DeveloperName"],
-                    None,
-                )
-            )
-            self.filenames.append("RecordType.mapping.csv")
 
     def _post_load_validate(self):
         self._validate_field_permissions()

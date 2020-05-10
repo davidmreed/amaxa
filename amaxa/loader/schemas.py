@@ -372,7 +372,11 @@ SCHEMAS = {
                     "type": "dict",
                     "schema": {
                         "sobject": {"type": "string", "required": True},
-                        "key-field": {"type": "string", "required": True},
+                        "key-fields": {
+                            "type": "list",
+                            "schema": {"type": "string"},
+                            "required": True,
+                        },
                         "file": {
                             "type": "string",
                             "default_setter": lambda doc: f"{doc['sobject']}.mapping.csv",
@@ -382,7 +386,7 @@ SCHEMAS = {
                             "allowed": amaxa.MappingMissBehavior.all_values(),
                             "default": "error",
                         },
-                        "default-key": {"type": "string",},
+                        "default-keys": {"type": "list", "schema": {"type": "string"},},
                     },
                 },
             },

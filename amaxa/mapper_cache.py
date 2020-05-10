@@ -1,4 +1,6 @@
+import logging
 from typing import List, Tuple, Union
+
 from .amaxa import constants, AmaxaException, FileStore, FileType, MappingMissBehavior
 from .api import Connection
 
@@ -20,6 +22,7 @@ class ObjectMapperCache:
     def __init__(self):
         self._cache = None
         self._cache_schema = {}
+        self.logger = logging.getLogger("amaxa")
 
     def add_cached_sobject(self, sobject: str, key_fields: List[str]):
         """Add a target sObject to the mapping cache. Key the sObject on the
@@ -60,6 +63,7 @@ class ObjectMapperCache:
         """Extract data from the target org into the cache, keying from a tuple of
         (sobject, key_field_1, key_field_2, ...) to new Id."""
         for sobject, schema in self._cache_schema.items():
+            self.logger.info(f"{sobject}: extracting data for mapped sObject")
             self._cache[sobject] = {}
             fields = ", ".join(schema)
             for result in conn.bulk_api_query(
