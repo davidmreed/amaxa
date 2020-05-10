@@ -177,6 +177,61 @@ Junction objects may be selected in several different ways. Suppose we have obje
 
 When designing an operation, it's best to think in terms of which objects are primary for the operation, and take advantage of both descendent and dependent record tracing to build the operation sequence accordingly.
 
+Mapping sObjects
+****************
+
+Some Salesforce relationships point to sObjects that are typically not migrated as part of an ETL operation, but which form part of the org's metadata or configuration. For example, Record Type Ids differ between many orgs even if their Developer Names are the same, as do User Ids even if the associated user is the same person.
+
+To handle those situations, Amaxa provides *object mapping*. Object mapping tells Amaxa to translate references to specific objects by using a field other than the Id to locate records.
+
+Here's an example, using object mapping to convert Record Type and User references between orgs:
+
+.. code-block:: yaml
+
+    version: 2
+    object-mappings:
+        - sobject: User
+          key-fields:
+            - Name
+        - sobject: RecordType
+          key-fields:
+            - SobjectType
+            - DeveloperName
+    operation:
+        - sobject: Account
+          field-group: readable
+          extract:
+            all: True
+
+The ``object-mappings`` section of the operation definition directs Amaxa to extract from the source org enough information to identify all referenced Record Types (for all objects) by the combination of their ``SobjectType`` and ``DeveloperName`` fields, and to identify all referenced Users by their ``Name`` field.
+
+Amaxa will extract this information into new CSV files, ``RecordType.mapping.csv`` and ``User.mapping.csv``. Ids remain in place in the extract files for the ``Account`` object, and all other objects extracted.
+
+Upon load of this data set, Amaxa will extract information for the mapped sObjects in the target org and dynamically convert references in data as it is loaded, converting original Ids to the specified key fields, then finding the record in the target org with matching key fields and converting the references to use that object.
+
+This feature is very powerful, but comes with some caveats. Since fields other than the Id are not guaranteed by nature to be unique (although they may be), you must ensure that the combination of all of the key fields you specify are unique for the set of data involved in the operation. For Record Types, in particular, always use the combination of the ``SobjectType`` field with either ``DeveloperName`` or ``Name``, because the latter are not unique across sObjects. Amaxa will stop and show an error if key field values are duplicated within any mapped sObject.
+
+Since Amaxa does not load records of mapped sObjects, records matching required key fields may be missing in the target org. You can instruct Amaxa on how to handle this situation with the ``mapping-miss-behavior`` key in each mapping entry. Legal values are
+
+- ``error``, the default, which raises an error.
+- ``drop``, which causes Amaxa to null any reference fields whose target is not found.
+- ``default``, which re-points references whose target is not found to a different record identified by values for the key fields. For example, you might add a default value to a User mapping thus:
+
+.. code-block:: yaml
+
+    version: 2
+    object-mappings:
+        - sobject: User
+          key-fields:
+            - Name
+          mapping-miss-behavior: default
+          default-key-fields:
+            - "User User"
+
+Any User reference whose Name is not found in the target org would be replaced by a reference to "User User", the default scratch org user. Note that if the record identified by the default key fields is not found, an error occurs.
+
+Including a Record Type mapping is highly recommended for any operation that includes the ``RecordTypeId`` field. Using mapping ensures that even Record Types whose Ids do not match between orgs will be migrated successfully.
+
 Specifying API Options
 **********************
 
