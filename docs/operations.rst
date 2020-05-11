@@ -83,9 +83,9 @@ Which fields do we want to extract or load?
 
 This is specified with the ``fields`` or ``field-group`` keys.
 
-The easiest way to select fields is to specify ``field-group: [smart|readable|writeable]``. This instructs Amaxa to automatically determine which fields to extract based on access level: ``readable`` is all accessible fields, ``writeable`` all createable and updateable fields, and ``smart`` will automatically select ``readable`` for extract operations and ``writeable`` for loads. The use of field groups streamlines the configuration file, but is most suitable for extract and load operations performed on the same org or related orgs, like sandboxes derived from the same production org. This is because Amaxa will extract references to, for example, Record Types and Users whose Ids may differ across unrelated orgs.
+The easiest way to select fields is to specify ``field-group: [smart|readable|writeable]``. This instructs Amaxa to automatically determine which fields to extract based on access level: ``readable`` is all accessible fields, ``writeable`` all createable and updateable fields, and ``smart`` will automatically select ``readable`` for extract operations and ``writeable`` for loads. The use of field groups streamlines the configuration file, but is most likely to need the support of object mappings (see below) to handle org-specific references like Record Types and User Ids.
 
-If you're moving data between unrelated orgs or wish to specify the exact field set for each sObject, use the ``fields`` key. The value of this key is a list whose elements are either the API name of a single field or a map specifying how to load, extract, and transform the data.
+If you wish to specify the exact field set for each sObject, use the ``fields`` key. The value of this key is a list whose elements are either the API name of a single field or a map specifying how to load, extract, and transform the data.
 
 .. code-block:: yaml
 
