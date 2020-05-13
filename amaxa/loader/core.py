@@ -201,6 +201,10 @@ class OperationLoader(Loader):
         # Validate that all fields designated for steps are real, writeable,
         # and of a supported type.
         all_sobjects = [step.sobjectname for step in self.result.steps]
+        if "object-mappings" in self.input:
+            all_sobjects.extend(
+                entry["sobject"] for entry in self.input.get("object-mappings")
+            )
 
         for step in self.result.steps:
             field_map = self.result.get_field_map(step.sobjectname)

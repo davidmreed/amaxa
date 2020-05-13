@@ -274,7 +274,8 @@ class LoadOperation(Operation):
         if self.mapper_cache:
             self.logger.info("Loading mapped sObjects into cache")
             try:
-                self.mapper_cache.populate_cache(self.connection, self.file_store)
+                self.mapper_cache.initialize()
+                self.mapper_cache.execute()
             except AmaxaException as e:
                 self.logger.error(f"Unable to map sObjects: {e}")
                 return -1

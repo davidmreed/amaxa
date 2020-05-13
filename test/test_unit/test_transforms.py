@@ -12,6 +12,11 @@ class test_transforms(unittest.TestCase):
     def test_get_all_transforms(self):
         all_transforms = transforms.get_all_transforms()
 
+        # Compensate for the situation that we're running in the same context as the org tests,
+        # where a plugin is loaded
+        if "multiply" in all_transforms:
+            del all_transforms["multiply"]
+
         assert all_transforms.keys() == {
             "prefix",
             "suffix",

@@ -18,7 +18,9 @@ class LoadOperationLoader(OperationLoader):
     def _load(self):
         # Create the core operation
         self.result = amaxa.LoadOperation(self.connection)
-        self.result.mapper_cache = mapper_cache.ObjectMapperCache()
+        self.result.mapper_cache = mapper_cache.ObjectMapperCache(
+            self.connection, self.result.file_store
+        )
 
         # Collect options
         options = self.input.get("options") or {}
@@ -60,7 +62,7 @@ class LoadOperationLoader(OperationLoader):
         self._add_reference_mappers()
 
     def _add_reference_mappers(self):
-        mapped_sobjects = self.result.mapper_cache.get_cached_sobjects()
+        mapped_sobjects = self.result.mapper_cache.get_sobject_list()
         if not mapped_sobjects:
             return
 
@@ -87,6 +89,7 @@ class LoadOperationLoader(OperationLoader):
                                 if sobject["name"] in mapped_sobjects
                             ],
                             amaxa.MappingMissBehavior.ERROR,  # TODO: use the specified behavior
+                            # TODO: use any defaults specified
                         ),
                     )
 

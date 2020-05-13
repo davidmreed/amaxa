@@ -1,15 +1,19 @@
-import logging
 from typing import List, Tuple, Union
 
-from .amaxa import constants, AmaxaException, FileStore, FileType, MappingMissBehavior
-from .api import Connection
+from .amaxa import (
+    ExtractOperation,
+    ExtractionStep,
+    ExtractionScope,
+    FileType,
+    MappingMissBehavior,
+)
 
 
 class MappingException(Exception):
     pass
 
 
-class ObjectMapperCache:
+class ObjectMapperCache(ExtractOperation):
     """Extract and cache a mapping between user-defined cache keys and sObject Ids.
 
     This class is used only during load operations.
@@ -19,39 +23,37 @@ class ObjectMapperCache:
     The other maps from such a tuple to the corresponding Id in the target org.
     """
 
-    def __init__(self):
-        self._cache = None
+    def __init__(self, connection, file_store):
+        super().__init__(connection)
+        self.file_store = file_store
+        self._cache = {}
         self._cache_schema = {}
-        self.logger = logging.getLogger("amaxa")
 
     def add_cached_sobject(self, sobject: str, key_fields: List[str]):
         """Add a target sObject to the mapping cache. Key the sObject on the
-        combination keys in key_fields. Must be called before populate_cache()
-        or an exception will be thrown."""
-        if self._cache:
-            raise AmaxaException(f"Cache has already been populated")
+        combination keys in key_fields."""
 
-        if sobject not in self._cache_schema:
-            self._cache_schema[sobject] = key_fields
-        elif self._cache_schema[sobject] != key_fields:
-            raise AmaxaException(
-                f"sObject {sobject} cannot be mapped to multiple key fields."
-            )
+        self._cache_schema[sobject] = key_fields
+        self.add_step(
+            ExtractionStep(sobject, ExtractionScope.ALL_RECORDS, ["Id"] + key_fields)
+        )
 
     def _store_cache_key(
         self, key: Union[Tuple[str], str], value: Union[Tuple[str], str]
     ):
-        """Add a key to the cache. Throw AmaxaException if already mapped."""
+        """Add a key to the cache."""
         if key in self._cache:
-            raise AmaxaException(f"The cache key {key} is duplicated.")
+            err = f"The mapped object key {key} is duplicated."
+            self.logger.error(err)
+            self.errors.append(err)
 
         self._cache[key] = value
 
-    def _read_mapping_files(self, file_store: FileStore):
+    def _read_mapping_files(self):
         """Load data from *.mapping.csv files into the cache, keying from original Id
         to a tuple of (sobject, key_field_1, key_field_2, ...)."""
         for sobject in self._cache_schema:
-            csv = file_store.get_csv(sobject, FileType.INPUT)
+            csv = self.file_store.get_csv(sobject, FileType.INPUT)
             schema = self._cache_schema[sobject]
 
             for r in csv:
@@ -59,41 +61,28 @@ class ObjectMapperCache:
                     r["Id"], tuple([sobject] + [r[key] for key in schema])
                 )
 
-    def _extract_records(self, conn: Connection):
-        """Extract data from the target org into the cache, keying from a tuple of
-        (sobject, key_field_1, key_field_2, ...) to new Id."""
-        for sobject, schema in self._cache_schema.items():
-            self.logger.info(f"{sobject}: extracting data for mapped sObject")
-            self._cache[sobject] = {}
-            fields = ", ".join(schema)
-            for result in conn.bulk_api_query(
-                sobject,
-                f"SELECT Id, {fields} FROM {sobject}",
-                [],
-                constants.OPTION_DEFAULTS["bulk-api-poll-interval"],
-            ):
-                cache_key = tuple([sobject] + [result[f] for f in schema])
-                self._store_cache_key(cache_key, result["Id"])
+    def store_result(self, sobjectname, record):
+        schema = self._cache_schema[sobjectname]
+        cache_key = tuple([sobjectname] + [record[f] for f in schema])
+        self._store_cache_key(cache_key, record["Id"])
 
-    def populate_cache(self, conn: Connection, file_store: FileStore):
+    def initialize(self):
+        super().initialize()
+        self._read_mapping_files()
+
+    def execute(self):
         """Extract data from the target org for the entire table of each mapped sObject.
         Populate the cache with keys formed from key_fields and values equal to Salesforce Ids."""
-        if self._cache:
-            return
 
-        self._cache = {}
+        self.logger.info("Extracting mapped sObjects to cache")
 
-        self._read_mapping_files(file_store)
-        self._extract_records(conn)
+        return super().execute()
 
     def get_cached_value(self, cache_key: Union[str, Tuple[str]]):
         if cache_key is None:
             return None
 
         return self._cache.get(self._cache.get(cache_key))
-
-    def get_cached_sobjects(self):
-        return self._cache_schema.keys()
 
     def get_reference_transformer(
         self, key_prefixes, miss_behavior: MappingMissBehavior, default: str = None,
