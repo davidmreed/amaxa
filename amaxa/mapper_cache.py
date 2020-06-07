@@ -28,12 +28,23 @@ class ObjectMapperCache(ExtractOperation):
         self.file_store = file_store
         self._cache = {}
         self._cache_schema = {}
+        self._key_prefixes = set()
+        self._behaviors = {}
+        self._defaults = {}
 
-    def add_cached_sobject(self, sobject: str, key_fields: List[str]):
+    def add_cached_sobject(
+        self,
+        sobject: str,
+        key_fields: List[str],
+        miss_behavior: MappingMissBehavior,
+        default: Tuple[str] = None,
+    ):
         """Add a target sObject to the mapping cache. Key the sObject on the
         combination keys in key_fields."""
 
         self._cache_schema[sobject] = key_fields
+        self._behaviors[sobject] = miss_behavior
+        self._defaults[sobject] = default
         self.add_step(
             ExtractionStep(sobject, ExtractionScope.ALL_RECORDS, ["Id"] + key_fields)
         )
@@ -45,7 +56,7 @@ class ObjectMapperCache(ExtractOperation):
         if key in self._cache:
             err = f"The mapped object key {key} is duplicated."
             self.logger.error(err)
-            self.errors.append(err)
+            self.errors.append(err)  # FIXME: We don't have an `errors` member. Raise?
 
         self._cache[key] = value
 
@@ -60,6 +71,7 @@ class ObjectMapperCache(ExtractOperation):
                 self._store_cache_key(
                     r["Id"], tuple([sobject] + [r[key] for key in schema])
                 )
+                self._key_prefixes.add(r["Id"][:3])
 
     def store_result(self, sobjectname, record):
         schema = self._cache_schema[sobjectname]
@@ -76,7 +88,23 @@ class ObjectMapperCache(ExtractOperation):
 
         self.logger.info("Extracting mapped sObjects to cache")
 
-        return super().execute()
+        retval = super().execute()
+
+        if not retval:
+            return self._check_default_values()
+
+        return retval
+
+    def _check_default_values(self):
+        errors = False
+        for sobject in self._defaults:
+            if (sobject, *self._defaults[sobject]) not in self._cache:
+                self.logger.error(
+                    f"No record present for default mapping target {self._defaults[sobject]} for sObject {sobject}"
+                )
+                errors = True
+
+        return -1 if errors else 0
 
     def get_cached_value(self, cache_key: Union[str, Tuple[str]]):
         if cache_key is None:
@@ -84,25 +112,32 @@ class ObjectMapperCache(ExtractOperation):
 
         return self._cache.get(self._cache.get(cache_key))
 
-    def get_reference_transformer(
-        self, key_prefixes, miss_behavior: MappingMissBehavior, default: str = None,
-    ):
+    def get_reference_transformer(self):
         def transformer(id: str):
             # Make sure this is actually a reference to a mapped sObject
             # Polymorphic relationships may be only partially mapped.
 
-            if id[:3] not in key_prefixes:
+            # Important: the Id we're receiving has a key prefix from its source
+            # org, which may not be the same in our target org. That's why we
+            # store key prefixes from our loaded mapping data, so we know which
+            # Ids to map for polymorphic lookups.
+            if id[:3] not in self._key_prefixes:
                 return id
 
             mapped_value = self.get_cached_value(id)
 
             if mapped_value is None:
+                sobject = self.connection.get_sobject_name_for_id(id)
+                miss_behavior = self._behaviors[sobject]
+
                 if miss_behavior is MappingMissBehavior.ERROR:
                     raise MappingException(
                         f"No value available for mapped reference {id}."
                     )
                 elif miss_behavior is MappingMissBehavior.DEFAULT:
-                    return default
+                    return self.get_cached_value(
+                        (sobject, *self._defaults.get(sobject))
+                    )
 
             # MappingMissBehavior.DROP is equivalent to returning None
 

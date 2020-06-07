@@ -30,7 +30,20 @@ class LoadOperationLoader(OperationLoader):
         for mapping in mapped_schema:
             sobject = mapping["sobject"]
             key_fields = mapping["key-fields"]
-            self.result.mapper_cache.add_cached_sobject(sobject, key_fields)
+            if mapping["mapping-miss-behavior"] is amaxa.MappingMissBehavior.DEFAULT:
+                defaults = mapping.get("default-keys")
+                if not defaults:
+                    self.errors.append(
+                        f"A default-keys is required for any mapping with mapping-miss-behavior set to 'default'."
+                    )
+                    continue
+
+            self.result.mapper_cache.add_cached_sobject(
+                sobject,
+                key_fields,
+                mapping["mapping-miss-behavior"],
+                defaults=mapping.get("default-keys"),
+            )
 
         # Create the steps and data mappers
         for entry in self.input["operation"]:
@@ -76,21 +89,14 @@ class LoadOperationLoader(OperationLoader):
             for field in step.field_scope:
                 if field in field_map:
                     # This is a lookup field that refers to at least one mapped sObject
+                    # The mapper cache will handle the situation if we are mapping multiple
+                    # different objects within a polymorphic lookup, or if we are mapping
+                    # only some of the targets within a polymorphic lookup.
                     mapper = self.result.mappers.setdefault(
                         step.sobjectname, amaxa.DataMapper()
                     )
                     mapper.field_transforms.setdefault(field, []).append(
-                        self.result.mapper_cache.get_reference_transformer(
-                            [
-                                sobject["keyPrefix"]
-                                for sobject in self.connection.get_global_describe()[
-                                    "sobjects"
-                                ]
-                                if sobject["name"] in mapped_sobjects
-                            ],
-                            amaxa.MappingMissBehavior.ERROR,  # TODO: use the specified behavior
-                            # TODO: use any defaults specified
-                        ),
+                        self.result.mapper_cache.get_reference_transformer(),
                     )
 
     def _post_load_validate(self):
