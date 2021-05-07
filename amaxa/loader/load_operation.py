@@ -34,7 +34,7 @@ class LoadOperationLoader(OperationLoader):
                 defaults = mapping.get("default-keys")
                 if not defaults:
                     self.errors.append(
-                        f"A default-keys is required for any mapping with mapping-miss-behavior set to 'default'."
+                        "A default-keys is required for any mapping with mapping-miss-behavior set to 'default'."
                     )
                     continue
 
@@ -42,7 +42,7 @@ class LoadOperationLoader(OperationLoader):
                 sobject,
                 key_fields,
                 mapping["mapping-miss-behavior"],
-                defaults=mapping.get("default-keys"),
+                default=mapping.get("default-keys"),
             )
 
         # Create the steps and data mappers

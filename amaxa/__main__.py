@@ -109,7 +109,7 @@ def main():
             return -1
 
     if args.check_only:
-        logger.info(f"Input files validated successfully.")
+        logger.info("Input files validated successfully.")
         return 0
 
     ret = ex.run()
