@@ -58,7 +58,7 @@ class CredentialLoader(Loader):
         elif "username" in credentials and "jwt-file" in credentials:
             # JWT authentication with external keyfile.
             try:
-                with open(credentials["jwt-file"], "r") as jwt_file:
+                with open(credentials["jwt-file"], "r", encoding="utf-8") as jwt_file:
                     self.result = jwt_auth.jwt_login(
                         credentials["consumer-key"],
                         credentials["username"],
@@ -112,7 +112,7 @@ class CredentialLoader(Loader):
             credentials = credentials["jwt"]
             if "keyfile" in credentials:
                 # JWT authentication with external keyfile
-                with open(credentials["keyfile"], "r") as jwt_file:
+                with open(credentials["keyfile"], "r", encoding="utf-8") as jwt_file:
                     key = jwt_file.read()
 
                 logging.getLogger("amaxa").debug(

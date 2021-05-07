@@ -195,7 +195,7 @@ class test_CredentialLoader(unittest.TestCase):
                 {"session_id": "swordfish", "instance_url": "test.salesforce.com"},
             )
 
-        m.assert_any_call("jwt.key", "r")
+        m.assert_any_call("jwt.key", "r", encoding="utf-8")
         jwt_mock.assert_called()
         requests_mock.assert_called_once_with(
             "https://test.salesforce.com/services/oauth2/token",
@@ -483,7 +483,7 @@ class test_CredentialLoader(unittest.TestCase):
                 {"session_id": "swordfish", "instance_url": "test.salesforce.com"},
             )
 
-        m.assert_any_call("jwt.key", "r")
+        m.assert_any_call("jwt.key", "r", encoding="utf-8")
         jwt_mock.assert_called()
         requests_mock.assert_called_once_with(
             "https://test.salesforce.com/services/oauth2/token",

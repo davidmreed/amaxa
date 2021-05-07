@@ -5,11 +5,17 @@ import os.path
 sobject_describes = {}
 sobject_list = ["Account", "Contact", "Opportunity", "Task", "Attachment"]
 
-with open(os.path.join("assets", "test_describes", "sobjects.json"), "r") as d:
+with open(
+    os.path.join("assets", "test_describes", "sobjects.json"), "r", encoding="utf-8"
+) as d:
     root_describe = json.load(d)
 
 for sobject in sobject_list:
-    with open(os.path.join("assets", "test_describes", f"{sobject}.json"), "r") as d:
+    with open(
+        os.path.join("assets", "test_describes", f"{sobject}.json"),
+        "r",
+        encoding="utf-8",
+    ) as d:
         sobject_describes[sobject] = json.load(d)
 
 

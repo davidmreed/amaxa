@@ -39,7 +39,7 @@ class test_end_to_end(IntegrationTest):
                     self.assertEqual(0, main())
 
                 # Read the data in so we can validate once it's re-extracted.
-                with open("test.yml", "r") as fh:
+                with open("test.yml", "r", encoding="utf-8") as fh:
                     load_op = amaxa.loader.LoadOperationLoader(
                         yaml.safe_load(fh.read()),
                         amaxa.api.Connection(self.connection, "48.0"),
@@ -54,7 +54,9 @@ class test_end_to_end(IntegrationTest):
                     # For each object, look at the CSV to determine the record count
                     # and the name field(s) we should verify.
 
-                    with open("{}.csv".format(sobject), "r") as csv_file:
+                    with open(
+                        "{}.csv".format(sobject), "r", encoding="utf-8"
+                    ) as csv_file:
                         reader = csv.DictReader(csv_file)
                         for record in reader:
                             counts[sobject] = counts[sobject] + 1
@@ -71,7 +73,9 @@ class test_end_to_end(IntegrationTest):
 
                 # Validate the results
                 for sobject in sobject_list:
-                    with open("{}.csv".format(sobject), "r") as csv_file:
+                    with open(
+                        "{}.csv".format(sobject), "r", encoding="utf-8"
+                    ) as csv_file:
                         reader = csv.DictReader(csv_file)
                         for record in reader:
                             self.register_case_record(sobject, record["Id"])
@@ -116,7 +120,7 @@ class test_end_to_end_transforms(IntegrationTest):
                     self.assertEqual(0, main())
 
                 # Validate the results
-                with open("Account.csv", "r") as csv_file:
+                with open("Account.csv", "r", encoding="utf-8") as csv_file:
                     reader = csv.DictReader(csv_file)
                     for record in reader:
                         self.register_case_record("Account", record["Id"])
