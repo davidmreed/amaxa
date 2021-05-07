@@ -485,6 +485,12 @@ class test_ExtractionOperationLoader(unittest.TestCase):
         self.assertEqual("Task", result.steps[3].sobjectname)
         self.assertEqual(amaxa.ExtractionScope.QUERY, result.steps[3].scope)
 
+    def test_load_extraction_operation_creates_steps_files_mapped_sobjects(self):
+        raise NotImplementedError
+
+    def test_load_extraction_operation_creates_recordtype_step(self):
+        raise NotImplementedError
+
     @unittest.mock.patch("csv.DictWriter.writeheader")
     def test_load_extraction_operation_writes_correct_headers(self, dict_writer):
         context = self._run_success_test(

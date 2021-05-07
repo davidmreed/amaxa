@@ -38,6 +38,17 @@ Amaxa is free and open source software, distributed under the BSD License. Amaxa
 
 Documentation for Amaxa is available on `ReadTheDocs <https://amaxa.readthedocs.io>`_. The project is developed on `GitHub <https://github.com/davidmreed/amaxa>`_.
 
+Why Amaxa?
+----------
+
+Amaxa offers a number of features and design choices that differ from other data loaders and ETL tools.
+
+- Amaxa supports loading whole object networks in a single operation, not one object at a time.
+- Amaxa specializes in messy ETL operations, like selecting a coherent subset of complex data in a production Salesforce org and migrating it to a sandbox whose configuration mostly, but not entirely, matches. Amaxa's reference tracing, object mapping, and transform features help tailor operations to highly specific needs.
+- Amaxa supports all core Salesforce data model features supported by the Bulk API, including arbitrary-length text fields, polymorphic lookups, and arbitrarily complex models including hierarchies and reference cycles.
+- Amaxa focuses heavily on correctness, validation, and error management. Amaxa loads are recoverable if errors occur, and Amaxa runs extensive checks to ensure the operation is valid before starting. Amaxa itself is heavily tested to ensure correctness.
+- Amaxa is free, open source, and written in Python.
+
 What Does Amaxa Mean?
 ---------------------
 

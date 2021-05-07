@@ -1,4 +1,12 @@
-version: 1
+version: 2
+object-mappings:
+    - sobject: User
+      key-fields:
+        - Name
+    - sobject: RecordType
+      key-fields:
+        - SobjectType
+        - DeveloperName
 operation:
     -
         sobject: Account

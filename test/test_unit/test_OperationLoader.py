@@ -214,6 +214,9 @@ class test_OperationLoader(unittest.TestCase):
             context.errors,
         )
 
+    def test_validate_sobjects_flags_duplicate_entries(self):
+        raise NotImplementedError
+
     def test_validate_field_permissions_flags_fields(self):
         context = core.OperationLoader({}, None, InputType.LOAD_OPERATION)
         context.result = amaxa.LoadOperation(MockConnection())
