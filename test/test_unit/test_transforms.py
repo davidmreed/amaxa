@@ -12,7 +12,11 @@ class test_transforms(unittest.TestCase):
     def test_get_all_transforms(self):
         all_transforms = transforms.get_all_transforms()
 
-        assert all_transforms.keys() == {
+        # If integration tests have been run first, we may have an example transform present.
+        transform_keys = set(all_transforms.keys())
+        if "multiply" in transform_keys:
+            transform_keys.remove("multiply")
+        assert transform_keys == {
             "prefix",
             "suffix",
             "strip",

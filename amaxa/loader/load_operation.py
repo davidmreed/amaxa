@@ -85,7 +85,7 @@ class LoadOperationLoader(OperationLoader):
         # Create DictReaders and populate them in the context
         for (step, entry) in zip(self.result.steps, self.input["operation"]):
             try:
-                file_handle = open(entry["file"], "r")
+                file_handle = open(entry["file"], "r", encoding="utf-8")
                 input_file = csv.DictReader(file_handle)
                 self.result.file_store.set_file(
                     step.sobjectname, amaxa.FileType.INPUT, file_handle
@@ -102,7 +102,10 @@ class LoadOperationLoader(OperationLoader):
 
             try:
                 f = open(
-                    entry["result-file"], "w" if not self.use_state else "a", newline=""
+                    entry["result-file"],
+                    "w" if not self.use_state else "a",
+                    newline="",
+                    encoding="utf-8",
                 )
                 output = csv.DictWriter(
                     f,
