@@ -591,11 +591,7 @@ class ExtractOperation(Operation):
             self.required_ids[sobjectname].add(id)
 
     def get_dependencies(self, sobjectname):
-        return (
-            self.required_ids[sobjectname]
-            if sobjectname in self.required_ids
-            else set()
-        )
+        return self.required_ids.get(sobjectname, set())
 
     def get_sobject_ids_for_reference(self, sobjectname, field):
         ids = set()
@@ -609,21 +605,17 @@ class ExtractOperation(Operation):
         return ids
 
     def get_extracted_ids(self, sobjectname):
-        return (
-            self.extracted_ids[sobjectname]
-            if sobjectname in self.extracted_ids
-            else set()
-        )
+        return self.extracted_ids.get(sobjectname, set())
 
     def store_result(self, sobjectname, record):
         if sobjectname not in self.extracted_ids:
             self.extracted_ids[sobjectname] = set()
 
-        if SalesforceId(record["Id"]) not in self.extracted_ids[sobjectname]:
-            self.logger.debug(
-                "%s: extracting record %s", sobjectname, SalesforceId(record["Id"])
-            )
-            self.extracted_ids[sobjectname].add(SalesforceId(record["Id"]))
+        record_id = SalesforceId(record["Id"])
+
+        if record_id not in self.extracted_ids[sobjectname]:
+            self.logger.debug("%s: extracting record %s", sobjectname, record_id)
+            self.extracted_ids[sobjectname].add(record_id)
             self.file_store.get_csv(sobjectname, FileType.OUTPUT).writerow(
                 self.mappers[sobjectname].transform_record(record)
                 if sobjectname in self.mappers
@@ -632,9 +624,9 @@ class ExtractOperation(Operation):
 
         if (
             sobjectname in self.required_ids
-            and SalesforceId(record["Id"]) in self.required_ids[sobjectname]
+            and record_id in self.required_ids[sobjectname]
         ):
-            self.required_ids[sobjectname].remove(SalesforceId(record["Id"]))
+            self.required_ids[sobjectname].remove(record_id)
 
 
 class ExtractionStep(Step):

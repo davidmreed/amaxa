@@ -97,8 +97,11 @@ class ObjectMapperCache(ExtractOperation):
 
     def _check_default_values(self):
         errors = False
-        for sobject in self._defaults:
-            if (sobject, *self._defaults[sobject]) not in self._cache:
+        for sobject in self._behaviors:
+            if (
+                self._behaviors[sobject] is MappingMissBehavior.DEFAULT
+                and (sobject, *self._defaults[sobject]) not in self._cache
+            ):
                 self.logger.error(
                     f"No record present for default mapping target {self._defaults[sobject]} for sObject {sobject}"
                 )
