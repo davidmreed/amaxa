@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from .amaxa import (
     ExtractOperation,
@@ -31,6 +31,7 @@ class ObjectMapperCache(ExtractOperation):
         self._key_prefixes = set()
         self._behaviors = {}
         self._defaults = {}
+        self._extract_successful = True
 
     def add_cached_sobject(
         self,
@@ -56,7 +57,7 @@ class ObjectMapperCache(ExtractOperation):
         if key in self._cache:
             err = f"The mapped object key {key} is duplicated."
             self.logger.error(err)
-            self.errors.append(err)  # FIXME: We don't have an `errors` member. Raise?
+            self._extract_successful = False
 
         self._cache[key] = value
 
@@ -69,11 +70,11 @@ class ObjectMapperCache(ExtractOperation):
 
             for r in csv:
                 self._store_cache_key(
-                    r["Id"], tuple([sobject] + [r[key] for key in schema])
+                    r["Id"], tuple([sobject] + [str(r[key]) for key in schema])
                 )
                 self._key_prefixes.add(r["Id"][:3])
 
-    def store_result(self, sobjectname, record):
+    def store_result(self, sobjectname: str, record: Dict[str, Any]):
         schema = self._cache_schema[sobjectname]
         cache_key = tuple([sobjectname] + [record[f] for f in schema])
         self._store_cache_key(cache_key, record["Id"])
@@ -82,7 +83,7 @@ class ObjectMapperCache(ExtractOperation):
         super().initialize()
         self._read_mapping_files()
 
-    def execute(self):
+    def execute(self) -> int:
         """Extract data from the target org for the entire table of each mapped sObject.
         Populate the cache with keys formed from key_fields and values equal to Salesforce Ids."""
 
@@ -90,12 +91,18 @@ class ObjectMapperCache(ExtractOperation):
 
         retval = super().execute()
 
+        if not self._extract_successful:
+            self.logger.error(
+                "One or more errors occured while extracting mapped sObjects."
+            )
+            return -1
+
         if not retval:
             return self._check_default_values()
 
         return retval
 
-    def _check_default_values(self):
+    def _check_default_values(self) -> int:
         errors = False
         for sobject in self._behaviors:
             if (
@@ -109,13 +116,15 @@ class ObjectMapperCache(ExtractOperation):
 
         return -1 if errors else 0
 
-    def get_cached_value(self, cache_key: Union[str, Tuple[str]]):
+    def get_cached_value(
+        self, cache_key: Union[str, Tuple[str]]
+    ) -> Union[str, Tuple[str]]:
         if cache_key is None:
             return None
 
         return self._cache.get(self._cache.get(cache_key))
 
-    def get_reference_transformer(self):
+    def get_reference_transformer(self) -> Callable:
         def transformer(id: str):
             # Make sure this is actually a reference to a mapped sObject
             # Polymorphic relationships may be only partially mapped.
