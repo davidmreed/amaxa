@@ -587,14 +587,22 @@ class test_LoadOperationLoader(unittest.TestCase):
 
         m.assert_has_calls(
             [
-                unittest.mock.call("Account.csv", "r"),
-                unittest.mock.call("Contact.csv", "r"),
-                unittest.mock.call("Opportunity.csv", "r"),
-                unittest.mock.call("Task.csv", "r"),
-                unittest.mock.call("Account-results.csv", "w", newline=""),
-                unittest.mock.call("Contact-results.csv", "w", newline=""),
-                unittest.mock.call("Opportunity-results.csv", "w", newline=""),
-                unittest.mock.call("Task-results.csv", "w", newline=""),
+                unittest.mock.call("Account.csv", "r", encoding="utf-8"),
+                unittest.mock.call("Contact.csv", "r", encoding="utf-8"),
+                unittest.mock.call("Opportunity.csv", "r", encoding="utf-8"),
+                unittest.mock.call("Task.csv", "r", encoding="utf-8"),
+                unittest.mock.call(
+                    "Account-results.csv", "w", newline="", encoding="utf-8"
+                ),
+                unittest.mock.call(
+                    "Contact-results.csv", "w", newline="", encoding="utf-8"
+                ),
+                unittest.mock.call(
+                    "Opportunity-results.csv", "w", newline="", encoding="utf-8"
+                ),
+                unittest.mock.call(
+                    "Task-results.csv", "w", newline="", encoding="utf-8"
+                ),
             ],
             any_order=True,
         )
@@ -629,8 +637,10 @@ class test_LoadOperationLoader(unittest.TestCase):
 
         m.assert_has_calls(
             [
-                unittest.mock.call("Account.csv", "r"),
-                unittest.mock.call("Account-results.csv", "w", newline=""),
+                unittest.mock.call("Account.csv", "r", encoding="utf-8"),
+                unittest.mock.call(
+                    "Account-results.csv", "w", newline="", encoding="utf-8"
+                ),
             ],
             any_order=True,
         )
@@ -662,8 +672,10 @@ class test_LoadOperationLoader(unittest.TestCase):
 
         m.assert_has_calls(
             [
-                unittest.mock.call("Account.csv", "r"),
-                unittest.mock.call("Account-results.csv", "a", newline=""),
+                unittest.mock.call("Account.csv", "r", encoding="utf-8"),
+                unittest.mock.call(
+                    "Account-results.csv", "a", newline="", encoding="utf-8"
+                ),
             ],
             any_order=True,
         )

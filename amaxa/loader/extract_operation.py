@@ -144,7 +144,7 @@ class ExtractionOperationLoader(OperationLoader):
         # Create DictWriters and populate them in the context
         for (step, filename) in zip(self.result.steps, self.filenames):
             try:
-                file_handle = open(filename, "w", newline="")
+                file_handle = open(filename, "w", newline="", encoding="utf-8")
                 if step.sobjectname not in self.result.mappers:
                     fieldnames = step.field_scope
                 else:

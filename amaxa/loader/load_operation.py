@@ -135,7 +135,7 @@ class LoadOperationLoader(OperationLoader):
 
     def _open_input_file(self, filename, sobject):
         try:
-            file_handle = open(filename, "r")
+            file_handle = open(filename, "r", encoding="utf-8")
             input_file = csv.DictReader(file_handle)
             self.result.file_store.set_file(sobject, amaxa.FileType.INPUT, file_handle)
             self.result.file_store.set_csv(sobject, amaxa.FileType.INPUT, input_file)
@@ -156,7 +156,10 @@ class LoadOperationLoader(OperationLoader):
 
             try:
                 f = open(
-                    entry["result-file"], "w" if not self.use_state else "a", newline=""
+                    entry["result-file"],
+                    "w" if not self.use_state else "a",
+                    newline="",
+                    encoding="utf-8",
                 )
                 output = csv.DictWriter(
                     f,

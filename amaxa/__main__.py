@@ -122,6 +122,7 @@ def main():
             + ".state"
             + (".json" if json_mode else ".yaml"),
             "w",
+            encoding="utf-8",
         ) as state_file:
             state_file.write(save_state(ex, json_mode))
 

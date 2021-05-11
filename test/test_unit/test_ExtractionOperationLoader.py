@@ -459,10 +459,12 @@ class test_ExtractionOperationLoader(unittest.TestCase):
 
         m.assert_has_calls(
             [
-                unittest.mock.call("Account.csv", "w", newline=""),
-                unittest.mock.call("Contact.csv", "w", newline=""),
-                unittest.mock.call("Opportunity.csv", "w", newline=""),
-                unittest.mock.call("Task.csv", "w", newline=""),
+                unittest.mock.call("Account.csv", "w", newline="", encoding="utf-8"),
+                unittest.mock.call("Contact.csv", "w", newline="", encoding="utf-8"),
+                unittest.mock.call(
+                    "Opportunity.csv", "w", newline="", encoding="utf-8"
+                ),
+                unittest.mock.call("Task.csv", "w", newline="", encoding="utf-8"),
             ],
             any_order=True,
         )
