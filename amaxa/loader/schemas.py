@@ -93,7 +93,12 @@ OPTIONS_SCHEMA = {
     },
 }
 
-SOBJECT_OPTIONS_SCHEMA = {"type": "dict", "schema": {**OPTIONS_SCHEMA,}}
+SOBJECT_OPTIONS_SCHEMA = {
+    "type": "dict",
+    "schema": {
+        **OPTIONS_SCHEMA,
+    },
+}
 
 OPERATION_OPTIONS_SCHEMA = {
     "type": "dict",
@@ -259,7 +264,10 @@ SCHEMAS = {
                         },
                     },
                     "sfdx": _env_or_string(
-                        {"required": True, "excludes": ["jwt", "token", "username"],}
+                        {
+                            "required": True,
+                            "excludes": ["jwt", "token", "username"],
+                        }
                     ),
                 },
             },

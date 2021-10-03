@@ -716,8 +716,8 @@ class ExtractionStep(Step):
                 before_count = len(self.context.get_extracted_ids(self.sobjectname))
 
                 # Children
-                for l in self.self_lookups:
-                    self.perform_lookup_pass(l)
+                for lookup in self.self_lookups:
+                    self.perform_lookup_pass(lookup)
 
                 # Parents
                 self.resolve_registered_dependencies()
@@ -735,13 +735,15 @@ class ExtractionStep(Step):
         sobject_list = self.context.get_sobject_list()
 
         # Add a dependency for the reference in each self lookup of this record.
-        for l in self.self_lookups:
+        for lookup in self.self_lookups:
             if (
-                self.get_self_lookup_behavior_for_field(l)
+                self.get_self_lookup_behavior_for_field(lookup)
                 is not SelfLookupBehavior.TRACE_NONE
-                and result[l] is not None
+                and result[lookup] is not None
             ):
-                self.context.add_dependency(self.sobjectname, SalesforceId(result[l]))
+                self.context.add_dependency(
+                    self.sobjectname, SalesforceId(result[lookup])
+                )
 
         # Register any dependencies from dependent lookups
         # Note that a dependent lookup can *also* be a descendent lookup (e.g. Task.WhatId),

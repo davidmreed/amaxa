@@ -319,7 +319,10 @@ class test_CredentialLoader(unittest.TestCase):
 }"""
 
         self._run_authentication_test(
-            {"version": 2, "credentials": {"sfdx": "test"},},
+            {
+                "version": 2,
+                "credentials": {"sfdx": "test"},
+            },
             {
                 "session_id": "00DJ000000XXXXX!XXXXX",
                 "instance_url": "https://test-org.cs10.my.salesforce.com/",
@@ -343,7 +346,10 @@ class test_CredentialLoader(unittest.TestCase):
   }"""
 
         self._run_failure_test(
-            {"version": 2, "credentials": {"sfdx": "q"},},
+            {
+                "version": 2,
+                "credentials": {"sfdx": "q"},
+            },
             [
                 "SFDX failed to provide credentials with return code 1: No org configuration found for name q."
             ],
@@ -358,7 +364,10 @@ class test_CredentialLoader(unittest.TestCase):
         subprocess_mock.run.return_value.stdout = "{}"
 
         self._run_failure_test(
-            {"version": 2, "credentials": {"sfdx": "test"},},
+            {
+                "version": 2,
+                "credentials": {"sfdx": "test"},
+            },
             [
                 "SFDX failed to provide credentials with return code 1. Exception: 'status'"
             ],

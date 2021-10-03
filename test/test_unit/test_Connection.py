@@ -17,7 +17,9 @@ class test_Connection(unittest.TestCase):
         Connection(sf, api_version="52.0")
 
         bulk_mock.assert_called_once_with(
-            sessionId=sf.session_id, host="salesforce.com", API_version="52.0",
+            sessionId=sf.session_id,
+            host="salesforce.com",
+            API_version="52.0",
         )
 
     def test_get_global_describe_calls_salesforce(self):

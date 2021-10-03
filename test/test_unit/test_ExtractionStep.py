@@ -516,7 +516,10 @@ class test_ExtractionStep(unittest.TestCase):
             ]
         )
         oc.get_dependencies = Mock(
-            side_effect=[id_set, set([amaxa.SalesforceId("001000000000002")]),]
+            side_effect=[
+                id_set,
+                set([amaxa.SalesforceId("001000000000002")]),
+            ]
         )
         oc.connection.retrieve_records_by_id = Mock(
             return_value=[{"Id": amaxa.SalesforceId("001000000000001")}]
