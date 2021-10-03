@@ -13,7 +13,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: '3.8'
+          python-version: "3.9"
       - name: Update Pip
         shell: bash
         run: |
@@ -69,7 +69,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: '3.8'
+          python-version: "3.9"
       - name: Update Pip
         shell: bash
         run: |
@@ -118,5 +118,5 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./dist/amaxa.exe
-          asset_name: 'amaxa_windows.exe'
+          asset_name: "amaxa_windows.exe"
           asset_content_type: application/octet-stream
