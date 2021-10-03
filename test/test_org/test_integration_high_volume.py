@@ -42,7 +42,7 @@ class test_integration_high_volume(unittest.TestCase):
                 }
             )
 
-        op = amaxa.LoadOperation(Connection(self.connection, "48.0"))
+        op = amaxa.LoadOperation(Connection(self.connection, "52.0"))
         op.file_store = MockFileStore()
         op.file_store.records["Lead"] = records
         op.add_step(amaxa.LoadStep("Lead", set(["LastName", "Company"])))
@@ -54,7 +54,7 @@ class test_integration_high_volume(unittest.TestCase):
             100000, self.connection.query("SELECT count() FROM Lead").get("totalSize")
         )
 
-        oc = amaxa.ExtractOperation(Connection(self.connection, "48.0"))
+        oc = amaxa.ExtractOperation(Connection(self.connection, "52.0"))
         oc.file_store = MockFileStore()
 
         extraction = amaxa.ExtractionStep(

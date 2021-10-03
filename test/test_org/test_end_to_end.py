@@ -42,7 +42,7 @@ class test_end_to_end(IntegrationTest):
                 with open("test.yml", "r", encoding="utf-8") as fh:
                     load_op = amaxa.loader.LoadOperationLoader(
                         yaml.safe_load(fh.read()),
-                        amaxa.api.Connection(self.connection, "48.0"),
+                        amaxa.api.Connection(self.connection, "52.0"),
                     )
                     load_op.load()
 
