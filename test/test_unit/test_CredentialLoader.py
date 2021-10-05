@@ -331,7 +331,6 @@ class test_CredentialLoader(unittest.TestCase):
         subprocess_mock.run.assert_called_once_with(
             ["sfdx", "force:org:display", "--json", "-u", "test"],
             encoding="utf-8",
-            shell=True,
             capture_output=True,
         )
 
