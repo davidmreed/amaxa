@@ -150,7 +150,6 @@ class CredentialLoader(Loader):
             result = subprocess.run(
                 ["sfdx", "force:org:display", "--json", "-u", sfdx_username],
                 encoding="utf-8",
-                shell=True,
                 capture_output=True,
             )
 
