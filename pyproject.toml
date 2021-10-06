@@ -4,7 +4,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "amaxa"
-version = "0.9.6"
+version = "0.9.7"
 description = "Load and extract data from multiple Salesforce objects in a single operation, preserving links and network structure."
 license = "BSD-3-Clause"
 authors = ["David Reed <david@ktema.org>"]
@@ -23,33 +23,34 @@ amaxa = 'amaxa.__main__:main'
 
 
 [tool.poetry.dependencies]
-python = "^3.6.1"
-simple_salesforce = "^0.75.3"
-salesforce_bulk = "^2.1.0"
-pyyaml = "^5.3"
-cerberus = "^1.3.2"
-pyjwt = "^1.7.1"
-cryptography = "^2.8"
-requests = {version = "^2.23.0", extras = ["security"]}
+python = "^3.7"
+cryptography = "^35.0.0"
+requests = {version = "^2.26.0", extras = ["security"]}
+simple-salesforce = "^1.11.4"
+PyYAML = "^5.4.1"
+PyJWT = "^2.1.0"
+Cerberus = "^1.3.4"
+salesforce-bulk = "^2.2.0"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.4.1"
-pytest-cov = "^2.8.1"
-codecov = "^2.0.16"
-tox = "^3.14.5"
-black = "^19.10b0"
-pre-commit = "^2.2.0"
-flake8 = "^3.7.9"
-sphinx = "^2.4.4"
-pyinstaller = "^3.6"
-pefile = "^2019.4.18"
-macholib = "^1.14"
+black = "^21.9b0"
+pytest = "^6.2.5"
+pytest-cov = "^2.12.1"
+codecov = "^2.1.12"
+pre-commit = "^2.15.0"
+flake8 = "^3.9.2"
+Sphinx = "^4.2.0"
+pyinstaller = "^4.5.1"
+pefile = "^2021.9.3"
+macholib = "^1.15.2"
 pywin32-ctypes = "^0.2.0"
-importlib_resources = "^1.4.0"
+importlib-resources = "^5.2.2"
+tox = "^3.24.4"
+
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py36,py37,py38
+envlist = py37,py38,py39
 isolated_build = true
 
 [testenv]
@@ -62,7 +63,7 @@ passenv = INSTANCE_URL ACCESS_TOKEN
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py39']
 include = '\.pyi?$'
 exclude = '''
 

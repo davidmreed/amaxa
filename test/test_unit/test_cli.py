@@ -517,7 +517,12 @@ class test_CLI(unittest.TestCase):
         with unittest.mock.patch("builtins.open", m):
             with unittest.mock.patch(
                 "sys.argv",
-                ["amaxa", "-c", "credentials-good.yaml", "extraction-good-api.yaml",],
+                [
+                    "amaxa",
+                    "-c",
+                    "credentials-good.yaml",
+                    "extraction-good-api.yaml",
+                ],
             ):
                 return_value = main()
 
@@ -546,7 +551,12 @@ class test_CLI(unittest.TestCase):
         with unittest.mock.patch("builtins.open", m):
             with unittest.mock.patch(
                 "sys.argv",
-                ["amaxa", "-c", "credentials-good.yaml", "extraction-bad-api.yaml",],
+                [
+                    "amaxa",
+                    "-c",
+                    "credentials-good.yaml",
+                    "extraction-bad-api.yaml",
+                ],
             ):
                 return_value = main()
 

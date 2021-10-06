@@ -21,7 +21,7 @@ class IntegrationTest(unittest.TestCase):
         cls.connection = Salesforce(
             instance_url=os.environ["INSTANCE_URL"],
             session_id=os.environ["ACCESS_TOKEN"],
-            version="48.0",
+            version="52.0",
         )
 
     @classmethod

@@ -54,5 +54,6 @@ def test_validate_transform_options__invalid_options():
 
     schemas._validate_transform_options(field, {"name": "suffix", "options": {}}, error)
     error.assert_called_once_with(
-        field, "The options schema for transform suffix failed to validate: suffix",
+        field,
+        "The options schema for transform suffix failed to validate: suffix",
     )

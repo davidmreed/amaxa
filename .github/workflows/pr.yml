@@ -15,15 +15,15 @@ jobs:
       - name: Set up Python 3.8
         uses: actions/setup-python@v1
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - name: Set up Python 3.7
         uses: actions/setup-python@v1
         with:
-          python-version: '3.7'
-      - name: Set up Python 3.6
+          python-version: "3.7"
+      - name: Set up Python 3.9
         uses: actions/setup-python@v1
         with:
-          python-version: '3.6'
+          python-version: "3.9"
       - name: Update Pip
         shell: bash
         run: |
@@ -46,27 +46,27 @@ jobs:
       - name: Install SFDX
         shell: bash
         run: |
-            wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
-            mkdir sfdx-cli
-            tar xJf sfdx-linux-amd64.tar.xz -C sfdx-cli --strip-components 1
-            ./sfdx-cli/install
+          wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+          mkdir sfdx-cli
+          tar xJf sfdx-linux-amd64.tar.xz -C sfdx-cli --strip-components 1
+          ./sfdx-cli/install
       - name: Create Scratch Org
         shell: bash
         run: |
-            echo ${{ secrets.DEVHUB_SFDX_URL}} > ./DEVHUB_SFDX_URL.txt
-            sfdx force:auth:sfdxurl:store -f ./DEVHUB_SFDX_URL.txt -a DevHub -d
-            source assets/scripts/prep-scratch-org.sh
+          echo ${{ secrets.DEVHUB_SFDX_URL}} > ./DEVHUB_SFDX_URL.txt
+          sfdx force:auth:sfdxurl:store -f ./DEVHUB_SFDX_URL.txt -a DevHub -d
+          source assets/scripts/prep-scratch-org.sh
       - name: Run Tests
         shell: bash
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
-            source assets/scripts/get-auth-params.sh
-            poetry run tox test/test_org
-            poetry run codecov -F unit
+          source assets/scripts/get-auth-params.sh
+          poetry run tox test/test_org
+          poetry run codecov -F unit
       - name: Delete Scratch Org
         if: always()
-        run: 'sfdx force:org:delete -p -u amaxa'
+        run: "sfdx force:org:delete -p -u amaxa"
       - name: Store Results
         if: always()
         uses: actions/upload-artifact@v1

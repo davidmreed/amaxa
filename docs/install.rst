@@ -4,7 +4,7 @@ Installing Amaxa
 Installation
 ************
 
-Amaxa supports Python 3.6.1 or greater.
+Amaxa supports Python 3.7 or greater.
 
 Prebuilt, single-binary versions of Amaxa (created using ``PyInstaller``) are available in current `releases <https://github.com/davidmreed/amaxa/releases>`_ for Linux, Mac OS X, and Windows 10.
 
@@ -14,7 +14,7 @@ To install Amaxa using ``pip``, execute
 
     $ pip install amaxa
 
-Make sure to invoke within a Python 3.6+ virtual environment or specify Python 3.6 or greater as required by your operating system.
+Make sure to invoke within a Python 3.7+ virtual environment or specify Python 3.7 or greater as required by your operating system. Alternately, install with ``pipx`` to avoid dealing with virtual environments.
 
 Amaxa is operating system-agnostic but is primarily tested on Linux.
 
@@ -33,7 +33,7 @@ Then, create a virtual environment for Amaxa and install:
     $ pip install poetry
     $ poetry install
 
-Amaxa uses ``poetry`` to managed dependencies and ``tox`` with ``pytest`` to execute test runs.
+Amaxa uses ``poetry`` to manage dependencies and ``tox`` with ``pytest`` to execute test runs.
 
 If a valid Salesforce access token and instance URL are present in the environment variables ``INSTANCE_URL`` and ``ACCESS_TOKEN``, integration and end-to-end tests will be run against that Salesforce org; otherwise only unit tests are run. Note that **integration tests are destructive** and require data setup before running. Run integration tests **only** in a Salesforce DX scratch org.
 
