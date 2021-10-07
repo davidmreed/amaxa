@@ -12,14 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v1
-        with:
-          python-version: "3.8"
-      - name: Set up Python 3.7
-        uses: actions/setup-python@v1
-        with:
-          python-version: "3.7"
       - name: Set up Python 3.9
         uses: actions/setup-python@v1
         with:
@@ -62,7 +54,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           source assets/scripts/get-auth-params.sh
-          poetry run tox test/test_org
+          poetry run tox test/test_org -e py
           poetry run codecov -F unit
       - name: Delete Scratch Org
         if: always()
