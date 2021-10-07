@@ -521,10 +521,8 @@ class LoadStep(Step):
                     " ({}).".format(", ".join(e["fields"]))
                     if len(e["fields"]) > 0
                     else "",
-                    " " + e["extendedErrorDetails"]
-                    if e["extendedErrorDetails"] is not None
-                    else "",
-                )
+                    " " + (e.get("extendedErrorDetails") or ""),
+                ).strip()
                 for e in error
             ]
         )
