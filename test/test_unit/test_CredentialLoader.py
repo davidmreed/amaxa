@@ -44,6 +44,13 @@ class test_CredentialLoader(unittest.TestCase):
                 self.assertEqual([], credential_loader.errors)
                 self.assertIsNotNone(credential_loader.result)
 
+                if "username" in arguments:
+                    arguments["domain"] = (
+                        "test" if arguments.get("sandbox", False) else "login"
+                    )
+                    if "sandbox" in arguments:
+                        del arguments["sandbox"]
+
                 sf_mock.assert_called_once_with(version="52.0", **arguments)
 
     def test_credential_schema_validates_username_password_v1(self):

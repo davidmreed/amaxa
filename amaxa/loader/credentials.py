@@ -31,7 +31,7 @@ class CredentialLoader(Loader):
                 password=credentials["password"],
                 security_token=credentials.get("security-token", ""),
                 organizationId=credentials.get("organization-id", ""),
-                sandbox=credentials.get("sandbox", False),
+                domain="test" if credentials.get("sandbox", False) else "login",
                 version=self.api_version,
             )
 
@@ -101,7 +101,7 @@ class CredentialLoader(Loader):
                 password=credentials["password"],
                 security_token=credentials.get("security-token", ""),
                 organizationId=credentials.get("organization-id", ""),
-                sandbox=sandbox,
+                domain="test" if sandbox else "login",
                 version=self.api_version,
             )
 
