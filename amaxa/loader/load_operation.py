@@ -30,13 +30,14 @@ class LoadOperationLoader(OperationLoader):
         for mapping in mapped_schema:
             sobject = mapping["sobject"]
             key_fields = mapping["key-fields"]
-            if mapping["mapping-miss-behavior"] is amaxa.MappingMissBehavior.DEFAULT:
-                defaults = mapping.get("default-keys")
-                if not defaults:
-                    self.errors.append(
-                        "A default-keys is required for any mapping with mapping-miss-behavior set to 'default'."
-                    )
-                    continue
+            if (
+                mapping["mapping-miss-behavior"] is amaxa.MappingMissBehavior.DEFAULT
+                and "default-keys" not in mapping
+            ):
+                self.errors.append(
+                    "A default-keys is required for any mapping with mapping-miss-behavior set to 'default'."
+                )
+                continue
 
             self.result.mapper_cache.add_cached_sobject(
                 sobject,
@@ -281,6 +282,3 @@ class LoadOperationLoader(OperationLoader):
                             ", ".join(sorted(file_field_set)),
                         )
                     )
-
-    def _validate_caching_schema(self):
-        pass  # TODO: implement

@@ -201,7 +201,7 @@ class OperationLoader(Loader):
         # Validate that all fields designated for steps are real, writeable,
         # and of a supported type.
         all_sobjects = [step.sobjectname for step in self.result.steps]
-        if "object-mappings" in self.input:
+        if "object-mappings" in self.input:  # TODO: is this right for all cases?
             all_sobjects.extend(
                 entry["sobject"] for entry in self.input.get("object-mappings")
             )
@@ -261,7 +261,12 @@ class OperationLoader(Loader):
             )
         )
 
-        duplicate_objects = list(filter(lambda f: sobjects[f] > 1, sobjects.keys(),))
+        duplicate_objects = list(
+            filter(
+                lambda f: sobjects[f] > 1,
+                sobjects.keys(),
+            )
+        )
 
         if duplicate_objects:
             sobject_list = "\n".join(duplicate_objects)
