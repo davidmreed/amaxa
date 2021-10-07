@@ -3,15 +3,15 @@ Amaxa - a multi-object ETL tool for Salesforce
 
 |Unit Test Badge| |Integration Test Badge| |Code Coverage Badge| |Black Badge| |PyPI Badge| |Docs Badge|
 
-.. |Unit Test Badge| image:: https://github.com/davidmreed/amaxa/workflows/Feature%20Tests/badge.svg?branch=master
+.. |Unit Test Badge| image:: https://github.com/davidmreed/amaxa/workflows/Feature%20Tests/badge.svg?branch=main
   :target: https://github.com/davidmreed/amaxa
   :alt: Unit Tests
 
-.. |Integration Test Badge| image:: https://github.com/davidmreed/amaxa/workflows/Integration%20Test/badge.svg?branch=master
+.. |Integration Test Badge| image:: https://github.com/davidmreed/amaxa/workflows/Integration%20Test/badge.svg?branch=main
   :target: https://github.com/davidmreed/amaxa
   :alt: Integration Tests
 
-.. |Code Coverage Badge| image:: https://codecov.io/gh/davidmreed/amaxa/branch/master/graph/badge.svg
+.. |Code Coverage Badge| image:: https://codecov.io/gh/davidmreed/amaxa/branch/main/graph/badge.svg
   :target: https://codecov.io/gh/davidmreed/amaxa
   :alt: Code Coverage
 
