@@ -478,7 +478,12 @@ class test_LoadStep(unittest.TestCase):
                 "message": "There are duplicates",
                 "fields": [],
                 "extendedErrorDetails": None,
-            }
+            },
+            {
+                "statusCode": "DUPLICATES_DETECTED",
+                "message": "There are duplicates",
+                "fields": [],
+            },
         ]
         connection = MockConnection(
             bulk_insert_results=[
