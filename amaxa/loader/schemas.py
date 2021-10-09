@@ -374,6 +374,30 @@ SCHEMAS = {
         2: {
             "version": {"type": "integer", "required": True, "allowed": [2]},
             "options": OPERATION_OPTIONS_SCHEMA,
+            "object-mappings": {
+                "type": "list",
+                "schema": {
+                    "type": "dict",
+                    "schema": {
+                        "sobject": {"type": "string", "required": True},
+                        "key-fields": {
+                            "type": "list",
+                            "schema": {"type": "string"},
+                            "required": True,
+                        },
+                        "file": {
+                            "type": "string",
+                            "default_setter": lambda doc: f"{doc['sobject']}.mapping.csv",
+                        },
+                        "mapping-miss-behavior": {
+                            "type": "string",
+                            "allowed": amaxa.MappingMissBehavior.all_values(),
+                            "default": "error",
+                        },
+                        "default-keys": {"type": "list", "schema": {"type": "string"},},
+                    },
+                },
+            },
             "plugin-modules": {
                 "type": "list",
                 "schema": {"type": "string", "check_with": _validate_import_module},

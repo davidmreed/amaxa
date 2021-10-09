@@ -69,5 +69,7 @@ class test_Operation(unittest.TestCase):
 
         self.assertEqual(-1, op.run())
 
-        op.logger.error.assert_called_once_with("Unexpected exception Test occurred.")
+        op.logger.exception.assert_called_once_with(
+            "Unexpected exception Test occurred."
+        )
         op.file_store.close.assert_called_once_with()

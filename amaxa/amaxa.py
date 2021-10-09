@@ -36,6 +36,12 @@ class OutsideLookupBehavior(StringEnum):
     ERROR = "error"
 
 
+class MappingMissBehavior(StringEnum):
+    ERROR = "error"
+    DROP = "drop"
+    DEFAULT = "default"
+
+
 class LoadStage(StringEnum):
     INSERTS = "inserts"
     DEPENDENTS = "dependents"
@@ -126,7 +132,7 @@ class Operation(metaclass=abc.ABCMeta):
             self.initialize()
             return self.execute()
         except Exception as e:
-            self.logger.error("Unexpected exception {} occurred.".format(str(e)))
+            self.logger.exception("Unexpected exception {} occurred.".format(str(e)))
             return -1
         finally:
             self.file_store.close()
@@ -243,6 +249,7 @@ class LoadOperation(Operation):
         self.global_id_map = {}
         self.success = True
         self.stage = LoadStage.INSERTS
+        self.mapper_cache = None
 
     def register_new_id(self, sobjectname, old_id, new_id):
         self.global_id_map[old_id] = new_id
@@ -263,6 +270,15 @@ class LoadOperation(Operation):
         self.logger.info(
             "Starting load with sObjects %s", ", ".join(self.get_sobject_list())
         )
+
+        if self.mapper_cache:
+            self.logger.info("Loading mapped sObjects into cache")
+            self.mapper_cache.initialize()
+            result = self.mapper_cache.execute()
+            if result:
+                self.logger.error("Failed to load mapped sObjects")
+                return result
+
         if self.stage is LoadStage.INSERTS:
             for s in self.steps:
                 self.logger.info("%s: starting load", s.sobjectname)
@@ -573,11 +589,7 @@ class ExtractOperation(Operation):
             self.required_ids[sobjectname].add(id)
 
     def get_dependencies(self, sobjectname):
-        return (
-            self.required_ids[sobjectname]
-            if sobjectname in self.required_ids
-            else set()
-        )
+        return self.required_ids.get(sobjectname, set())
 
     def get_sobject_ids_for_reference(self, sobjectname, field):
         ids = set()
@@ -591,21 +603,17 @@ class ExtractOperation(Operation):
         return ids
 
     def get_extracted_ids(self, sobjectname):
-        return (
-            self.extracted_ids[sobjectname]
-            if sobjectname in self.extracted_ids
-            else set()
-        )
+        return self.extracted_ids.get(sobjectname, set())
 
     def store_result(self, sobjectname, record):
         if sobjectname not in self.extracted_ids:
             self.extracted_ids[sobjectname] = set()
 
-        if SalesforceId(record["Id"]) not in self.extracted_ids[sobjectname]:
-            self.logger.debug(
-                "%s: extracting record %s", sobjectname, SalesforceId(record["Id"])
-            )
-            self.extracted_ids[sobjectname].add(SalesforceId(record["Id"]))
+        record_id = SalesforceId(record["Id"])
+
+        if record_id not in self.extracted_ids[sobjectname]:
+            self.logger.debug("%s: extracting record %s", sobjectname, record_id)
+            self.extracted_ids[sobjectname].add(record_id)
             self.file_store.get_csv(sobjectname, FileType.OUTPUT).writerow(
                 self.mappers[sobjectname].transform_record(record)
                 if sobjectname in self.mappers
@@ -614,9 +622,9 @@ class ExtractOperation(Operation):
 
         if (
             sobjectname in self.required_ids
-            and SalesforceId(record["Id"]) in self.required_ids[sobjectname]
+            and record_id in self.required_ids[sobjectname]
         ):
-            self.required_ids[sobjectname].remove(SalesforceId(record["Id"]))
+            self.required_ids[sobjectname].remove(record_id)
 
 
 class ExtractionStep(Step):

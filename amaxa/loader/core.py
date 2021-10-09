@@ -1,5 +1,6 @@
 import abc
 import collections
+import itertools
 import json
 import logging
 
@@ -200,6 +201,10 @@ class OperationLoader(Loader):
         # Validate that all fields designated for steps are real, writeable,
         # and of a supported type.
         all_sobjects = [step.sobjectname for step in self.result.steps]
+        if "object-mappings" in self.input:  # TODO: is this right for all cases?
+            all_sobjects.extend(
+                entry["sobject"] for entry in self.input.get("object-mappings")
+            )
 
         for step in self.result.steps:
             field_map = self.result.get_field_map(step.sobjectname)
@@ -248,6 +253,29 @@ class OperationLoader(Loader):
                     )
 
     def _validate_sobjects(self, permission):
+        # Validate that sObjects are listed only once, and that they are not both mapped and included.
+        sobjects = collections.Counter(
+            entry["sobject"]
+            for entry in itertools.chain(
+                self.input["operation"], self.input.get("object-mappings", [])
+            )
+        )
+
+        duplicate_objects = list(
+            filter(
+                lambda f: sobjects[f] > 1,
+                sobjects.keys(),
+            )
+        )
+
+        if duplicate_objects:
+            sobject_list = "\n".join(duplicate_objects)
+            self.errors.append(
+                f"One or more sObjects is specified "
+                f"multiple times across `operation` and `object-mappings`: {sobject_list}"
+            )
+
+        # Validate that all listed sObjects can be accessed appropriately.
         try:
             global_describe = {
                 entry["name"]: entry
@@ -257,7 +285,9 @@ class OperationLoader(Loader):
             self.errors.append("Unable to authenticate to Salesforce: {}".format(e))
             return
 
-        for entry in self.input["operation"]:
+        for entry in itertools.chain(
+            self.input["operation"], self.input.get("object-mappings", [])
+        ):
             sobject = entry["sobject"]
 
             if (

@@ -30,13 +30,35 @@ Amaxa - a multi-object ETL tool for Salesforce
 Introduction
 ------------
 
-Amaxa is a new data loader and ETL (extract-transform-load) tool for Salesforce, designed to support the extraction and loading of complex networks of records in a single operation. For example, an Amaxa operation can extract a designated set of Accounts, their associated Contacts and Opportunities, their Opportunity Contact Roles, and associated Campaigns, and then load all of that data into another Salesforce org while preserving the connections between the records.
+Amaxa is a data loader and ETL (extract-transform-load) tool for Salesforce, designed to support the extraction and loading of complex networks of records in a single operation. For example, an Amaxa operation can extract a designated set of Accounts, their associated Contacts and Opportunities, their Opportunity Contact Roles, and associated Campaigns, and then load all of that data into another Salesforce org while preserving the connections between the records.
 
 Amaxa is designed to replace complex, error-prone workflows that manipulate data exports with spreadsheet functions like ``VLOOKUP()`` to maintain object relationships.
 
 Amaxa is free and open source software, distributed under the BSD License. Amaxa is by `David Reed <https://ktema.org>`_, (c) 2019-2020.
 
 Documentation for Amaxa is available on `ReadTheDocs <https://amaxa.readthedocs.io>`_. The project is developed on `GitHub <https://github.com/davidmreed/amaxa>`_.
+
+Why Amaxa?
+----------
+
+Amaxa offers a number of features and design choices that differ from other data loaders and ETL tools.
+
+- Amaxa supports loading whole object networks in a single operation, not one object at a time.
+- Amaxa specializes in messy ETL operations, like selecting a coherent subset of complex data in a production Salesforce org and migrating it to a sandbox whose configuration mostly, but not entirely, matches. Amaxa's reference tracing, object mapping, and transform features help tailor operations to highly specific needs.
+- Amaxa deemphasizes the use of SOQL queries in favor of defining scope through object relationships.
+- Amaxa supports all core Salesforce data model features supported by the Bulk API, including arbitrary-length text fields, polymorphic lookups, and arbitrarily complex models including hierarchies and reference cycles.
+- Amaxa focuses heavily on correctness, validation, and error management. Amaxa loads are recoverable and resumable if errors occur, and Amaxa runs extensive checks to ensure the operation is valid before starting. Amaxa itself is heavily tested to ensure correctness.
+- Amaxa uses easy-to-consume formats: CSV for all data storage and YAML for specifying data operations.
+- Amaxa is free, open source, and written in Python.
+
+Why Not Amaxa?
+--------------
+
+There are a few things Amaxa does not, or does not yet, support.
+
+- Amaxa does not support Person Accounts.
+- Amaxa does not support Content or binary files.
+- Amaxa does not support using the REST API (all operations are done via Bulk).
 
 What Does Amaxa Mean?
 ---------------------

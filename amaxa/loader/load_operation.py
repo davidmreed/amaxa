@@ -1,6 +1,6 @@
 import csv
 
-from .. import amaxa, constants
+from .. import amaxa, constants, mapper_cache
 from .core import OperationLoader
 from .input_type import InputType
 
@@ -13,12 +13,38 @@ class LoadOperationLoader(OperationLoader):
     def _validate(self):
         self._validate_sobjects("createable")
         self._validate_field_mapping()
+        self._validate_caching_schema()
 
     def _load(self):
         # Create the core operation
         self.result = amaxa.LoadOperation(self.connection)
+        self.result.mapper_cache = mapper_cache.ObjectMapperCache(
+            self.connection, self.result.file_store
+        )
 
+        # Collect options
         options = self.input.get("options") or {}
+
+        # Register mapped sObjects
+        mapped_schema = self.input.get("object-mappings", [])
+        for mapping in mapped_schema:
+            sobject = mapping["sobject"]
+            key_fields = mapping["key-fields"]
+            if (
+                mapping["mapping-miss-behavior"] is amaxa.MappingMissBehavior.DEFAULT
+                and "default-keys" not in mapping
+            ):
+                self.errors.append(
+                    "A default-keys is required for any mapping with mapping-miss-behavior set to 'default'."
+                )
+                continue
+
+            self.result.mapper_cache.add_cached_sobject(
+                sobject,
+                key_fields,
+                mapping["mapping-miss-behavior"],
+                default=mapping.get("default-keys"),
+            )
 
         # Create the steps and data mappers
         for entry in self.input["operation"]:
@@ -28,6 +54,7 @@ class LoadOperationLoader(OperationLoader):
             mapper = self._get_data_mapper(entry, "column", "field")
             if mapper is not None:
                 self.result.mappers[sobject] = mapper
+
             # Field scope
             field_scope = self._get_field_scope(entry)
             # Options dictionary
@@ -45,6 +72,33 @@ class LoadOperationLoader(OperationLoader):
 
             self._populate_lookup_behaviors(step, entry)
             self.result.add_step(step)
+
+        self._add_reference_mappers()
+
+    def _add_reference_mappers(self):
+        mapped_sobjects = self.result.mapper_cache.get_sobject_list()
+        if not mapped_sobjects:
+            return
+
+        for step in self.result.steps:
+            # Identify relationships to mapped objects and add transformers
+            field_map = self.result.get_filtered_field_map(
+                step.sobjectname,
+                lambda f: any([sobj in mapped_sobjects for sobj in f["referenceTo"]]),
+            )
+
+            for field in step.field_scope:
+                if field in field_map:
+                    # This is a lookup field that refers to at least one mapped sObject
+                    # The mapper cache will handle the situation if we are mapping multiple
+                    # different objects within a polymorphic lookup, or if we are mapping
+                    # only some of the targets within a polymorphic lookup.
+                    mapper = self.result.mappers.setdefault(
+                        step.sobjectname, amaxa.DataMapper()
+                    )
+                    mapper.field_transforms.setdefault(field, []).append(
+                        self.result.mapper_cache.get_reference_transformer(),
+                    )
 
     def _post_load_validate(self):
         self._validate_field_permissions("createable")
@@ -80,25 +134,26 @@ class LoadOperationLoader(OperationLoader):
 
         return fields
 
+    def _open_input_file(self, filename, sobject):
+        try:
+            file_handle = open(filename, "r", encoding="utf-8")
+            input_file = csv.DictReader(file_handle)
+            self.result.file_store.set_file(sobject, amaxa.FileType.INPUT, file_handle)
+            self.result.file_store.set_csv(sobject, amaxa.FileType.INPUT, input_file)
+        except IOError as exp:
+            self.errors.append(f"Unable to open file {filename} for reading ({exp}).")
+
     def _open_files(self):
         # Open all of the input and output files
         # Create DictReaders and populate them in the context
+
+        # Mapped sObjects
+        for entry in self.input.get("object-mappings", []):
+            self._open_input_file(entry["file"], entry["sobject"])
+
+        # Operation sObject
         for (step, entry) in zip(self.result.steps, self.input["operation"]):
-            try:
-                file_handle = open(entry["file"], "r", encoding="utf-8")
-                input_file = csv.DictReader(file_handle)
-                self.result.file_store.set_file(
-                    step.sobjectname, amaxa.FileType.INPUT, file_handle
-                )
-                self.result.file_store.set_csv(
-                    step.sobjectname, amaxa.FileType.INPUT, input_file
-                )
-            except IOError as exp:
-                self.errors.append(
-                    "Unable to open file {} for reading ({}).".format(
-                        entry["file"], exp
-                    )
-                )
+            self._open_input_file(entry["file"], step.sobjectname)
 
             try:
                 f = open(
@@ -135,9 +190,10 @@ class LoadOperationLoader(OperationLoader):
         self._validate_dependent_field_permissions()
         self._validate_lookup_behaviors()
         self._validate_input_file_columns()
+        self._validate_mapping_file_columns()
 
     def _validate_dependent_field_permissions(self):
-        # Validate that dependent lookups are updateable.
+        """Validate that dependent lookups are updateable."""
         for step in self.result.steps:
             field_map = self.result.get_field_map(step.sobjectname)
             for f in step.dependent_lookups | step.self_lookups:
@@ -148,12 +204,32 @@ class LoadOperationLoader(OperationLoader):
                         )
                     )
 
+    def _validate_mapping_file_columns(self):
+        """Validate the column sets in sObject mapping files."""
+
+        for entry in self.input.get("object-mappings", []):
+            input_file = self.result.file_store.get_csv(
+                entry["sobject"], amaxa.FileType.INPUT
+            )
+
+            file_field_set = set(input_file.fieldnames)
+            if "Id" in file_field_set:
+                file_field_set.remove("Id")
+
+            required_set = set(entry["key-fields"])
+
+            if required_set != file_field_set:
+                self.errors.append(
+                    f"Mapping file for sObject {entry['sobject']} does not contain the correct column set for this mapping."
+                )
+
     def _validate_input_file_columns(self):
-        # Validate the column sets in the input files.
-        # For each file, if validation is active, check as follows.
-        # For field group steps, validate that each column in the input file
-        # is mapped to a field within the field group, but allow "missing" columns.
-        # For explicit field list steps, require that the mapped column set and field scope be 1:1
+        """Validate the column sets in the input files.
+        For each file, if validation is active, check as follows.
+        For field group steps, validate that each column in the input file
+        is mapped to a field within the field group, but allow "missing" columns.
+        For explicit field list steps, require that the mapped column set and field scope be 1:1"""
+
         for (step, entry) in zip(self.result.steps, self.input["operation"]):
             if entry["input-validation"] == "none":
                 continue
