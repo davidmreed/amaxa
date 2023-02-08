@@ -24,7 +24,7 @@ amaxa = 'amaxa.__main__:main'
 
 [tool.poetry.dependencies]
 python = "^3.7"
-cryptography = "^35.0.0"
+cryptography = ">=35,<40"
 requests = {version = "^2.26.0", extras = ["security"]}
 simple-salesforce = "^1.11.4"
 PyYAML = "^5.4.1"
